@@ -1,0 +1,50 @@
+.cont-variants
+	width: 100%
+	padding: .5em
+	margin: 0
+	overflow-x: auto
+	display: flex
+	flex-direction: row
+	flex-wrap: nowrap
+	li 
+		display: table
+		padding: 0 .5em
+		&:first-child 
+			padding-left: 0
+		&:last-child
+			padding-right: 0
+		img 
+			cursor: pointer
+			margin: 1.5%
+			width: 100px
+			height: 100px
+
+.horizontal-ul-mobil
+	list-style: none
+	@media screen and (max-width: 992px)
+		width: 100%
+		overflow-x: auto
+		display: flex
+		flex-direction: row
+		flex-wrap: nowrap
+		li 
+			display: table
+			// padding: 0 .5em
+			&:first-child 
+				padding-left: 0
+			&:last-child
+				padding-right: 0
+.horizontal-ul
+	list-style: none
+	width: 100%
+	overflow-x: auto
+	display: flex
+	flex-direction: row
+	flex-wrap: nowrap
+	li 
+		display: table
+		// padding: 0 .5em
+		&:first-child 
+			padding-left: 0
+		&:last-child
+			padding-right: 0

@@ -1,0 +1,44 @@
+.auth 
+	// padding-bottom: 0 !important
+	padding-top: 140px
+	@media screen and (max-width: 992px)
+		padding-bottom: 50px
+	.col-img 
+		justify-content: center
+		align-items: center
+		img 
+			width: 300px
+			// height: 300px
+	.col-form
+		display: flex
+		flex-direction: column
+		align-items: center
+		justify-content: center
+		@media screen and (max-width: 576px)
+			// background: #FFF
+		img 
+			width: 120px
+			margin: 1em 0
+			@media screen and (min-width: 576px)
+				margin-bottom: 1em
+
+	.card
+		width: 100%
+		background: #FFF !important
+		.card-body
+			@media screen and (max-width: 576px)
+				padding-top: 0
+		@media screen and (max-width: 576px)
+			border: none
+		@media screen and (min-width: 576px)
+			border-radius: .6em
+			box-shadow: 0 2px 4px rgb(0 0 0 / 15%) !important
+
+.login
+	@media screen and (max-width: 992px)
+		min-height: calc(100vh - 50px) 
+	@media screen and (min-width: 992px)
+		min-height: 100vh 
+	h1, h6 
+		// margin-top: 0 !important
+		margin-bottom: 1em

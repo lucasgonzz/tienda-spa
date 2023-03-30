@@ -1,0 +1,43 @@
+.navbar-toggler, .btn-nav
+	position: relative
+	font-size: 1.2em
+	background: none !important
+	border: none !important
+	color: rgba(0, 0, 0, .7) 
+	// color: lighten(#FFF, 50)
+	padding: 0
+	position: relative
+	&:hover 
+		@media screen and (min-width: 992px)
+			color: #000
+			// color: lighten(#FFF, 25)
+		@media screen and (max-width: 992px)
+			color: #fff
+	.cant-cart-articles
+		position: absolute
+		top: 50%
+		left: 80%
+	@media screen and (min-width: 778px)
+		// padding-left: 1em
+	border: none
+	&:focus
+		outline: none
+	&:hover
+		text-decoration: none
+.dropdown-item
+	[class^='icon-']:before
+		padding-right: .5em !important
+
+.badge
+	margin-right: .2em
+	z-index: 100
+	position: inherit
+	// position: absolute !important
+	// @media screen and (min-width: 992px)
+	// 	left: 60%
+	// 	top: 40% 
+	// 	font-size: 70% !important
+	// @media screen and (max-width: 992px)
+	// 	left: 90%
+	// 	top: 10% !important
+	// 	font-size: 60% !important

@@ -1,0 +1,60 @@
+p
+	
+	@if ($theme == dark) 
+		color: #fff
+	@else if ($theme == ligth) 
+		color: rgba(0, 0, 0, .7)
+		 
+	&:last-child
+		margin-bottom: 0
+.time 
+	font-size: .7em
+	color: rgba(0,0,0,.7)
+	margin-bottom: 0
+	text-align: right
+.title 
+	font-weight: 800
+	margin: .7em 0 
+	text-align: left
+	font-size: 1.3em
+	@if ($theme == dark) 
+		color: rgba(255,255,255,.9)
+		background: rgba(0,0,0,.8)
+		border-left: 4px solid $green
+		padding: .5em
+	@else if $theme == ligth 	
+		color: rgba(0,0,0,.6)
+	&.sm 
+		font-size: 1em
+
+
+.text-black
+	color: #000 !important
+	
+.title-color 
+	color: rgba(0,0,0,.4)
+	
+.text-bold
+	font-weight: bold
+
+.text-with-icon
+	border-radius: 5px
+	color: $green
+	text-align: center
+	font-size: 1.2em
+	margin: 0 auto 1em
+	font-weight: bold
+	padding: 0 1em 1em
+	[class^='icon-']
+		font-size: 4em
+		display: block
+		&:before
+			margin-right: 0
+
+.no-content
+	font-size: 1.5em
+	[class^='icon-']
+		font-size: 2em
+		display: block
+
+

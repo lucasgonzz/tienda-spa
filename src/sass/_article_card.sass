@@ -1,0 +1,140 @@
+.article-card 
+	display: flex
+	flex-direction: column
+	position: relative
+	transition: all .2s
+	border: none !important
+	display: flex
+	@media screen and (min-width: 576px)
+		height: min-content !important
+	@media screen and (max-width: 576px)
+		flex-direction: row !important
+		padding: 1em
+		&:last-child
+			margin-bottom: 0 !important
+	&:hover
+		@media screen and (min-width: 992px)
+			box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset
+		.btn-remove-article
+			display: block
+		.btn-more-info
+			display: block
+	.btn-remove-article
+		color: #333 
+		position: absolute
+		top: .1em
+		right: .1em
+		font-size: 1.3em
+		cursor: pointer
+		@media screen and (min-width: 992px)
+			display: none
+
+
+	.vue-load-image 
+		@media screen and (max-width: 578px)
+			width: 30% 
+			.spinner-border
+				margin: 50px 0
+		@media screen and (min-width: 578px)
+			width: 100% 
+			.spinner-border
+				margin: 80px 0
+		img 	
+			width: 100%
+			@media screen and (min-width: 578px)
+				border-radius: .25em .25em 0 0
+			@media screen and (max-width: 578px)
+				border-radius: .25em
+
+	.card-article-body
+		padding: 1em 
+		display: flex
+		flex-direction: column
+		justify-content: space-between
+		// height: 200px
+		@media screen and (max-width: 576px)
+			width: 70%
+			padding: 0 1em 
+	.product-brand
+		text-align: left
+		font-size: .9em
+		font-weight: bold
+		margin-bottom: 0
+	.product-name
+		@media screen and (max-width: 576px)
+			font-size: 1em
+			margin-bottom: 0
+		@media screen and (min-width: 576px)
+			font-size: 1.2em
+			font-weight: 700
+			margin-bottom: 10px
+		text-align: left
+	.cont-color 
+		width: 100%
+		margin: 1em 0
+		display: flex
+		flex-direction: row
+		justify-content: flex-start
+		align-items: center
+		.color 
+			width: 50px !important
+			height: 50px !important
+			display: block
+			border-radius: 5px
+			transition: all .1s
+			display: flex
+		p
+			text-align: left
+			margin-left: 1em
+			margin-bottom: 0
+			font-size: .8em
+			overflow-wrap: break-word
+	.amount
+		font-size: 1em
+		text-align: left
+		margin-bottom: 0
+	span 
+		font-size: 1.8em
+	.prices 
+		display: flex
+		flex-direction: column
+		justify-content: flex-start
+	.product-price
+		font-size: 1.4em
+		margin-bottom: 0
+		text-align: left
+		img 
+			width: 30px
+			margin-bottom: 3px
+	.btn-more-info
+		margin-top: 10px
+.article-card-vertical
+	flex-direction: row !important
+	flex-wrap: wrap
+	@media screen and (max-width: 992px)
+		margin: 0 .3em
+		width: 250px
+	@media screen and (min-width: 992px) and (max-width: 1200px)
+		width: 100%
+		// width: 250px
+	@media screen and (min-width: 1200px)
+		width: 250px
+	padding: 0
+	.card-article-body
+		width: 100%
+		padding: 1em
+	.img-fluid
+		width: 100%
+		img 
+			border-radius: .25em .25em 0 0
+
+
+.product-price-efectivo
+	text-align: left
+	span
+		font-size: 1em
+		display: inline-block
+		padding: .3em .5em
+		border-radius: .2em 
+		color: #FFF
+		background: lighten(#28a745, 5)

@@ -1,0 +1,76 @@
+$color: ''
+@if ($theme == dark) 
+	$color: rgba(255,255,255,0.4)
+	// $color: rgba(255,255,255,0.75)
+@else if ($theme == ligth) 
+	$color: rgba(0,0,0,0.75)
+
+
+.shadow-1
+	box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+	-webkit-box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+	-moz-box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+.shadow-2
+	box-shadow: 0px 3px 10px 0px $color !important
+	-webkit-box-shadow: 0px 3px 10px 0px $color !important
+	-moz-box-shadow: 0px 3px 10px 0px $color !important
+.shadow-3
+	-webkit-box-shadow: 0px 0px 13px -6px $color !important
+	-moz-box-shadow: 0px 0px 10px -6px $color !important
+	box-shadow: 0px 0px 10px -6px $color !important
+.shadow-4
+	-webkit-box-shadow: 0px 0px 6px 1px rgba(0,0,0,.75) 
+	box-shadow: 0px 0px 6px 1px rgba(0,0,0,.75) 
+.shadow-5 
+	box-shadow: 0px 0px 5px 3px $color
+	-webkit-box-shadow: 0px 0px 5px 3px $color
+	-moz-box-shadow: 0px 0px 5px 3px $color
+.shadow-6
+	box-shadow: 0px 0px 9px 6px $color
+	-webkit-box-shadow: 0px 0px 9px 6px $color
+	-moz-box-shadow: 0px 0px 9px 6px $color
+
+.s
+	@if ($theme == dark) 
+		box-shadow: 0 2px 4px rgb(255, 255, 255, .15) !important
+	@else if ($theme == ligth) 
+		box-shadow: 0 2px 4px rgb(0, 0, 0, .15) !important
+
+.s-2
+	box-shadow: 3px 3px 4px $color !important
+
+.shadow-lg
+	@media screen and (max-width: 992px)
+		box-shadow: none !important
+	@media screen and (min-width: 992px)
+		box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+		-webkit-box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+		-moz-box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+
+@media screen and (max-width: 992px)
+	.shadow-1-sm-only
+		box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+		-webkit-box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+		-moz-box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+	.shadow-2-sm-only
+		box-shadow: 0px 3px 10px 0px $color !important
+		-webkit-box-shadow: 0px 3px 10px 0px $color !important
+		-moz-box-shadow: 0px 3px 10px 0px $color !important
+	.shadow-3-sm-only
+		-webkit-box-shadow: 0px 0px 10px -6px $color !important
+		-moz-box-shadow: 0px 0px 10px -6px $color !important
+		box-shadow: 0px 0px 10px -6px $color !important
+
+@media screen and (min-width: 992px)
+	.shadow-1-lg-only
+		box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+		-webkit-box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+		-moz-box-shadow: 0px 2px 6px -1px rgba(164,164,164,0.75) !important
+	.shadow-2-lg-only
+		-webkit-box-shadow: 0px 0px 6px -2px $color !important
+		-moz-box-shadow: 0px 0px 6px -2px $color !important
+		box-shadow: 0px 0px 6px -2px $color !important
+	.shadow-3-lg-only
+		-webkit-box-shadow: 0px 0px 10px -6px $color !important
+		-moz-box-shadow: 0px 0px 10px -6px $color !important
+		box-shadow: 0px 0px 10px -6px $color !important
