@@ -41,6 +41,7 @@ export default {
 		color: rgba(255,255,255,.8)
 		font-size: 15px
 		margin: 10px 0
+		margin-bottom: 0 !important
 	.comerciocity-info
 		font-size: 12px
 		text-align: left

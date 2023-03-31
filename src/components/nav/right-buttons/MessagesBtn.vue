@@ -1,5 +1,6 @@
 <template>
 	<div 
+	v-if="authenticated"
 	class="m-l-15 message-btn c-p apretable"
 	:class="active('Messages')"
 	@click="toMessages">

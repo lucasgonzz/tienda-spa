@@ -6,7 +6,7 @@
 			Producto agotado
 		</p>
 		<div
-		class="add-to-cart shadow-2-sm-only m-b-15">
+		class="add-to-cart m-b-15">
 			<b-button
 			@click="addAdvise"
 			variant="success"

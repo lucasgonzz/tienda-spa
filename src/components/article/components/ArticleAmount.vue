@@ -16,7 +16,7 @@
 			</b-button>
 			<b-form-input
 			type="number"
-			min="1"
+			:min="1"
 			:max="max"
 			v-model="amount"></b-form-input>
 			<b-button
@@ -67,6 +67,7 @@ export default {
 	flex-direction: columns
 	align-items: center
 	justify-content: space-between
+	width: 100%
 	.btn-content
 		display: flex
 		flex-direction: columns

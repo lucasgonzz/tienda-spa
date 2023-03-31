@@ -5,17 +5,11 @@
             <!-- <notifications-permissions></notifications-permissions> -->
             <nav-component></nav-component>
             <b-container fluid class="container-principal">
-                <b-button
-                v-if="new_version"
-                @click="refreshApp"
-                class="btn-update"
-                variant="success">
-                    Hay una nueva version disponible, click para actualizar
-                </b-button>
                 <transition name="slide-left">
                     <router-view/>
                 </transition>
                 <btn-whats-app></btn-whats-app>
+                <footer-component></footer-component>
             </b-container>
         </div>
     </div>
@@ -25,12 +19,14 @@ import NavComponent from '@/components/nav/Index'
 import UpdateButton from '@/components/common/UpdateButton'
 import BtnWhatsApp from '@/components/common/BtnWhatsApp'
 import LogoLoading from '@/components/common/LogoLoading'
+import FooterComponent from '@/components/common/footer/Index'
 import WebSockets from '@/mixins/WebSockets'
 import transitions from '@/mixins/transitions'
 import firebase from '@/mixins/firebase'
 import articles from '@/mixins/articles'
 // import NotificationsPermissions from '@/components/nav/modals/NotificationsPermissions'
 import app from '@/mixins/app'
+import update_app from '@/mixins/update_app'
 import VueScreenSize from 'vue-screen-size'
 export default {
     components: {
@@ -39,8 +35,9 @@ export default {
         BtnWhatsApp,
         // NotificationsPermissions,
         LogoLoading,
+        FooterComponent,
     },
-    mixins: [WebSockets, transitions, app, firebase, articles, VueScreenSize.VueScreenSizeMixin],
+    mixins: [WebSockets, transitions, update_app, app, firebase, articles, VueScreenSize.VueScreenSizeMixin],
     computed: {
         authenticated() {
             return this.$store.state.auth.authenticated
@@ -76,9 +73,6 @@ export default {
         }
     },
     created() {
-        document.addEventListener(
-            'swUpdated', this.showRefreshUI, { once: true }
-        );
         if (location.href.indexOf("www.") > -1) {
             console.log('tiene www')
             location.replace(process.env.VUE_APP_APP_URL);
@@ -100,14 +94,6 @@ export default {
         })
     },
     methods: {
-        showRefreshUI (e) {
-            console.log('Se recibio el evento desde App.vue')
-            this.new_version = true
-        },
-        refreshApp () {
-            console.log('Se llamo refreshApp.')
-            location.reload(true)
-        },
         async callMethods() {
             console.log('callMethods')
             if (!this.data_loaded) {
@@ -117,7 +103,7 @@ export default {
                 await this.$store.dispatch('categories/getIndex')
                 await this.$store.dispatch('platelets/getModels')
                 // await this.$store.dispatch('coins/getCoins')
-                await this.$store.dispatch('last_searchs/getLastSearchsForSearchPage')
+                // await this.$store.dispatch('last_searchs/getLastSearchsForSearchPage')
                 // await this.$store.dispatch('articles/getArticlesNames')
                 // await this.$store.dispatch('commerce/getWorkdays')
                 await this.$store.dispatch('payment_methods/getModels')

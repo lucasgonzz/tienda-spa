@@ -46,7 +46,6 @@
 				<articles-list></articles-list> 
 			</b-col>
 		</b-row>
-		<footer-component></footer-component>
 	</div>
 </template>
 <script>
@@ -62,7 +61,6 @@ import Categories from '@/components/categories/components/Categories'
 import OrderBy from '@/components/home/components/OrderBy'
 import SubCategories from '@/components/categories/components/SubCategories'
 import WaitingCall from '@/components/home/components/WaitingCall'
-import FooterComponent from '@/components/common/footer/Index'
 export default {
 	name: 'Home',
     metaInfo() {
@@ -83,7 +81,6 @@ export default {
         OrderBy,
         SubCategories,
         WaitingCall,
-        FooterComponent,
 	},
 	computed: {
 		selected_category() {

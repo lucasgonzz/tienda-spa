@@ -4,7 +4,14 @@
 	class="container-logo">
 		<img 
 		src="@/assets/icon.png" alt="">
-        <b-spinner variant="success"></b-spinner>
+        
+        <b-spinner 
+        v-if="!there_is_update"
+        variant="success"></b-spinner>
+		<b-progress 
+		v-else
+		variant="success" :value="progress" :max="100" show-progress animated></b-progress>
+
         <p
         class="text-success">
         	{{ message }}
@@ -12,7 +19,9 @@
 	</div> 
 </template>
 <script>
+import update_app from '@/mixins/update_app'
 export default {
+	mixins: [update_app],
 	computed: {
 		loading() {
 			return this.$store.state.auth.loading
@@ -44,6 +53,8 @@ export default {
 	.spinner-border 
 		width: 25px
 		height: 25px
+	.progress 
+		width: 200px
 	p 
 		margin-top: 10px
 		font-weight: bold

@@ -19,11 +19,17 @@
 		</div>	
 		<div 
 		class="item">
-			Contacto	
+			<router-link 
+			:to="{name: 'Contacto'}">
+				Contacto	
+			</router-link>
 		</div>
 		<div 
 		class="item">
-			Quienes somos	
+			<router-link 
+			:to="{name: 'QuienesSomos'}">
+				Quienes somos	
+			</router-link>
 		</div>
 		<div
 		v-if="is_mobile">
@@ -76,7 +82,7 @@ export default {
 		border-top: 1px solid rgba(0,0,0,.1) 
 		flex-direction: row 
 		align-items: center
-	.item 
+	.item
 		cursor: pointer 
 		margin: 0 1em	
 		position: relative
@@ -84,7 +90,8 @@ export default {
 			font-weight: bold  
 		@media screen and (max-width: 992px)
 			padding: 15px 0
-		
+		a 
+			color: #333 
 
 	.item-categories
 		@media (hover: hover) 

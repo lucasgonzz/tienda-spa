@@ -9,9 +9,13 @@
 			<brand-btn></brand-btn>
 
 			<buscador
-			v-if="!is_mobile"></buscador>	
+			v-if="route_name != 'Payment' && !is_mobile"></buscador>	
 			
-			<right-buttons></right-buttons>
+			<right-buttons
+			v-if="route_name != 'Payment'"></right-buttons>
+			
+			<info-compra-segura
+			v-if="route_name == 'Payment'"></info-compra-segura>
 		</b-navbar>
 		
 		<footer-nav></footer-nav>
@@ -42,7 +46,7 @@ export default {
 	components: { 
 		BrandBtn: () => import('@/components/nav/BrandBtn'),
 		RightButtons: () => import('@/components/nav/right-buttons/Index'),
-		Collapse: () => import('@/components/nav/Collapse'),
+		InfoCompraSegura: () => import('@/components/nav/InfoCompraSegura'),
 		FooterNav: () => import('@/components/nav/footer/Index'),
 		Buscador: () => import('@/components/nav/buscador/Index'),			
 		Mobile: () => import('@/components/nav/Mobile'),			
@@ -93,9 +97,6 @@ export default {
 	padding: .3em 15px
 	display: flex
 	justify-content: center !important
-
-	.collapse
-		padding: 0 1em
 
 	// Estilos para link de escritrio
 	.navbar-nav 

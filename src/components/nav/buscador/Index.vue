@@ -58,12 +58,15 @@ export default {
 			this.results = [] 
 			if (e.key == 'Enter') {
 				this.clearResults()
-				this.$store.commit('categories/setPage', 1)
+				// this.$store.commit('categories/setPage', 1)
+				this.$store.commit('categories/setIsFromSearch', true)
+				this.$store.commit('categories/setSelectedCategory', null)
+				this.$store.commit('categories/setSelectedSubCategory', null)
 				this.$store.dispatch('categories/searchArticles')
 				if (this.$route.name != 'Home') {
 					this.$router.push({name: 'Home'})
-					this.scrollTo('articles-list')
 				}
+				this.scrollTo('articles-list')
 			} else if (e.key != 'ArrowDown' && e.key != 'ArrowUp') {
 				this.loading = true 
 				if (this.interval) {

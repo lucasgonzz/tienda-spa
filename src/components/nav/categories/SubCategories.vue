@@ -22,6 +22,7 @@ export default {
 			console.log(sub_category)
 			this.$store.commit('categories/setSelectedCategory', null)
 			this.$store.commit('categories/setSelectedSubCategory', sub_category)
+				this.$store.commit('categories/setIsFromSearch', false)
 			this.$store.dispatch('categories/getArticles')
 			if (this.route_name != 'Home' || this.$route.params.category == 'ultimos-ingresados') {
 				this.$router.push({name: 'Home'})

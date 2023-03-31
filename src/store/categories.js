@@ -12,6 +12,7 @@ export default {
 
 		selected_category: null,
 		selected_sub_category: null,
+		is_from_search: false,
 
 		sub_categories_to_show: [],
 		order_by: 'fecha-mayor-menor',
@@ -75,6 +76,9 @@ export default {
 		setSelectedSubCategory(state, value) {
 			state.selected_sub_category = value
 		},
+		setIsFromSearch(state, value) {
+			state.is_from_search = value 
+		},
 		setPage(state, value) {
 			state.page = value
 		},
@@ -125,6 +129,7 @@ export default {
 			})
 		},
 		getArticles({ commit, state }) {
+			commit('setPage', 1)
 			commit('setLoadingArticles', true)
 			let category_id = 0
 			if (state.selected_category) {
@@ -134,10 +139,10 @@ export default {
 			if (state.selected_sub_category) {
 				sub_category_id = state.selected_sub_category.id
 			}
-			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+process.env.VUE_APP_COMMERCE_ID)
+			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
 			.then(res => {
 				commit('setLoadingArticles', false)
-				commit('setArticles', res.data.articles)
+				commit('setArticles', res.data.articles.data)
 				commit('setOrder')
 			})
 			.catch(err => {
@@ -146,6 +151,7 @@ export default {
 			})
 		},
 		getIndex({ commit, state }) {
+			commit('setPage', 1)
 			commit('setLoadingArticles', true)
 			return axios.get(`api/articles/featured-last-uploads/${ process.env.VUE_APP_COMMERCE_ID }?page=1`)
 			.then(res => {
@@ -160,9 +166,10 @@ export default {
 			})
 		},
 		searchArticles({ commit, state }) {
+			commit('setPage', 1)
 			commit('setLoadingArticles', true)
-			commit('setSelectedCategory', {id: -1, is_results: true})
-			commit('setSelectedSubCategory', {id: -1, name: 'Resultados'})
+			// commit('setSelectedCategory', {id: -1, is_results: true})
+			// commit('setSelectedSubCategory', {id: -1, name: 'Resultados'})
 			return axios.get(`/api/articles/search/${state.search_query}/${process.env.VUE_APP_COMMERCE_ID}`)
 			.then(res => {
 				commit('setLoadingArticles', false)

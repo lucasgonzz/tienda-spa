@@ -19,6 +19,11 @@ id="articles-list">
 		</p>
 		<p
 		class="title"
+		v-else-if="is_from_search">
+			Resultados
+		</p>
+		<p
+		class="title"
 		v-else>
 			Ultimos ingresos
 		</p>
@@ -32,7 +37,6 @@ id="articles-list">
 			:article="article"></article-card>
 
 			<infinite-loading 
-			v-if="selected_category && (selected_category.is_index || selected_category.is_results)"
 			spinner="spiral"
 			@infinite="infiniteHandler">
 				<div slot="no-more" class="not-results">
@@ -118,6 +122,9 @@ export default {
 		selected_category() {
 			return this.$store.state.categories.selected_category
 		},
+		is_from_search() {
+			return this.$store.state.categories.is_from_search
+		},
 		categories() {
 			return this.$store.state.categories.categories
 		},
@@ -130,13 +137,17 @@ export default {
 			this.scroll++
 		},
 		infiniteHandler($state) {
-			if (this.page < 3) {
+			if ((this.page < 3 || this.is_from_search) && this.articles.length >= 6) {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
-				if (this.selected_category && this.selected_category.is_index) {
-					url += 'featured-last-uploads'
-				} else {
+				if (this.selected_category) {
+					url += 'from-category/'+this.selected_category.id+'/0'
+				} else if (this.selected_sub_category) {
+					url += 'from-category/0/'+this.selected_sub_category.id
+				} else if (this.is_from_search) {
 					url += 'search/'+this.search_query
+				} else {
+					url += 'featured-last-uploads'
 				}
 				url += `/${process.env.VUE_APP_COMMERCE_ID}?page=${this.page}`
 				console.log(url)

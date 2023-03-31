@@ -10,7 +10,8 @@
 			</h3>
 			<p
 			v-for="category in categories"
-			:key="category.id">
+			:key="category.id"
+			@click="setSelectedCategory(category)">
 				{{ category.name }}
 			</p>
 		</b-col>
@@ -20,12 +21,19 @@
 				Contactanos
 			</h3>
 			<p>
-				<i class="icon-message"></i>
-				{{ commerce.email }}
+				<a 
+				:href="'mailto:'+commerce.email">
+					<i class="icon-message"></i>
+					{{ commerce.email }}
+				</a>
 			</p>
 			<p>
-				<i class="icon-whatsapp"></i>
-				{{ commerce.phone }}
+				<a 
+    			:href="'https://api.whatsapp.com/send?phone='+commerce.phone"
+    			target="_blank">
+					<i class="icon-whatsapp"></i>
+					{{ commerce.phone }} 
+    			</a>
 			</p>
 		</b-col>
 		<b-col
@@ -33,13 +41,15 @@
 			<h3>
 				Buscanos en
 			</h3>
-			<p>
+			<p
+			v-if="commerce.instagram">
 				<a target="_blank" :href="commerce.instagram">
 					<i class="icon-instagram"></i>
 					Instagram
 				</a>
 			</p>
-			<p>
+			<p
+			v-if="commerce.facebook">
 				<a target="_blank" :href="commerce.facebook">
 					<i class="icon-facebook"></i>
 					Facebook
@@ -50,7 +60,9 @@
 	</b-row>
 </template>
 <script>
+import categories from '@/mixins/_categories'
 export default {
+	mixins: [categories],
 	computed: {
 		categories() {
 			return this.$store.state.categories.categories
@@ -136,8 +148,11 @@ export default {
 		color: rgba(0,0,0,.9)
 		font-size: 15px
 		margin-bottom: 20px
+		cursor: pointer 
 	p 
 		padding-left: 35px
+		&:last-child
+			margin-bottom: 20px
 		i 
 			padding-right: 7px
 </style>

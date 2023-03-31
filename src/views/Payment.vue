@@ -43,7 +43,7 @@ export default {
 </script>
 <style lang="sass">
 .payment-view
-	padding: 170px 0
+	padding: 130px 0
 	h5
 		text-align: left !important
 		margin: 35px 0 !important

@@ -31,6 +31,8 @@ import Maps from '../views/Maps.vue'
 import SocialLogin from '../views/SocialLogin.vue'
 import Callback from '../views/Callback.vue'
 import Cupons from '../views/Cupons.vue'
+import Contacto from '../views/Contacto.vue'
+import QuienesSomos from '../views/QuienesSomos.vue'
 
 Vue.use(VueRouter)
 
@@ -180,6 +182,16 @@ Vue.use(VueRouter)
         path: '/cupones',
         name: 'Cupons',
         component: Cupons,
+    },
+    {
+        path: '/contacto',
+        name: 'Contacto',
+        component: Contacto,
+    },
+    {
+        path: '/quienes-somos',
+        name: 'QuienesSomos',
+        component: QuienesSomos,
     },
 
 ]

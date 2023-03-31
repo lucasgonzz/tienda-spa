@@ -34,7 +34,6 @@
 			</b-col>
 		</b-row>
 		<questions></questions>
-		<footer-component></footer-component>
 	</div>
 </template>
 <script>
@@ -51,7 +50,6 @@ import Similars from '@/components/article/components/Similars'
 import Preguntar from '@/components/article/components/Preguntar'
 import Categories from '@/components/categories/components/Categories'
 import Platelets from '@/components/home/components/platelets/Index'
-import FooterComponent from '@/components/common/footer/Index'
 import articles from '@/mixins/articles'
 export default {
 	name: 'Article',
@@ -78,7 +76,6 @@ export default {
 		Preguntar,
 		Categories,
 		Platelets,
-		FooterComponent,
 	},
 	data() {
 		return {
@@ -157,4 +154,5 @@ export default {
 .position
 	@media screen and (min-width: 1200px)
 		position: absolute
+		width: 100%
 </style>

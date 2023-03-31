@@ -38,10 +38,11 @@ export default {
 			return page_name == this.current_page ? 'active-link' : ''
 		},
 		home() {
-			this.$store.dispatch('categories/getIndex')
 			// this.$store.commit('categories/setIndexAsSelectedCategory')
+			this.$store.commit('categories/setIsFromSearch', false)
 			this.$store.commit('categories/setSelectedCategory', null)
 			this.$store.commit('categories/setSelectedSubCategory', null)
+			this.$store.dispatch('categories/getIndex')
 
 			if (this.$route.params.category != 'ultimos-ingresados') {
 				this.$router.push({name: 'Home', params: {category: 'ultimos-ingresados'}})

@@ -29,7 +29,9 @@
 	</div>
 </template>
 <script>
+import categories from '@/mixins/_categories'
 export default {
+	mixins: [categories],
 	props: {
 		show: Boolean,
 	},
@@ -48,16 +50,9 @@ export default {
 	},
 	methods: {
 		setCategory(category) {
-			console.log(category)
-			if (!category.sub_categories.length) {
-				this.$store.commit('categories/setSelectedCategory', category)
-				this.$store.dispatch('categories/getArticles')
-				if (this.route_name != 'Home' || this.$route.params.category == 'ultimos-ingresados') {
-					this.$router.push({name: 'Home'})
-				}
-				this.$store.commit('auth/setMobileSidebarVisibility', false)
-				this.scrollTo('articles-list')
-			} else if (this.is_mobile) {
+			if (!this.is_mobile) {
+				this.setSelectedCategory(category)
+			} else {
 				if (this.show_sub_category == category.id) {
 					this.show_sub_category = 0
 				} else {

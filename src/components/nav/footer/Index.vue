@@ -1,5 +1,6 @@
 <template>
 	<div
+	v-if="route_name != 'Payment'"
 	class="footer-nav">
 		<buscador	
 		class="d-lg-none"></buscador>

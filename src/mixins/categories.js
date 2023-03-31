@@ -18,6 +18,9 @@ export default {
 		selected_sub_category() {
 			return this.$store.state.categories.selected_sub_category
 		},
+		is_from_search() {
+			return this.$store.state.categories.is_from_search
+		},
 		loading_categories() {
 			return this.$store.state.categories.loading_categories
 		},
