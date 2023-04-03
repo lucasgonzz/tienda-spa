@@ -27,10 +27,12 @@ export default {
 }
 </script>
 <style lang="sass">
+@import '@/sass/_custom'
 .message-btn 
 	display: flex
 	flex-direction: row 
 	align-items: center 
+	color: $color_text
 	i 
 		font-size: 1.2em
 </style>

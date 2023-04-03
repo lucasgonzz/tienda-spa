@@ -10,19 +10,16 @@
 	</div>
 </template>
 <script>
+import search from '@/mixins/search'
 export default {
+	mixins: [search],
 	props: {
 		results: Array,
 	},
 	methods: {
 		moreResults() {
 			this.$emit('clearResults')
-			this.$store.commit('categories/setPage', 1)
-			this.$store.dispatch('categories/searchArticles')
-			if (this.$route.path != '/') {
-				this.$router.push({name: 'Home'})
-				this.scrollTo('articles-list')
-			}
+			this.searchArticle()
 		}
 	}
 }

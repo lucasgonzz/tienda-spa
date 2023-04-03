@@ -33,10 +33,12 @@ export default {
 }
 </script>
 <style lang="sass">
+@import '@/sass/_custom'
 .btn-carrito
 	position: relative
 	i 
 		font-size: 1.2em
+		color: $color_text
 	.badge
 		padding: 5px 8px
 		font-size: 14px

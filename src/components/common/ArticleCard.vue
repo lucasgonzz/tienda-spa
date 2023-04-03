@@ -14,7 +14,7 @@
 		class="img-fluid">
 			<img 
 			slot="image"
-			:src="article_image">
+			:src="articleImage(article)">
 	        <b-spinner
 			slot="preloader"
 	        variant="success"></b-spinner>
@@ -128,17 +128,19 @@ export default {
 			}
 			return class_
 		},
-		article_image() {
-			if (this.article.images.length) {
-				return this.article.images[0].hosting_url
-			}
-			return null
-			if (this.article.color) {
-				let images = this.getImagesFromSelectedColor(this.article)
-				return this.imageUrl(images[0].hosting_url)
-			}
-			return this.image(this.article)
-		},
+		// article_image() {
+		// 	if (this.article.images.length) {
+		// 		return this.article.images[0].hosting_url
+		// 	} else if (this.commerce.default_article_image_url) {
+		// 		return this.commerce.default_article_image_url
+		// 	}
+		// 	return null
+		// 	if (this.article.color) {
+		// 		let images = this.getImagesFromSelectedColor(this.article)
+		// 		return this.imageUrl(images[0].hosting_url)
+		// 	}
+		// 	return this.image(this.article)
+		// },
 		article_name() {
 			if (this.article.variant) {
 				return this.article.name + ' ' + this.article.variant.description

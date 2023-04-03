@@ -1,6 +1,6 @@
 <template>
 	<div
-	class="m-l-15 d-none d-lg-block">
+	class="m-l-15 d-none d-lg-block auth-btn">
 		<div 
 		v-if="authenticated && !is_mobile">
 			<b-dropdown 
@@ -82,7 +82,9 @@
 			class="c-p"
 			:class="active('Login')"
 			@click="toLogin">
-				Ingresar
+				<span>
+					Ingresar
+				</span>
 			</div>
 		</div>
 	</div>
@@ -101,7 +103,10 @@ export default {
 		background: none !important
 		border: none !important
 		box-shadow: none !important
-		color: #000
+
+.auto-btn
+	span, .dropdown-toggle
+		color: $color_text !important
 
 .active-link
 	.nav-link
@@ -125,5 +130,5 @@ export default {
 	.active-link
 		a
 			font-weight: bold
-			color: #000 !important
+			color: $color_text
 </style>

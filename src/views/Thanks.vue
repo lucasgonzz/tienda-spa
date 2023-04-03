@@ -29,7 +29,7 @@
 					</div>
 				</div>
 			</b-col>
-			<order-phone></order-phone>
+			<!-- <order-phone></order-phone> -->
 		</b-row>
 	</div>
 </template>

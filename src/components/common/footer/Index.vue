@@ -1,5 +1,6 @@
 <template>
 	<b-row
+	v-if="show"
 	:class="margin_bottom"
 	class="footer">
 		<b-col
@@ -64,6 +65,9 @@ import categories from '@/mixins/_categories'
 export default {
 	mixins: [categories],
 	computed: {
+		show() {
+			return this.route_name != 'Messages'
+		},
 		categories() {
 			return this.$store.state.categories.categories
 		}, 

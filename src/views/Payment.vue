@@ -6,6 +6,15 @@
 			md="8"
 			lg="6"
 			cols="12">
+				<div>
+					<h5>
+						Tu pedido
+					</h5>
+					<last-article 
+					v-for="article in cart.articles"
+					:show_added_info="false"
+					:article="article"></last-article>
+				</div>
 				<deliver></deliver>
 				<addresses></addresses>
 				<delivery-zones></delivery-zones>
@@ -34,10 +43,16 @@ export default {
 		Cupon,
 		Description,
 		BtnSave,
+		LastArticle: () => import('@/components/nav/right-buttons/cart-btn/LastArticle'),
 	},
 	created() {
 		this.setTitle('Pedido')
 		this.$store.commit('cart/setPaymentMethod', null)
+	},
+	computed: {
+		cart() {
+			return this.$store.state.cart.cart
+		}
 	}
 }	
 </script>

@@ -30,7 +30,9 @@
 	</div>				
 </template>
 <script>
+import search from '@/mixins/search'
 export default {
+	mixins: [search],
 	components: {
 		Result: () => import('@/components/nav/buscador/Result'),
 		MoreResultsBtn: () => import('@/components/nav/buscador/MoreResultsBtn'),
@@ -54,19 +56,10 @@ export default {
 	},
 	methods: {
 		callSearch(e) {
-			console.log(e.key)
 			this.results = [] 
 			if (e.key == 'Enter') {
 				this.clearResults()
-				// this.$store.commit('categories/setPage', 1)
-				this.$store.commit('categories/setIsFromSearch', true)
-				this.$store.commit('categories/setSelectedCategory', null)
-				this.$store.commit('categories/setSelectedSubCategory', null)
-				this.$store.dispatch('categories/searchArticles')
-				if (this.$route.name != 'Home') {
-					this.$router.push({name: 'Home'})
-				}
-				this.scrollTo('articles-list')
+				this.searchArticle()
 			} else if (e.key != 'ArrowDown' && e.key != 'ArrowUp') {
 				this.loading = true 
 				if (this.interval) {
@@ -161,4 +154,19 @@ export default {
 		width: 100%
 		background: $green
 		z-index: 300
+		@media screen and (max-width: 992px)
+			max-height: 60vh
+			overflow-y: scroll
+
+		&::-webkit-scrollbar 
+			width: 9px
+			height: 9px
+
+		&::-webkit-scrollbar-track 
+			background: rgba(0,0,0,0)
+
+		&::-webkit-scrollbar-thumb 
+			background-color: lighten($blue, 20)
+			border-radius: 10px
+			border: 2px solid #ffffff
 </style>

@@ -69,6 +69,7 @@ export default {
 }
 </script>
 <style lang="sass">
+@import '@/sass/_custom'
 .items-list
 	display: flex
 	justify-content: center
@@ -86,12 +87,13 @@ export default {
 		cursor: pointer 
 		margin: 0 1em	
 		position: relative
+		color: $color_text
 		&:hover
 			font-weight: bold  
 		@media screen and (max-width: 992px)
 			padding: 15px 0
 		a 
-			color: #333 
+			color: $color_text
 
 	.item-categories
 		@media (hover: hover) 

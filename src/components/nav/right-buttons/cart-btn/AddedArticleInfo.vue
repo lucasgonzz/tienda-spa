@@ -49,7 +49,7 @@ export default {
 		right: 0
 
 	@media screen and (min-width: 992px)
-		right: -100px
+		right: -59px
 
 	&::before 
 		position: absolute
@@ -62,9 +62,9 @@ export default {
 		border-right: 7px solid transparent
 		border-bottom: 7px solid #DEDEDE
 		@media screen and (max-width: 992px)
-			right: 3%
+			right: 11.5%
 		@media screen and (min-width: 992px)
-			left: 59%
+			left: 64%
 
 	.btn-cancel
 		position: absolute 

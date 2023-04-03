@@ -152,6 +152,9 @@ export default {
 		},
 		getIndex({ commit, state }) {
 			commit('setPage', 1)
+			commit('setIsFromSearch', false)
+			commit('setSelectedCategory', null)
+			commit('setSelectedSubCategory', null)
 			commit('setLoadingArticles', true)
 			return axios.get(`api/articles/featured-last-uploads/${ process.env.VUE_APP_COMMERCE_ID }?page=1`)
 			.then(res => {
@@ -167,6 +170,9 @@ export default {
 		},
 		searchArticles({ commit, state }) {
 			commit('setPage', 1)
+			commit('setIsFromSearch', true)
+			commit('setSelectedCategory', null)
+			commit('setSelectedSubCategory', null)
 			commit('setLoadingArticles', true)
 			// commit('setSelectedCategory', {id: -1, is_results: true})
 			// commit('setSelectedSubCategory', {id: -1, name: 'Resultados'})

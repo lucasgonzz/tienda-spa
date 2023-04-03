@@ -4,7 +4,7 @@
 		<div 
 		class="data">
 			<img 
-			:src="article.images[0].hosting_url">
+			:src="articleImage(article)">
 			<div>
 				<p>
 					{{ article.name }}
@@ -12,21 +12,25 @@
 				<p>
 					{{ article.pivot.amount }} x {{ price(article.final_price) }}
 				</p>
-				<p>
-					<strong>
-						¡Agregado al carrito con exito!
-					</strong>
-				</p>
-				<p>
-					<strong>
-						Total 
-					</strong>
-					({{ cart.articles.length }} productos): {{ price(total) }}
-				</p>
+				<div
+				v-if="show_added_info">
+					<p>
+						<strong>
+							¡Agregado al carrito con exito!
+						</strong>
+					</p>
+					<p>
+						<strong>
+							Total 
+						</strong>
+						({{ cart.articles.length }} productos): {{ price(total) }}
+					</p>
+				</div>
 			</div>	
 		</div>
 		<hr>
 		<b-button
+		v-if="show_added_info"
 		@click="_toCart"
 		block
 		variant="primary">
@@ -41,6 +45,10 @@ export default {
 	mixins: [nav, cart],
 	props: {
 		article: Object,
+		show_added_info: {
+			type: Boolean, 
+			default: true,
+		}
 	},
 	methods: {
 		_toCart() {

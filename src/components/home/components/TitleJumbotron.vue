@@ -6,6 +6,7 @@
 			<carousel
 			v-if="titles.length"
 			autoplay 
+			:navigationEnabled="!is_mobile"
 			centerMode
 			navigationNextLabel="<i class='icon-right'></i>"
 			navigationPrevLabel="<i class='icon-left'></i>"
@@ -88,7 +89,25 @@ export default {
 	}
 }
 </script>
-<style scoped lang="sass">
+<style lang="sass">
+.VueCarousel
+	.VueCarousel-navigation-button
+		// position: absolute !important
+		// background: red
+		border: 1px solid #333
+		border-radius: 50%
+		font-size: 30px
+		width: 50px
+		height: 50px
+		display: flex
+		justify-content: center 
+		align-items: center 
+	.VueCarousel-navigation-next
+		right: 70px
+	.VueCarousel-navigation-prev
+		left: 70px
+	.VueCarousel-slide
+		width: 100%
 .title-image
 	display: flex
 	flex-direction: row

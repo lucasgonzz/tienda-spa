@@ -146,6 +146,14 @@ export default {
 		}
 	},
 	methods: {
+		articleImage(article) {
+			if (article.images.length) {
+				return article.images[0].hosting_url
+			} else if (this.commerce.default_article_image_url) {
+				return this.commerce.default_article_image_url
+			}
+			return null
+		},
 		routeString(value) {
 			return value.toLowerCase().replaceAll(' ', '-')
 		},

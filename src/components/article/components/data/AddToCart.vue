@@ -62,7 +62,11 @@ export default {
 		buyNow() {
 			this.article_to_show.amount = this.amount
 			this.article_to_show.color = this.color
-			if (this.checkColors() && this.checkSizes()) {
+			this.article_to_show.pivot = {
+				amount: this.amount,
+				color_id: this.color ? this.color.id : null
+			}
+			// if (this.checkColors() && this.checkSizes()) {
 				this.$store.commit('cart/addArticle', this.article_to_show)
 				if (this.authenticated) {
 					this.$store.dispatch('cart/save')
@@ -71,7 +75,7 @@ export default {
 					this.$cookies.set('redirect_to', 'Payment')
 					this.$router.push({name: 'Login'})
 				}
-			}
+			// }
 		},
 		addToCart() {
 			this.article_to_show.amount = this.amount 
@@ -80,7 +84,7 @@ export default {
 				amount: this.amount,
 				color_id: this.color ? this.color.id : null
 			}
-			if (this.checkColors() && this.checkSizes()) {
+			// if (this.checkColors() && this.checkSizes()) {
 				this.$store.commit('cart/addArticle', this.article_to_show)
 				if (this.authenticated) {
 					this.$store.dispatch('cart/save')
@@ -92,7 +96,7 @@ export default {
 					document.getElementById('added-article-info').classList.add('added-article-info-active')
 				}
 				// this.$router.push({name: 'Home'})
-			}
+			// }
 		},
 		addToCartCookie() {
 			localStorage.cart = JSON.stringify(this.cart) 

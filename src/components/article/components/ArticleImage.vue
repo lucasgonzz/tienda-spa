@@ -23,7 +23,6 @@
 			:paginationPadding="5"
 			:paginationActiveColor="variant_color"
 			:perPage="1"
-			:navigationEnabled="!is_mobile"
 			:navigateTo="index"
 			:adjustableHeight="true">
 				<slide
@@ -79,7 +78,15 @@ export default {
 				})
 				return images
 			}
-			return this.article.images
+			if (this.article.images.length) {
+				return this.article.images
+			} else if (this.commerce.default_article_image_url) {
+				return [
+					{
+						hosting_url: this.commerce.default_article_image_url	
+					}
+				]
+			}
 		},
 		loading() {
 			return this.$store.state.articles.loading_article_to_show

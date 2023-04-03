@@ -92,6 +92,7 @@ export default {
             this.$store.commit('auth/setLoading', false)
             this.callMethods()
         })
+        this.$scrollToTop()
     },
     methods: {
         async callMethods() {

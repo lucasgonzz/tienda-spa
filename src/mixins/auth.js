@@ -57,6 +57,9 @@ export default {
 		redirectAfterLogin() {
 			console.log('redirigiendo a '+this.$cookies.get('redirect_to'))
 			this.$router.replace({name: this.$cookies.get('redirect_to')})
+			if (this.commerce.online_prices == 'only_buyers_with_comerciocity_client') {
+                this.$store.dispatch('categories/getIndex')
+			}
 		}
 
 	}
