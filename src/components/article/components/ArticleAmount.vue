@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="article && can_see_prices"
+	v-if="article && articlePriceEfectivo(article)"
 	class="article-amount m-b-20">
 		<span>
 			Unidades

@@ -3,7 +3,7 @@
 	class="m-t-15">
 		<p
 		v-if="cart_payment_method && cart_payment_method.type && cart_payment_method.type.name == 'MercadoPago'"
-		class="text-with-icon b-w s">
+		class="text-with-icon text-black b-w s">
 			<i class="icon-exclamation"></i>
 			Luego de que MercadoPago procese tu pago, no olvides <strong>regresar al sitio</strong>, presionando el botón "Volver al sitio", para que actualicemos la información de tu pago y enviemos tu pedido.
 		</p>

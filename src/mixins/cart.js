@@ -64,7 +64,7 @@ export default {
 			})
 			return total
 		},
-		total_with_discount() {
+		total_with_cupon() {
 			let total = this.total 
 			if (this.cupon) {
 				if (this.cupon.amount) {
@@ -75,23 +75,17 @@ export default {
 			}
 			return total
 		},
+		total_with_payment_method_discount() {
+			if (this.cart_payment_method.discount) {
+				return this.total_with_cupon - (this.total_with_cupon * this.cart_payment_method.discount / 100)
+			}
+			return this.total_with_cupon
+		},
 		total_with_deliver() {
-			return this.total_with_discount + Number(this.cart_delivery_zone.price)
+			return this.total_with_payment_method_discount + Number(this.cart_delivery_zone.price)
 		},
 		total_final() {
 			return this.total_with_deliver
-			// if (!this.cart.deliver && this.cart.payment_method == 'efectivo') {
-			// 	return this.total_efectivo
-			// }
-			// if (!this.cart.deliver && this.cart.payment_method == 'tarjeta') {
-			// 	return this.total_tarjeta
-			// }
-			// if (this.cart.deliver && this.cart.payment_method == 'efectivo') {
-			// 	return this.total_efectivo + this.deliver_price
-			// }
-			// if (this.cart.deliver && this.cart.payment_method == 'tarjeta') {
-			// 	return this.total_tarjeta + this.deliver_price
-			// }
 		}
 	},
 	methods: {

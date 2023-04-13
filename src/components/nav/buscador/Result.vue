@@ -4,7 +4,7 @@
 class="result">
 	<div class="data">
 		<img 
-		:src="model.images[0].hosting_url">
+		:src="articleImage(model)">
 		<div>
 			<p>
 				{{ model.name }}

@@ -103,6 +103,7 @@ export default {
 		background: none !important
 		border: none !important
 		box-shadow: none !important
+		color: $color_text
 
 .auto-btn
 	span, .dropdown-toggle

@@ -63,7 +63,7 @@ export default {
 			return this.$store.state.political.ciudades	
 		},
 		provincias() {
-			return this.$store.state.political.provincias	
+			return this.$store.state.political.provincias
 		},
 		address() {
 			return this.$store.state.address.address
@@ -74,7 +74,7 @@ export default {
 				text: 'Seleccione la provincia',
 				value: '',
 			})
-			this.provincias.forEach(prov => {
+			this.provincias.sort((a, b) => a.nombre > b.nombre)	.forEach(prov => {
 				options.push({
 					text: prov.iso_nombre,
 					value: prov.iso_nombre,

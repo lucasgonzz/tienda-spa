@@ -5,10 +5,11 @@
 // $green:    #B68EFF;
 
 // Cali
-// $green:    #D8CDB8;
+$green:    #D8CDB8;
+$blue: #D8CDB8;
 
 // Refrigeracion colman
-$green:    #4987ba;
+// $green:    #4987ba;
 
 // NebulaStore
 // $green:    #364f99;
@@ -19,12 +20,12 @@ $green:    #4987ba;
 // $theme: dark;
 $theme: ligth;
 
-// $color_text: #333;
-$color_text: rgba(255,255,255,.9);
+$color_text: #333;
+// $color_text: rgba(255,255,255,.9);
 
 // $blue: #007bff;
 // $blue: #28a745;
-$blue: #6c757d;
+// $blue: #6c757d;
 
 @import 'node_modules/bootstrap/scss/bootstrap.scss';
 @import 'node_modules/bootstrap-vue/src/index.scss';

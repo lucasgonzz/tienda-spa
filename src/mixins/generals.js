@@ -106,15 +106,6 @@ export default {
 			})
 			return is_open
 		},
-		can_see_prices() {
-			if (this.commerce.online_prices == 'all') {
-				return true
-			} else if (this.commerce.online_prices == 'only_registered') {
-				return this.authenticated
-			} else if (this.commerce.online_prices == 'only_buyers_with_comerciocity_client') {
-				return this.authenticated && this.user.comercio_city_client_id
-			}
-		},
 		percentage_card_formated() {
 			return this.percentageToMultiply(this.commerce.percentage_card)
 		},
@@ -226,15 +217,13 @@ export default {
 			return formated ? this.price(price) : price
 		},
 		articlePriceEfectivo(article, formated = true) {
-			if (this.commerce.online_prices == 'only_registered' && !this.authenticated) {
-				console.log('entro en only_registered')
+			if (this.commerce.online_price_type.slug == 'only_registered' && !this.authenticated) {
+				console.log('No se muestran percio porque esta en only_registered')
 				return null
-			} else if (this.commerce.online_prices == 'only_buyers_with_comerciocity_client' && (!this.authenticated || !this.user.comercio_city_client)) {
+			} else if (this.commerce.online_price_type.slug == 'only_buyers_with_comerciocity_client' && (!this.authenticated || !this.user.comercio_city_client)) {
 				console.log('entro en only_buyers_with_comerciocity_client')
 				console.log('authenticated:')
 				console.log(this.authenticated)
-				console.log('comercio_city_client:')
-				console.log(this.user.comercio_city_client)
 				return null
 			} else {
 				let price = article.final_price

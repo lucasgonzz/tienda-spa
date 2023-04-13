@@ -1,6 +1,6 @@
 <template>
 	<p 
-	v-if="can_see_prices"
+	v-if="articlePriceEfectivo(article_to_show)"
 	class="price">
 		{{ articlePriceEfectivo(article_to_show) }}
 	</p>

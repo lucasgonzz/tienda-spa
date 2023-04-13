@@ -1,6 +1,6 @@
 <template>
 	<div 
-	class="name-heart">
+	class="name-heart m-b-15">
 		<p class="product-name">
 			{{ article_to_show.name }}
 		</p>

@@ -16,7 +16,8 @@
 			cols="12"
 			lg="10"
 			xl="8">
-				<list></list>
+				<list
+				class="m-t-15"></list>
 			</b-col>
 		</b-row>
 	</div>

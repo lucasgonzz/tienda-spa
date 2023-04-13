@@ -142,6 +142,7 @@ export default {
 		padding: 50px
 		img, .vue-load-image
 			max-width: 100%
+			min-width: 50%
 			max-height: calc(100vh - 250px)
 			border-radius: 10px
 			padding: 0 5px

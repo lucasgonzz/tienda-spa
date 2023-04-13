@@ -1,7 +1,7 @@
 <template>
 	<div
 	class="featured-list"
-	v-if="!selected_category && !selected_sub_category && !is_from_search">
+	v-if="!selected_category && !selected_sub_category && !is_from_search && featured.length">
 		<p 
 		class="title m-md-b-0">
 			Destacados

@@ -7,6 +7,13 @@
 			{{ payment_method.name }}
 		</p>
 		<p 
+		v-if="payment_method.discount"
+		class="discount">
+			<i class="icon-right"></i>
+			Descuento del 
+			{{ payment_method.discount }}%
+		</p>
+		<p 
 		v-if="payment_method.description"
 		class="description">
 			<i class="icon-right"></i>

@@ -7,6 +7,13 @@
 			</span>
 		</p>
 		<p
+		v-if="cart_payment_method && cart_payment_method.discount">
+			Descuento por Metodo de Pago {{ cart_payment_method.name }} del {{ cart_payment_method.discount }}%
+			<span>
+				{{ price(total_with_payment_method_discount) }}
+			</span>
+		</p>
+		<p
 		v-if="cupon">
 			<span
 			v-if="cupon.amount">
@@ -16,7 +23,7 @@
 			v-if="cupon.percentage">
 				Con el cupon del {{ cupon.percentage }}%: 
 			</span>
-			<span>{{ price(total_with_discount) }}</span>
+			<span>{{ price(total_with_cupon) }}</span>
 		</p>
 		<p
 		v-if="cart.deliver && cart_delivery_zone">

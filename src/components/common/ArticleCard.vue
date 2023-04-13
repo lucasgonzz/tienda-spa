@@ -57,7 +57,7 @@
 				Cantidad: {{ article.pivot.amount }}
 			</p>
 			<p 
-			v-if="can_see_prices"
+			v-if="articlePriceEfectivo(article)"
 			class="product-price">
 				{{ articlePriceEfectivo(article) }}
 			</p>

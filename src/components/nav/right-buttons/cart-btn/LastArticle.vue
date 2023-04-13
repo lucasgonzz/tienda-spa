@@ -4,6 +4,7 @@
 		<div 
 		class="data">
 			<img 
+			class="s-1"
 			:src="articleImage(article)">
 			<div>
 				<p>
@@ -67,6 +68,7 @@ export default {
 			width: 50px
 			height: 50px
 			margin-right: 15px
+			border-radius: 5px
 		p 
 			text-align: left
 			font-size: 15px
