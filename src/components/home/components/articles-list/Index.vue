@@ -2,7 +2,7 @@
 <div
 id="articles-list">
 	<div
-	v-if="!loading && categories.length">
+	v-if="!loading">
 		<featured></featured>
 
 		<p 

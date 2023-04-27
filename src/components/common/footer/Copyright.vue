@@ -12,9 +12,13 @@
 		</p>
 		<p
 		class="comerciocity-info">
-			Creado con 
-			<img 
-			src="@/assets/comerciocity-logo.png" alt="">
+			<a  
+			href="https://empresa.comerciocity.com"
+			target="_blank">
+				Creado con 
+				<img 
+				src="@/assets/comerciocity-logo.png" alt="">
+			</a>
 		</p>
 	</b-col>
 </template>

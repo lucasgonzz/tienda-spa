@@ -105,7 +105,7 @@ export default {
 		box-shadow: none !important
 		color: $color_text
 
-.auto-btn
+.auth-btn
 	span, .dropdown-toggle
 		color: $color_text !important
 

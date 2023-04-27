@@ -226,9 +226,11 @@ export default {
 				console.log(this.authenticated)
 				return null
 			} else {
-				let price = article.final_price
-				if (article.with_dolar) {
-					price = price * (this.dolar_blue + 3)
+				let price = Number(article.final_price)
+				if (this.commerce.online_price_surchage) {
+					console.log('Sumando el '+this.commerce.online_price_surchage+'% a '+price+' de '+article.name)
+					price += price * Number(this.commerce.online_price_surchage) / 100 
+					console.log('Quedo en '+price)
 				}
 				return formated ? this.price(price) : price
 			}

@@ -1,6 +1,6 @@
 <template>
 	<p 
-	v-if="articlePriceEfectivo(article_to_show)"
+	v-if="article_to_show && articlePriceEfectivo(article_to_show)"
 	class="price">
 		{{ articlePriceEfectivo(article_to_show) }}
 	</p>
@@ -8,6 +8,11 @@
 <script>
 export default {
 	name: 'Price',
+	computed: {
+		article_to_show() {
+			return this.$store.state.articles.article_to_show
+		}
+	},
 }
 </script>
 <style scoped lang="sass">

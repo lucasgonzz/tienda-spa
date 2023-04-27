@@ -10,7 +10,7 @@ class="result">
 				{{ model.name }}
 			</p>
 			<p>
-				{{ price(model.final_price) }}
+				{{ articlePriceEfectivo(model) }}
 			</p>
 		</div>
 	</div>

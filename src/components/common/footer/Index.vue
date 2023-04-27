@@ -66,7 +66,7 @@ export default {
 	mixins: [categories],
 	computed: {
 		show() {
-			return this.route_name != 'Messages'
+			return this.route_name != 'Messages' && this.route_name != 'Maps'
 		},
 		categories() {
 			return this.$store.state.categories.categories

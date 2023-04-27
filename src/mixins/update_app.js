@@ -26,7 +26,7 @@ export default {
                 if (this.progress == 100) {
                     window.clearInterval(interval)
                     console.log('Se actualizo')
-		    		location.reload(true)
+		    		window.location.reload(true)
                 }
             }, 500)
 		}

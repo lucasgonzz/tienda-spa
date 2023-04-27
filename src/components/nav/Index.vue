@@ -34,7 +34,7 @@ export default {
 	created() {
 		window.addEventListener('scroll', () => {
 			if (this.scroll < window.scrollY) {
-				if (window.scrollY >= 50) {
+				if (window.scrollY >= 30) {
 					this.scroll_bottom = true
 				}
 			} else {

@@ -64,8 +64,29 @@ export default {
 			})
 			return total
 		},
+		total_with_payment_method_discount() {
+			if (this.cart_payment_method && this.cart_payment_method.discount) {
+				return this.total - (this.total * this.cart_payment_method.discount / 100)
+			}
+			return this.total
+		},
+		total_with_payment_method_surchage() {
+			if (this.cart_payment_method && this.cart_payment_method.surchage) {
+				return this.total + (this.total * this.cart_payment_method.surchage / 100)
+			}
+			return this.total
+		},
+		total_with_payment_method() {
+			if (this.cart_payment_method && this.cart_payment_method.discount) {
+				return this.total_with_payment_method_discount
+			}
+			if (this.cart_payment_method && this.cart_payment_method.surchage) {
+				return this.total_with_payment_method_surchage
+			}
+			return this.total
+		},
 		total_with_cupon() {
-			let total = this.total 
+			let total = this.total_with_payment_method 
 			if (this.cupon) {
 				if (this.cupon.amount) {
 					total -= this.cupon.amount
@@ -75,14 +96,8 @@ export default {
 			}
 			return total
 		},
-		total_with_payment_method_discount() {
-			if (this.cart_payment_method.discount) {
-				return this.total_with_cupon - (this.total_with_cupon * this.cart_payment_method.discount / 100)
-			}
-			return this.total_with_cupon
-		},
 		total_with_deliver() {
-			return this.total_with_payment_method_discount + Number(this.cart_delivery_zone.price)
+			return this.total_with_cupon + Number(this.cart_delivery_zone.price)
 		},
 		total_final() {
 			return this.total_with_deliver

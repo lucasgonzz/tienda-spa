@@ -1,17 +1,11 @@
 <template>
 	<div
-	v-if="article && articlePriceEfectivo(article)"
 	class="article-amount m-b-20">
-		<span>
-			Unidades
-		</span>
 		<div
 		class="btn-content">
 			<b-button
 			@click="decrement"
-			:disabled="amount == 0"
-			size="sm"
-			variant="success">
+			:disabled="amount == 0">
 				<i class="icon-minus"></i>
 			</b-button>
 			<b-form-input
@@ -20,9 +14,7 @@
 			:max="max"
 			v-model="amount"></b-form-input>
 			<b-button
-			size="sm"
-			@click="increment"
-			variant="success">
+			@click="increment">
 				<i class="icon-plus"></i>
 			</b-button>
 		</div>
@@ -49,7 +41,7 @@ export default {
 			return 1000
 		}
 	},
-	methods: {
+	methods: { 
 		increment() {
 			if (this.amount < this.max) {
 				this.$store.commit('articles/incrementAmount')
@@ -62,21 +54,40 @@ export default {
 }
 </script>
 <style lang="sass">
+@import '@/sass/_custom'
 .article-amount
 	display: flex
 	flex-direction: columns
 	align-items: center
 	justify-content: space-between
-	width: 100%
+	width: 150px
+
 	.btn-content
 		display: flex
 		flex-direction: columns
 		.btn 
+			border: none
+			box-shadow: none
+			// padding: 10px 15px
+			color: $green
 			&:first-child
-				border-radius: 50px 0 0 50px
+				border-radius: 10px 0 0 10px
+				border-top: 1px solid rgba(0,0,0,.3)
+				border-left: 1px solid rgba(0,0,0,.3)
+				border-bottom: 1px solid rgba(0,0,0,.3)
 			&:last-child
-				border-radius: 0 50px 50px 0
+				border-radius: 0 10px 10px 0
+				border-top: 1px solid rgba(0,0,0,.3)
+				border-right: 1px solid rgba(0,0,0,.3)
+				border-bottom: 1px solid rgba(0,0,0,.3)
+			background: none
 		input 
+			border: none
+			border-top: 1px solid rgba(0,0,0,.3)
+			border-bottom: 1px solid rgba(0,0,0,.3)
 			border-radius: 0
-			width: 4em
+			width: 50px
+			height: 50px
+			background: none
+			box-shadow: none !important
 </style>

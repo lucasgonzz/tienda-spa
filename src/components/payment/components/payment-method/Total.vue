@@ -12,6 +12,13 @@
 			<span>
 				{{ price(total_with_payment_method_discount) }}
 			</span>
+		</p> 
+		<p 
+		v-if="cart_payment_method && cart_payment_method.surchage">
+			Recargo por Metodo de Pago {{ cart_payment_method.name }} del {{ cart_payment_method.surchage }}%
+			<span>
+				{{ price(total_with_payment_method_surchage) }}
+			</span>
 		</p>
 		<p
 		v-if="cupon">

@@ -1,7 +1,6 @@
 <template>
-	<b-card
-	no-body
-	class="shadow cupon-card">
+	<div 
+	class="shadow-1 cupon-card b-w b-r-1">
 		<i 
 		@click="remove"
 		class="btn-remove icon-cancel c-p"></i>
@@ -28,7 +27,7 @@
 				</p>
 			</div>
 		</div>
-	</b-card>
+	</div>
 </template>
 <script>
 export default {

@@ -11,12 +11,13 @@
 			class="images-preview">
 				<img 
 				v-for="(image, index) in images"
-				class="apretable"
+				class="apretable shadow-1"
 				:src="image.hosting_url"
 				@click="setImage(index)">
 			</div>
 			<carousel
 			loop
+			:navigationEnabled="!is_mobile"
 			navigationNextLabel="<i class='icon-right'></i>"
 			navigationPrevLabel="<i class='icon-left'></i>"
 			:spacePadding="space_padding"
@@ -31,6 +32,7 @@
 				:key="image.id">
 					<vue-load-image>
 						<img
+						class="shadow-1"
 						slot="image"
 						:src="image.hosting_url" 
 						:alt="article.name">
@@ -130,24 +132,53 @@ export default {
 </script>
 <style lang="sass">
 .cont-article-image
+	box-sizing: border-box
 	display: flex
 	flex-direction: row 
 	.images-preview
+		padding: 30px 0
 		img 
 			width: 100px
 			margin: 15px 
-			border-radius: 10px
+			border-radius: 7px
 			cursor: pointer
+			&:first-child
+				margin: 0 15px
+	.VueCarousel
+		width: 100%
+		// height: 50vh
+		// border: 4px solid green
+
+	.VueCarousel-navigation-button
+		border: none
+	.VueCarousel-navigation-next
+		right: 7%
+	.VueCarousel-navigation-prev
+		left: 7%
+	.VueCarousel-wrapper, .VueCarousel-inner
+		width: 100%
+		// height: 50vh !important
+	.VueCarousel-wrapper
+		// border: 4px solid red
+	.VueCarousel-inner
+		// border: 4px solid yellow
 	.VueCarousel-slide 
-		padding: 50px
-		img, .vue-load-image
+		width: 100%
+		max-height: 50vh
+		@media screen and (min-width: 992px)
+			max-height: 70vh
+		// border: 4px solid blue
+		@media screen and (max-width: 992px)
+			padding: 15px	
+		@media screen and (min-width: 992px)
+			padding: 30px	
+		img
+			max-height: 50vh
+			@media screen and (min-width: 992px)
+				max-height: 70vh
+			border-radius: 7px	
 			max-width: 100%
-			min-width: 50%
-			max-height: calc(100vh - 250px)
-			border-radius: 10px
-			padding: 0 5px
-			// @media screen and (min-width: 992px)
-			// 	width: 600px	
-		
+			// border: 4px solid black
+			width: auto 
 
 </style>

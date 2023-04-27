@@ -11,7 +11,7 @@
 					{{ article.name }}
 				</p>
 				<p>
-					{{ article.pivot.amount }} x {{ price(article.final_price) }}
+					{{ article.pivot.amount }} x {{ articlePriceEfectivo(article) }}
 				</p>
 				<div
 				v-if="show_added_info">

@@ -43,8 +43,8 @@ module.exports = {
         // name: "Pinocho",
 
         // RefrigeracionColman
-        // themeColor: "#4987ba",
-        // name: "RefrigeracionColman",
+        themeColor: "#4987ba",
+        name: "RefrigeracionColman",
 
         // NebulaStore
         // themeColor: "#B68EFF",
@@ -54,9 +54,13 @@ module.exports = {
         // themeColor: "#f9b234",
         // name: "KasAberturas",
 
+        // Indica
+        // themeColor: "#209fc8",
+        // name: "IndicaCoffeeGrow",
+
         // Cali
-        themeColor: "#D8CDB8",
-        name: "CaliAccesorios",
+        // themeColor: "#D8CDB8",
+        // name: "CaliAccesorios",
         
         backgroundColor: "#FFF",
         msTileColor: "#FFF",

@@ -1,38 +1,40 @@
 <template>
 	<div
-	v-if="article_to_show.stock == null || article_to_show.stock > 0" 
-	class="add-to-cart shadow-2-sm-only">
-		<b-button
-		v-if="!isArticleInCart()"
-		@click="buyNow"
-		variant="success"
-		class="m-b-15"
-		block>
-			<btn-loader
-			icon="check"
-			text="Comprar ahora"
-			:loader="saving"></btn-loader>
-		</b-button>
-		<b-button
-		v-if="!isArticleInCart()"
-		@click="addToCart"
-		variant="success" 
-		block>
-			<btn-loader
-			icon="shopping-cart"
-			text="Agregar al carrito"
-			:loader="saving"></btn-loader>
-		</b-button>
-		<b-button
-		v-else
-		@click="removeCart"
-		variant="success"
-		block>
-			<btn-loader
-			icon="shopping-cart"
-			text="Quitar del carrito"
-			:loader="saving"></btn-loader>
-		</b-button>
+	v-if="article_to_show && articlePriceEfectivo(article_to_show) && article_to_show.stock == null || article_to_show.stock > 0" 
+	class="add-to-cart m-b-20">
+		<article-amount></article-amount>
+		<div class="cont-btn-add">
+			<!-- <b-button
+			v-if="!isArticleInCart()"
+			@click="buyNow"
+			variant="success"
+			class="m-b-15"
+			block>
+				<btn-loader
+				icon="check"
+				text="Comprar ahora"
+				:loader="saving"></btn-loader>
+			</b-button> -->
+			<b-button
+			v-if="!isArticleInCart()"
+			@click="addToCart"
+			variant="success" 
+			block>
+				<btn-loader
+				text="Agregar al carrito"
+				:loader="saving"></btn-loader>
+			</b-button>
+			<b-button
+			v-else
+			@click="removeCart"
+			variant="success"
+			block>
+				<btn-loader
+				icon="shopping-cart"
+				text="Quitar del carrito"
+				:loader="saving"></btn-loader>
+			</b-button>
+		</div>
 	</div>
 </template>
 <script>
@@ -40,6 +42,7 @@ import BtnLoader from '@/components/common/BtnLoader'
 export default {
 	name: 'AddToCart',
 	components: {
+		ArticleAmount: () => import('@/components/article/components/ArticleAmount'),
 		BtnLoader,
 	},
 	computed: {
@@ -141,17 +144,13 @@ export default {
 <style scoped lang="sass">
 @import '@/sass/_custom'
 .add-to-cart
-	@media screen and (max-width: 992px)
-		padding: 1em
-		width: 100%
-		left: 0
-		z-index: 90
-		position: fixed
-		bottom: 0
-		@if ($theme == dark) 
-			background: #000
-		@else if ($theme == ligth) 
-			background: #fff
-	@media screen and (min-width: 992px)
-		margin-bottom: 20px
+	display: flex 
+	flex-direction: row 
+	.cont-btn-add
+		width: calc(100% - 150px)
+		button	 
+			width: 100% 
+			min-height: 50px
+			font-size: 18px
+			// width: calc(100% - 132px)
 </style>

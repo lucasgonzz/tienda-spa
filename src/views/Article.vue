@@ -4,7 +4,7 @@
 		<advise></advise>	
 		<b-row 
 		v-if="data_seted"
-		class="m-b-0 m-xl-b-15 j-xl-around">
+		class="m-b-0 m-xl-b-15">
 			<b-col
 			cols="12"
 			lg="10"
@@ -16,11 +16,10 @@
 			cols="12"
 			md="11"
 			lg="10"
-			xl="4">
+			xl="3">
 				<article-data></article-data>
 				<colors-sizes></colors-sizes>
 				<div class="position">
-					<article-amount></article-amount>
 					<description></description>
 					<!-- <preguntar></preguntar> -->
 				</div>

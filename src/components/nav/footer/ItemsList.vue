@@ -87,7 +87,7 @@ export default {
 		cursor: pointer 
 		margin: 0 1em	
 		position: relative
-		color: $color_text
+		color: $color_text !important
 		&:hover
 			font-weight: bold  
 		@media screen and (max-width: 992px)

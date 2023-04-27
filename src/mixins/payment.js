@@ -23,6 +23,14 @@ export default {
     		cart_updated: false,
     	}
     },
+    computed: {
+        time() {
+            if (this.route_name == 'PaymentPending') {
+                return 2000
+            }
+            return 500
+        }
+    },
     methods: {
     	setCartPaymentProps() {
 	    	console.log('setCartPaymentProps')
@@ -48,7 +56,7 @@ export default {
                         this.progress = 40 
                     }
                 }
-            }, 1000)
+            }, this.time)
         },
     }
 }

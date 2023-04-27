@@ -7,10 +7,11 @@
 		:key="category.id"
 		class="category">
 			<div 
-			@click.stop="setCategory(category)"
+			@click.stop="setCategory(category, false)"
 			class="header">
 				{{ category.name }}
 				<div
+				@click.stop="setCategory(category)"
 				v-if="category.sub_categories.length">
 					<i 
 					class="icon-right d-none d-lg-inline-block"></i>
@@ -49,8 +50,8 @@ export default {
 		}
 	},
 	methods: {
-		setCategory(category) {
-			if (!this.is_mobile) {
+		setCategory(category, check_mobile = true) {
+			if (!this.is_mobile || !check_mobile) {
 				this.setSelectedCategory(category)
 			} else {
 				if (this.show_sub_category == category.id) {

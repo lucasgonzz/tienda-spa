@@ -14,6 +14,13 @@
 			{{ payment_method.discount }}%
 		</p>
 		<p 
+		v-if="payment_method.surchage"
+		class="discount">
+			<i class="icon-right"></i>
+			Recargo del 
+			{{ payment_method.surchage }}%
+		</p>
+		<p 
 		v-if="payment_method.description"
 		class="description">
 			<i class="icon-right"></i>

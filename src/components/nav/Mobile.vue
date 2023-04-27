@@ -29,4 +29,6 @@ export default {
 #nav-sidebar
     background: $green !important 
     width: 380px
+    .nav 
+        height: 100%
 </style>

@@ -16,8 +16,7 @@
 			<div 
 			v-if="loading"
 			class="cont-center-sm">
-			    <b-spinner 
-			    variant="primary"></b-spinner>
+			    <b-spinner></b-spinner>
 			</div>
 			<result
 			@clearResults="clearResults"

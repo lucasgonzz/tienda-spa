@@ -46,7 +46,7 @@
 			block
 			size="lg"
 			:to="{name: 'Home'}"
-			variant="outline-success">
+			variant="success">
 				Ver mas productos
 			</b-button>
 		</div>
@@ -85,5 +85,5 @@ export default {
 <style lang="sass">
 .total 
 	text-align: left
-	font-size: 1.2em
+	font-size: 25px
 </style>

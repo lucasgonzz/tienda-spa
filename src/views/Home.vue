@@ -7,7 +7,7 @@
 			cols="12">
 				<title-jumbotron></title-jumbotron>	
 			</b-col>
-			<order-phone></order-phone>
+			<!-- <order-phone></order-phone> -->
             <update-button></update-button>
 			<b-col
 			cols="12"

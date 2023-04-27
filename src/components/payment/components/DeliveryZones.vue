@@ -1,8 +1,10 @@
 <template>
-	<b-card
-	class="m-b-15 shadow-1"
-	title="Precios de envio"
+	<div
+	class="m-b-15"
 	v-if="deliver && delivery_zones.length">
+		<h5>
+			Precios de envio
+		</h5>
 		<b-form-group
 		v-for="delivery_zone in delivery_zones"
 		:key="delivery_zone.id">
@@ -24,7 +26,7 @@
 				</p>
 			</b-form-radio>
 		</b-form-group>
-	</b-card>
+	</div>
 </template>
 <script>
 import cart from '@/mixins/cart'
