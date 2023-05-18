@@ -8,6 +8,7 @@
 		class="category">
 			<div 
 			@click.stop="setCategory(category, false)"
+			@mouseover="hover"
 			class="header">
 				{{ category.name }}
 				<div
@@ -23,6 +24,7 @@
 			class="cont-sub-categories-parent"
 			v-if="category.sub_categories.length">
 				<sub-categories
+				:set_sub_categories_position="set_sub_categories_position"
 				v-if="!is_mobile || show_sub_category == category.id"
 				:category="category"></sub-categories>
 			</div>		
@@ -44,12 +46,21 @@ export default {
 			return this.$store.state.categories.categories
 		},
 	},
+	created() {
+		console.log('se creo categories')
+	},
 	data() {
 		return {
 			show_sub_category: 0,
+			set_sub_categories_position: false,
 		}
 	},
 	methods: {
+		hover() {
+			if (!this.set_sub_categories_position) {
+				this.set_sub_categories_position = true
+			}
+		},
 		setCategory(category, check_mobile = true) {
 			if (!this.is_mobile || !check_mobile) {
 				this.setSelectedCategory(category)
@@ -67,6 +78,21 @@ export default {
 <style lang="sass">
 @import '@/sass/_custom'
 #cont-categories
+	scrollbar-width: auto
+	scrollbar-color: #ffffff #ffffff
+
+	&::-webkit-scrollbar
+		width: 5px
+		height: 5px
+
+	&::-webkit-scrollbar-track 
+		background: #333
+		margin-top: 30px
+
+	&::-webkit-scrollbar-thumb 
+		background-color: lighten(#ffffff, 20)
+		border: 2px solid #ffffff
+
 	@media screen and (max-width: 992px)
 		background: darken($green, 10)
 		margin: 0 -15px
@@ -75,11 +101,12 @@ export default {
 		opacity: 0	
 		display: none
 		transition: all .2s
+		max-height: 70vh
+		// width: 100vw
+		overflow: visible auto
 
-
-	@media screen and (min-width: 992px)
 		position: absolute
-		top: 0
+		top: 0px
 		left: -50px
 		padding-top: 30px
 		&::before
@@ -88,7 +115,7 @@ export default {
 			content: ''
 			width: 0 
 			height: 0 
-			top: 23px
+			top: 25px
 			left: 80px
 			border-left: 7px solid transparent
 			border-right: 7px solid transparent
@@ -97,7 +124,8 @@ export default {
 	.category
 		cursor: pointer 
 		text-align: left
-		position: relative 
+		z-index: 500
+		// position: relative 
 
 		@media screen and (max-width: 992px)
 			width: 100%

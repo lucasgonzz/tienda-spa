@@ -4,7 +4,8 @@
 	v-if="article_to_show.discounts.length">
 		<b-badge
 		variant="danger"
-		v-for="discount in article_to_show.discounts">
+		v-for="discount in article_to_show.discounts"
+		v-if="discount.show_in_online">
 			{{ formatDecimals(discount.percentage) }}% de descuento
 		</b-badge>
 	</div>

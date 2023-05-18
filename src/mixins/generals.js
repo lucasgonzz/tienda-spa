@@ -224,6 +224,8 @@ export default {
 				console.log('entro en only_buyers_with_comerciocity_client')
 				console.log('authenticated:')
 				console.log(this.authenticated)
+				console.log('this.user.comercio_city_client:')
+				console.log(this.user ? this.user.comercio_city_client : 'no tiene')
 				return null
 			} else {
 				let price = Number(article.final_price)
