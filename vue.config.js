@@ -38,13 +38,17 @@ module.exports = {
         workboxOptions: {
             skipWaiting: true
         },
+        // CalzadosMarrox
+        // themeColor: "#190D5F",
+        // name: "CalzadosMarrox",
+
         // Pinocho
-        // themeColor: "#f9b234",
-        // name: "Pinocho",
+        themeColor: "#f9b234",
+        name: "Pinocho",
 
         // RefrigeracionColman
-        themeColor: "#4987ba",
-        name: "RefrigeracionColman",
+        // themeColor: "#4987ba",
+        // name: "RefrigeracionColman",
 
         // NebulaStore
         // themeColor: "#B68EFF",

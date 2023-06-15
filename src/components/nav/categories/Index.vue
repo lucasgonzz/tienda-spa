@@ -142,7 +142,7 @@ export default {
 
 			&:hover
 				background: $green
-				color: #000
+				color: $hover_color_text
 				& > .cont-sub-categories-parent > .cont-sub-categories
 					opacity: 100
 					display: block

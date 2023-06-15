@@ -12,6 +12,7 @@
 				<img 
 				v-for="(image, index) in images"
 				class="apretable shadow-1"
+				:class="selectedImage(index)"
 				:src="image.hosting_url"
 				@click="setImage(index)">
 			</div>
@@ -24,6 +25,7 @@
 			:paginationPadding="5"
 			:paginationActiveColor="variant_color"
 			:perPage="1"
+			@page-change="handleSlideClick"
 			:navigateTo="index"
 			:adjustableHeight="true">
 				<slide
@@ -32,7 +34,7 @@
 				:key="image.id">
 					<vue-load-image>
 						<img
-						class="shadow-1"
+						class="img-carrousel shadow-1"
 						slot="image"
 						:src="image.hosting_url" 
 						:alt="article.name">
@@ -82,10 +84,10 @@ export default {
 			}
 			if (this.article.images.length) {
 				return this.article.images
-			} else if (this.commerce.default_article_image_url) {
+			} else if (this.commerce.online_configuration.default_article_image_url) {
 				return [
 					{
-						hosting_url: this.commerce.default_article_image_url	
+						hosting_url: this.commerce.online_configuration.default_article_image_url	
 					}
 				]
 			}
@@ -104,15 +106,23 @@ export default {
 				return '300px'
 			}
 			return '500px'
-		}
+		},
+		index() {
+			return this.$store.state.articles.image_index
+		},
 	},
 	data() {
 		return {
 			interval: 1000,
-			index: 0,
 		}
 	},
 	methods: {
+		handleSlideClick(index) {
+			this.$store.commit('articles/setImageIndex', Number(index))
+		},
+		selectedImage(index) {
+			return this.index == index ? 'selected-image' : '-'
+		},
 		setInterval() {
 			setTimeout(() => {
 				this.interval = 0
@@ -122,7 +132,7 @@ export default {
 			return this.image(image, false, true)
 		},
 		setImage(index) {
-			this.index = index 
+			this.$store.commit('articles/setImageIndex', index)
 		},
 	},
 	created(){
@@ -137,18 +147,25 @@ export default {
 	flex-direction: row 
 	.images-preview
 		padding: 30px 0
+		width: 150px
 		img 
-			width: 100px
-			margin: 15px 
+			width: 80%
+			margin: 15px 0 
 			border-radius: 7px
 			cursor: pointer
-			&:first-child
-				margin: 0 15px
-	.VueCarousel
-		width: 100%
-		// height: 50vh
-		// border: 4px solid green
+		.selected-image
+			border: 2px solid #333
+			transition: all .2s
 
+	.VueCarousel
+		padding: 30px 0
+		@media screen and (max-width: 992px)
+			width: 100%
+			padding: 15px	
+			// height: 50vh
+		@media screen and (min-width: 992px)
+			width: calc(100% - 150px)
+			// height: 70vh
 	.VueCarousel-navigation-button
 		border: none
 	.VueCarousel-navigation-next
@@ -157,28 +174,15 @@ export default {
 		left: 7%
 	.VueCarousel-wrapper, .VueCarousel-inner
 		width: 100%
-		// height: 50vh !important
-	.VueCarousel-wrapper
-		// border: 4px solid red
-	.VueCarousel-inner
-		// border: 4px solid yellow
+		// height: 100% !important
 	.VueCarousel-slide 
-		width: 100%
-		max-height: 50vh
-		@media screen and (min-width: 992px)
-			max-height: 70vh
-		// border: 4px solid blue
-		@media screen and (max-width: 992px)
-			padding: 15px	
-		@media screen and (min-width: 992px)
-			padding: 30px	
-		img
-			max-height: 50vh
-			@media screen and (min-width: 992px)
-				max-height: 70vh
-			border-radius: 7px	
+		width: 100% 
+		.img-carrousel
 			max-width: 100%
-			// border: 4px solid black
-			width: auto 
+			border-radius: 7px	
+			@media screen and (max-width: 992px)
+				max-height: 50vh
+			@media screen and (min-width: 992px)
+				max-height: 70vh 
 
 </style>

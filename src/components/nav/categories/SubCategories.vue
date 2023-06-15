@@ -104,8 +104,8 @@ export default {
 		transition: all .2s
 		border-radius: 0 5px 5px 0
 		box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px
-		// max-height: 60vh
 		height: calc(70vh - 30px)
+		// max-height: calc(70vh - 30px)
 		overflow-y: auto
 		&::before
 			position: absolute
@@ -126,5 +126,5 @@ export default {
 		color: #000
 		&:hover
 			background: $green
-			color: #000
+			color: $hover_color_text
 </style>

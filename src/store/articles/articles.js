@@ -11,7 +11,8 @@ export default {
 		similars: [],
 		article_to_show: null,
 		amount: 1,
-		color: null,
+		selected_article_variant: null,
+		image_index: 0,
 		articles_names: [],
 		searcheds: [],
 		search_query: '',
@@ -31,8 +32,11 @@ export default {
 				state.images = state.article_to_show.images
 			}
 		},
-		setColor(state, value) {
-			state.color = value 
+		setSelectedArticleVariant(state, value) {
+			state.selected_article_variant = value 
+		},
+		setImageIndex(state, value) {
+			state.image_index = value 
 		},
 		setSimilars(state, articles) {
 			state.similars = articles
@@ -71,17 +75,25 @@ export default {
 			state.articles_names = state.articles_names.concat(value)
 		},
 		setArticleToShow(state, article) {
-			if (article && article.variants && article.variants.length) {
-				article.variant = article.variants[0]	
-				article.key += '-'+article.variants[0].id	
-			} else if (article) {
-				article.image = article.images[0]
-			}
+			// if (article && article.variants && article.variants.length) {
+			// 	article.variant = article.variants[0]	
+			// 	article.key += '-'+article.variants[0].id	
+			// } else if (article) {
+			// 	article.image = article.images[0]
+			// }
 			if (article) {
+				article.image = article.images[0]
 				state.amount = 1
-				if (article.sizes && article.sizes.length) {
-					article.size = 0
+				state.selected_article_variant = null
+				if (article.article_properties.length) {
+					article.selected_article_properties = {}
+					article.article_properties.forEach(article_property => {
+						article.selected_article_properties[article_property.id] = 0
+					})
 				}
+				// if (article.sizes && article.sizes.length) {
+				// 	article.size = 0
+				// }
 			}
 			state.article_to_show = article
 		},

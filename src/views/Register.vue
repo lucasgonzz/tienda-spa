@@ -1,6 +1,6 @@
 <template>
 	<b-row
-	class="auth login p-t-20 m-b-0 m-sm-b-30">
+	class="auth login m-b-0 m-sm-b-30">
 		<b-col 
 		class="col-form"
 		cols="12"

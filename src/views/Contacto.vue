@@ -11,7 +11,7 @@
 			</h3>
 			<p
 			class="text-left">
-				{{ commerce.mensaje_contacto }}
+				{{ commerce.online_configuration.mensaje_contacto }}
 			</p>
 			<p
 			class="text-left">

@@ -91,6 +91,11 @@ export default {
 		ArticleCardSkeleton,
 		VueHorizontalList,
 	},
+	data() {
+		return {
+			index: 0,
+		}
+	},
 	computed: {
 		loading() {
 			return this.$store.state.categories.loading_articles
@@ -128,8 +133,20 @@ export default {
 		categories() {
 			return this.$store.state.categories.categories
 		},
+		is_from_categories() {
+			return this.selected_category || this.selected_sub_category
+		},
 	},
 	methods: {
+		showContactInfo() {
+			if (this.index == 5) {
+				return true
+				this.index = 0
+			} else {
+				this.index++
+				return false
+			}
+		},
 		right() {
 			let ul = document.getElementById('cont-featured')
 			ul.scroll(ul.getBoundingClientRect().width - 100, 0)
@@ -137,7 +154,7 @@ export default {
 			this.scroll++
 		},
 		infiniteHandler($state) {
-			if ((this.page < 3 || this.is_from_search) && this.articles.length >= 6) {
+			if ((this.page < 3 || this.is_from_search || this.is_from_categories) && this.articles.length >= 12) {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
 				if (this.selected_category) {

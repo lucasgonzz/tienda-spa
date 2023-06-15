@@ -7,15 +7,14 @@
 			Destacados
 		</p>
 		<vue-horizontal-list 
-		v-if="!is_mobile"
 		:items="featured" :options="options">
 			<template v-slot:default="{ item }">
 				<article-card
-				:vertical="true"
+				full_width
 				:article="item"></article-card>
 			</template>
 		</vue-horizontal-list>
-		<div 
+		<!-- <div 
 		class="cont-featured"
 		v-if="is_mobile">
 			<ul 
@@ -28,7 +27,7 @@
 					:article="article"></article-card>
 				</li>
 			</ul>
-		</div>
+		</div> -->
 	</div>
 </template>
 <script>
@@ -47,6 +46,8 @@ export default {
 		return {
 			options: {
 				responsive: [
+					{ end: 576, size: 2 },
+					{ start: 768, end: 992, size: 3 },
 					{ start: 992, size: 4 },
 				],
 				list: {
@@ -59,7 +60,7 @@ export default {
 				position: {
 					start: 1,
 				},
-				autoplay: { play: false, repeat: false, speed: 2500 },
+				autoplay: { play: true, repeat: true, speed: 2000 },
 			},
 		}
 	},

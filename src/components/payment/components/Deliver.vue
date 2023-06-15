@@ -22,7 +22,7 @@ export default {
 	computed: {
 		deliver_options() {
 			let options = []
-			if (this.commerce.has_delivery) {
+			if (this.commerce.online_configuration.has_delivery) {
 				options.push({
 					name: 'Envio a domicilio',
 					icon: 'check',

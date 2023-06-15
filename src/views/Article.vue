@@ -18,7 +18,7 @@
 			lg="10"
 			xl="3">
 				<article-data></article-data>
-				<colors-sizes></colors-sizes>
+				<variants></variants>
 				<div class="position">
 					<description></description>
 					<!-- <preguntar></preguntar> -->
@@ -26,13 +26,10 @@
 			</b-col>
 		</b-row>
 		<similars></similars>
-		<b-row>
-			<b-col
-			cols="12">
-				<platelets></platelets>
-			</b-col>
-		</b-row>
-		<questions></questions>
+
+		<contact-info></contact-info>
+
+		<!-- <questions></questions> -->
 	</div>
 </template>
 <script>
@@ -42,7 +39,7 @@ import CanSeePrices from '@/components/home/components/CanSeePrices'
 import ArticleImage from '@/components/article/components/ArticleImage'
 import ArticleData from '@/components/article/components/data/Index'
 import ArticleAmount from '@/components/article/components/ArticleAmount'
-import ColorsSizes from '@/components/article/components/colors-sizes/Index'
+import Variants from '@/components/article/components/data/Variants'
 import Description from '@/components/article/components/Description'
 import Questions from '@/components/article/components/questions/Index'
 import Similars from '@/components/article/components/Similars'
@@ -68,13 +65,14 @@ export default {
 		ArticleImage,
 		ArticleData,
 		ArticleAmount,
-		ColorsSizes,
+		Variants,
 		Description,
 		Questions,
 		Similars,
 		Preguntar,
 		Categories,
 		Platelets,
+		ContactInfo: () => import('@/components/common/ContactInfo'),
 	},
 	data() {
 		return {
@@ -119,9 +117,6 @@ export default {
 			this.setTitle(this.article.name)
 			this.$store.dispatch('articles/getSimilars')
 			this.checkCartArticle()
-			if (this.article.colors.length) {
-				this.setColorAndImages()
-			}
 			this.data_seted = true
 		}
 	},
@@ -144,7 +139,7 @@ export default {
 	// @media screen and (max-width: 992px)
 	// 	margin-bottom: 2em
 .article-view
-	padding-bottom: 123px
+	// padding-bottom: 123px
 .row 
 	justify-content: center
 	margin-top: 1em

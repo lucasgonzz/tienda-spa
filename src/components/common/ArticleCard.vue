@@ -1,7 +1,7 @@
 <template> 
 	<div 
 	@click="callToArticle"
-	class="model article-card b-r-2-sm-only b-r-1-lg-only animate__animated animate__fadeIn"
+	class="model article-card animate__animated animate__fadeIn"
 	:class="article_class"
 	no-body>
 		<div
@@ -36,21 +36,14 @@
 				Cantidad: {{ article.amount }}
 			</p>
 			<div 
-			v-if="is_cart_view && article.color"
-			class="cont-color">
-				<div 
-				:style="{backgroundColor: article.color.value}"
-				class="color s">
-				</div>
-				<p>
-					{{ article.color.name }}
+			v-if="is_cart_view && article.selected_variant"
+			class="amount">
+				<p
+				class="m-b-0"
+				v-for="article_property_value in article.selected_variant.article_property_values">
+					{{ article_property_value.article_property_type.name }}: {{ article_property_value.name }}
 				</p>
 			</div>
-			<p 
-			class="amount"
-			v-if="is_cart_view && article.size">
-				Talle: {{ article.size.value }}
-			</p>
 			<p 
 			v-if="is_order_details"
 			class="amount">
@@ -93,7 +86,7 @@ export default {
 	mixins: [articlesMixin],
 	props: {
 		article: Object,
-		vertical: {
+		full_width: {
 			type: Boolean,
 			default: false
 		},
@@ -114,8 +107,8 @@ export default {
 		},
 		article_class() {
 			let class_ = ''
-			if (this.vertical) {
-				class_ = 'article-card-vertical'
+			if (this.full_width) {
+				class_ += ' full-width'
 			}
 			if (this.shadow != 'shadow-2') {
 				class_ += ' '+this.shadow
@@ -131,8 +124,8 @@ export default {
 		// article_image() {
 		// 	if (this.article.images.length) {
 		// 		return this.article.images[0].hosting_url
-		// 	} else if (this.commerce.default_article_image_url) {
-		// 		return this.commerce.default_article_image_url
+		// 	} else if (this.commerce.online_configuration.default_article_image_url) {
+		// 		return this.commerce.online_configuration.default_article_image_url
 		// 	}
 		// 	return null
 		// 	if (this.article.color) {
@@ -167,3 +160,4 @@ export default {
 	}
 }
 </script>
+ 

@@ -1,20 +1,26 @@
 <template>
     <div id="app">
         <logo-loading></logo-loading>
-        <div>
-            <!-- <notifications-permissions></notifications-permissions> -->
-            <nav-component></nav-component>
-            <b-container fluid class="container-principal">
-                <transition name="slide-left">
-                    <router-view/>
-                </transition>
-                <btn-whats-app></btn-whats-app>
-                <footer-component></footer-component>
-            </b-container>
+        <div
+        v-if="commerce">
+            <pausar-tienda-online
+            v-if="tienda_pausada"></pausar-tienda-online>
+            <div
+            v-else>
+                <nav-component></nav-component>
+                <b-container fluid class="container-principal">
+                    <transition name="slide-left">
+                        <router-view/>
+                    </transition>
+                    <btn-whats-app></btn-whats-app>
+                    <footer-component></footer-component>
+                </b-container>
+            </div>
         </div>
     </div>
 </template>
 <script>
+import PausarTiendaOnline from '@/components/common/PausarTiendaOnline'
 import NavComponent from '@/components/nav/Index'
 import UpdateButton from '@/components/common/UpdateButton'
 import BtnWhatsApp from '@/components/common/BtnWhatsApp'
@@ -30,6 +36,7 @@ import update_app from '@/mixins/update_app'
 import VueScreenSize from 'vue-screen-size'
 export default {
     components: {
+        PausarTiendaOnline,
         NavComponent,
         UpdateButton,
         BtnWhatsApp,
@@ -50,6 +57,9 @@ export default {
         },
         deferred_prompt() {
             return this.$store.state.install_btn.deferred_prompt
+        },
+        tienda_pausada() {
+            return this.commerce.online_configuration.pausar_tienda_online 
         },
     },
     watch: {
@@ -87,7 +97,7 @@ export default {
             this.$store.commit('install_btn/setDeferredPrompt', null)
         });
         this.$store.commit('auth/setLoading', true)
-        this.$store.dispatch('auth/me')
+        this.$store.dispatch('commerce/getCommerce')
         .then(() => {
             this.$store.commit('auth/setLoading', false)
             this.callMethods()
@@ -98,10 +108,11 @@ export default {
         async callMethods() {
             console.log('callMethods')
             if (!this.data_loaded) {
-                await this.$store.dispatch('commerce/getCommerce')
+                // await this.$store.dispatch('commerce/getCommerce')
                 await this.$store.dispatch('titles/getTitles')
-                await this.$store.dispatch('categories/getCategories')
                 await this.$store.dispatch('categories/getIndex')
+                await this.$store.dispatch('categories/getCategories')
+                await this.$store.dispatch('auth/me')
                 await this.$store.dispatch('platelets/getModels')
                 // await this.$store.dispatch('coins/getCoins')
                 // await this.$store.dispatch('last_searchs/getLastSearchsForSearchPage')

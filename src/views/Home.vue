@@ -1,43 +1,14 @@
 <template>
 	<div class="home view">
 		<sub-categories-sidebar></sub-categories-sidebar>
-		<b-row
-		class="m-t-0">
-			<b-col
-			cols="12">
-				<title-jumbotron></title-jumbotron>	
-			</b-col>
-			<!-- <order-phone></order-phone> -->
-            <update-button></update-button>
-			<b-col
-			cols="12"
-			lg="10"
-			xl="8">
-				<platelets></platelets>	
-			</b-col>
-			<!-- <b-col
-			cols="12"
-			lg="10"
-			xl="8">
-				<categories></categories>
-			</b-col> -->
-			<b-col
-			cols="12"
-			lg="10"
-			xl="8">
-				<order-by></order-by>
-			</b-col>
-		</b-row>
+		
+		<title-jumbotron></title-jumbotron>	
+		
+
+		<order-by></order-by>
+
 		<b-row
 		class="row-articles">
-			<!-- <b-col
-			v-if="selected_category && !selected_category.is_index && !selected_category.is_results"
-			:class="class_products"
-			cols="12"
-			lg="2"
-			xl="2">
-				<sub-categories></sub-categories>
-			</b-col> -->
 			<b-col
 			:class="class_products"
 			cols="12"
@@ -46,6 +17,8 @@
 				<articles-list></articles-list> 
 			</b-col>
 		</b-row>
+		
+		<contact-info></contact-info> 
 	</div>
 </template>
 <script>
@@ -81,6 +54,7 @@ export default {
         OrderBy,
         SubCategories,
         WaitingCall,
+		ContactInfo: () => import('@/components/common/ContactInfo'),
 	},
 	computed: {
 		selected_category() {

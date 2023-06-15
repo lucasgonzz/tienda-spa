@@ -8,11 +8,14 @@
 			:disabled="amount == 0">
 				<i class="icon-minus"></i>
 			</b-button>
-			<b-form-input
+			<span>
+				{{ amount }}
+			</span>
+			<!-- <b-form-input
 			type="number"
 			:min="1"
 			:max="max"
-			v-model="amount"></b-form-input>
+			v-model="amount"></b-form-input> -->
 			<b-button
 			@click="increment">
 				<i class="icon-plus"></i>
@@ -21,11 +24,10 @@
 	</div>
 </template>
 <script>
+import articles from '@/mixins/articles'
 export default {
+	mixins: [articles],
 	computed: {
-		article() {
-			return this.$store.state.articles.article_to_show
-		},
 		amount: {
 			get() {
 				return this.$store.state.articles.amount
@@ -35,7 +37,9 @@ export default {
 			}
 		},
 		max() {
-			if (this.article_to_show.stock != null) {
+			if (this.article_to_show.article_variants.length && this.selected_article_variant && this.selected_article_variant.stock) {
+				return this.selected_article_variant.stock 
+			} else if (this.article_to_show.stock != null) {
 				return this.article_to_show.stock 
 			}
 			return 1000
@@ -43,7 +47,19 @@ export default {
 	},
 	methods: { 
 		increment() {
-			if (this.amount < this.max) {
+			if (this.article_to_show.article_variants.length && !this.selected_article_variant) {
+				let text = ''
+				let index = 0
+				this.article_to_show.article_properties.forEach(article_property => {
+					if (index == 0) {
+						text += article_property.article_property_type.name+' '
+					} else {
+						text += 'y '+article_property.article_property_type.name+' '
+					}
+					index++
+				})
+				this.$toast.error('Seleccione '+text)
+			} else if (this.amount < this.max) {
 				this.$store.commit('articles/incrementAmount')
 			}
 		},
@@ -81,7 +97,7 @@ export default {
 				border-right: 1px solid rgba(0,0,0,.3)
 				border-bottom: 1px solid rgba(0,0,0,.3)
 			background: none
-		input 
+		span 
 			border: none
 			border-top: 1px solid rgba(0,0,0,.3)
 			border-bottom: 1px solid rgba(0,0,0,.3)
@@ -90,4 +106,7 @@ export default {
 			height: 50px
 			background: none
 			box-shadow: none !important
+			display: flex 
+			justify-content: center 
+			align-items: center
 </style>

@@ -1,24 +1,31 @@
 <template>
-	<div
-	class="cont-order-by-btn-filter">
+<b-row>
+	<b-col
+	cols="12"
+	lg="10"
+	xl="8">
 		<div
-		class="order-by">
-			<p
-			class="title sm m-b-10">
-				Ordenar por:
-			</p>
-			<b-form-select
-			:options="options"
-			v-model="order_by"></b-form-select>
+		class="cont-order-by-btn-filter">
+			<div
+			class="order-by">
+				<p
+				class="title sm m-b-10">
+					Ordenar por:
+				</p>
+				<b-form-select
+				:options="options"
+				v-model="order_by"></b-form-select>
+			</div>
+			<b-button
+			v-if="sub_categories.length"
+			v-b-toggle.sub-categories-sidebar
+			class="d-lg-none"
+			variant="success">
+				Categorias
+			</b-button>
 		</div>
-		<b-button
-		v-if="sub_categories.length"
-		v-b-toggle.sub-categories-sidebar
-		class="d-lg-none"
-		variant="success">
-			Categorias
-		</b-button>
-	</div>
+	</b-col>
+</b-row>
 </template>
 <script>
 import categories from '@/mixins/categories'

@@ -14,8 +14,8 @@
 export default {
 	computed: {
 		placeholder() {
-			if (this.commerce.order_description) {
-				return this.commerce.order_description
+			if (this.commerce.online_configuration.order_description) {
+				return this.commerce.online_configuration.order_description
 			}
 			return 'Ingrese notas para el pedido'
 		},

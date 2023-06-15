@@ -140,8 +140,8 @@ export default {
 		articleImage(article) {
 			if (article.images.length) {
 				return article.images[0].hosting_url
-			} else if (this.commerce.default_article_image_url) {
-				return this.commerce.default_article_image_url
+			} else if (this.commerce.online_configuration.default_article_image_url) {
+				return this.commerce.online_configuration.default_article_image_url
 			}
 			return null
 		},
@@ -217,22 +217,22 @@ export default {
 			return formated ? this.price(price) : price
 		},
 		articlePriceEfectivo(article, formated = true) {
-			if (this.commerce.online_price_type.slug == 'only_registered' && !this.authenticated) {
-				console.log('No se muestran percio porque esta en only_registered')
+			if (this.commerce.online_configuration.online_price_type.slug == 'only_registered' && !this.authenticated) {
+				// console.log('No se muestran percio porque esta en only_registered')
 				return null
-			} else if (this.commerce.online_price_type.slug == 'only_buyers_with_comerciocity_client' && (!this.authenticated || !this.user.comercio_city_client)) {
-				console.log('entro en only_buyers_with_comerciocity_client')
-				console.log('authenticated:')
-				console.log(this.authenticated)
-				console.log('this.user.comercio_city_client:')
-				console.log(this.user ? this.user.comercio_city_client : 'no tiene')
+			} else if (this.commerce.online_configuration.online_price_type.slug == 'only_buyers_with_comerciocity_client' && (!this.authenticated || !this.user.comercio_city_client)) {
+				// console.log('entro en only_buyers_with_comerciocity_client')
+				// console.log('authenticated:')
+				// console.log(this.authenticated)
+				// console.log('this.user.comercio_city_client:')
+				// console.log(this.user ? this.user.comercio_city_client : 'no tiene')
 				return null
 			} else {
 				let price = Number(article.final_price)
-				if (this.commerce.online_price_surchage) {
-					console.log('Sumando el '+this.commerce.online_price_surchage+'% a '+price+' de '+article.name)
-					price += price * Number(this.commerce.online_price_surchage) / 100 
-					console.log('Quedo en '+price)
+				if (this.commerce.online_configuration.online_price_surchage) {
+					// console.log('Sumando el '+this.commerce.commerce.online_configuration.online_price_surchage+'% a '+price+' de '+article.name)
+					price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100 
+					// console.log('Quedo en '+price)
 				}
 				return formated ? this.price(price) : price
 			}

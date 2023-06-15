@@ -4,7 +4,7 @@ axios.defaults.baseURL = process.env.VUE_APP_API_URL
 export default {
 	namespaced: true,
 	state: {
-		commerce: {},
+		commerce: null,
 		workdays: [],
 	},
 	mutations: {

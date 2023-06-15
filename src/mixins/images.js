@@ -27,8 +27,8 @@ export default {
 			} else {
 				image_url = model[from_model][model_prop_url]
 			}
-			if (!image_url && this.commerce.default_article_image_url) {
-				image_url = this.commerce.default_article_image_url
+			if (!image_url && this.commerce.online_configuration.default_article_image_url) {
+				image_url = this.commerce.online_configuration.default_article_image_url
 			}
 			if (!this.is_local) {
 				image_url = this.getProductionUrl(image_url)

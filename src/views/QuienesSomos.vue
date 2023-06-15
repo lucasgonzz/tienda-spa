@@ -11,7 +11,7 @@
 			</h3>
 			<p
 			class="text-left">
-				{{ commerce.quienes_somos }}
+				{{ commerce.online_configuration.quienes_somos }}
 			</p>
 		</b-col>
 	</b-row>

@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="article_to_show && articlePriceEfectivo(article_to_show) && article_to_show.stock == null || article_to_show.stock > 0" 
+	v-if="article_to_show && articlePriceEfectivo(article_to_show) && has_stock" 
 	class="add-to-cart m-b-20">
 		<article-amount></article-amount>
 		<div class="cont-btn-add">
@@ -39,8 +39,10 @@
 </template>
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
+import articles from '@/mixins/articles'
 export default {
 	name: 'AddToCart',
+	mixins: [articles],
 	components: {
 		ArticleAmount: () => import('@/components/article/components/ArticleAmount'),
 		BtnLoader,
@@ -49,8 +51,8 @@ export default {
 		amount() {
 			return this.$store.state.articles.amount
 		},
-		color() {
-			return this.$store.state.articles.color
+		selected_article_variant() {
+			return this.$store.state.articles.selected_article_variant
 		},
 		cart() {
 			return this.$store.state.cart.cart
@@ -70,10 +72,10 @@ export default {
 		},
 		saveCart(buy_now = false) {
 			this.article_to_show.amount = this.amount 
-			this.article_to_show.color = this.color 
+			// this.article_to_show.variant_id = this.selected_article_variant ? this.selected_article_variant.id : null 
 			this.article_to_show.pivot = {
 				amount: this.amount,
-				color_id: this.color ? this.color.id : null
+				variant_id: this.selected_article_variant ? this.selected_article_variant.id : null
 			}
 			this.$store.commit('cart/addArticle', this.article_to_show)
 			if (this.authenticated) {

@@ -79,7 +79,7 @@ export default {
 	height: 60px !important
 	.navbar-brand
 		img 
-			width: 40px !important
+			width: 80px !important
 
 .navbar
 

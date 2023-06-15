@@ -43,15 +43,15 @@
 				Buscanos en
 			</h3>
 			<p
-			v-if="commerce.instagram">
-				<a target="_blank" :href="commerce.instagram">
+			v-if="commerce.online_configuration.instagram">
+				<a target="_blank" :href="commerce.online_configuration.instagram">
 					<i class="icon-instagram"></i>
 					Instagram
 				</a>
 			</p>
 			<p
-			v-if="commerce.facebook">
-				<a target="_blank" :href="commerce.facebook">
+			v-if="commerce.online_configuration.facebook">
+				<a target="_blank" :href="commerce.online_configuration.facebook">
 					<i class="icon-facebook"></i>
 					Facebook
 				</a>

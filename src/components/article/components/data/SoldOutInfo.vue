@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="article_to_show.stock != null && article_to_show.stock <= 0">
+	v-if="!has_stock">
 		<p 
 		class="stock-0 text-danger m-b-10">
 			Producto agotado
@@ -21,8 +21,10 @@
 </template>
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
+import articles from '@/mixins/articles'
 export default {
 	name: 'SoldOutInfo',
+	mixins: [articles],
 	components: {
 		BtnLoader,
 	},
