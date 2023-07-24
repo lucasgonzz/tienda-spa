@@ -19,7 +19,7 @@
 			xl="3">
 				<article-data></article-data>
 				<variants></variants>
-				<div class="position">
+				<div class="positions">
 					<description></description>
 					<!-- <preguntar></preguntar> -->
 				</div>
@@ -122,6 +122,10 @@ export default {
 	},
 	created() {
 		this.getArticleToShow()
+		setTimeout(() => {
+        	this.$scrollToTop()
+        	console.log('SCROLL')
+		}, 300)
 	},
 	watch: {
 		$route(to, from) {

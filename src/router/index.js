@@ -18,6 +18,7 @@ import Register from '../views/Register.vue'
 import Login from '../views/Login.vue'
 import PasswordReset from '../views/PasswordReset.vue'
 import Payment from '../views/Payment.vue'
+import PaymentCard from '../views/PaymentCard.vue'
 import PaymentSuccess from '../views/PaymentSuccess.vue'
 import PaymentPending from '../views/PaymentPending.vue'
 import PaymentFailure from '../views/PaymentFailure.vue'
@@ -116,6 +117,11 @@ Vue.use(VueRouter)
         path: '/confirmar-compra',
         name: 'Payment',
         component: Payment
+    },
+    {
+        path: '/pagar',
+        name: 'PaymentCard',
+        component: PaymentCard
     },
     {
         path: '/pago-exitoso',

@@ -134,7 +134,10 @@ export default {
 		},
 		cart_articles() {
 			return this.$store.state.cart.cart.articles
-		}
+		},
+		show_nav_content() {
+			return this.route_name != 'Payment' && this.route_name != 'PaymentCard'
+		},
 	},
 	methods: {
 		articleImage(article) {
@@ -203,7 +206,7 @@ export default {
 				article = this.article_to_show
 			}
 			let finded = this.cart_articles.find(art => {
-				return art.id == article.id
+				return art.id == article.id && (!art.pivot.variant_id || art.pivot.variant_id == article.variant_id)
 			})
 			console.log('isArticleInCart: '+finded != undefined)
 			return finded != undefined
@@ -230,9 +233,8 @@ export default {
 			} else {
 				let price = Number(article.final_price)
 				if (this.commerce.online_configuration.online_price_surchage) {
-					// console.log('Sumando el '+this.commerce.commerce.online_configuration.online_price_surchage+'% a '+price+' de '+article.name)
-					price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100 
-					// console.log('Quedo en '+price)
+					price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
+					price = Math.round(price)
 				}
 				return formated ? this.price(price) : price
 			}

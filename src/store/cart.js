@@ -12,6 +12,7 @@ export default {
 			payment_id: '',
 			payment_status: '',
 			address_id: '',
+			payment_card_info_id: null,
 		},
 		payment_method: null,
 		delivery_zone: null,
@@ -25,6 +26,9 @@ export default {
 		},
 		setAddressId(state, value) {
 			state.cart.address_id = value
+		},
+		setPaymentCardInfoId(state, value) {
+			state.cart.payment_card_info_id = value
 		},
 		setPaymentMethod(state, value) {
 			state.payment_method = value
@@ -49,7 +53,7 @@ export default {
 		},
 		addArticle(state, article_param) {
 			let article_repeated_index = state.cart.articles.findIndex(article => {
-				return article.id == article_param.id
+				return article.id == article_param.id && (!article.pivot.variant_id || article.pivot.variant_id == article_param.variant_id)
 			})
 			if (article_repeated_index != -1) {
 				state.cart.articles.splice(article_repeated_index, 1)
@@ -93,6 +97,7 @@ export default {
 					description: '',
 					payment_id: '',
 					address_id: '',
+					payment_card_info_id: null,
 				}
 				state.payment_method = null
 				state.delovery_zone = null

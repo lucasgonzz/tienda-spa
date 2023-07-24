@@ -73,6 +73,7 @@ export default {
 				} else {
 					this.setBtnMpVisible(false)
 				}
+				this.$store.dispatch('cart/save')
 			}
 		},
 		initMp() {

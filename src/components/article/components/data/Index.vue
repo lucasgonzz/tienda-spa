@@ -14,8 +14,10 @@
 		<name-heart></name-heart>
 		
 		<discounts></discounts>	
-		
+
 		<price></price>
+		
+		<payment-methods-info></payment-methods-info>
 
 		<condition></condition>	
 
@@ -30,6 +32,7 @@
 <script>
 import NameHeart from '@/components/article/components/data/NameHeart'
 import Discounts from '@/components/article/components/data/Discounts'
+import PaymentMethodsInfo from '@/components/article/components/data/PaymentMethodsInfo'
 import Price from '@/components/article/components/data/Price'
 import Condition from '@/components/article/components/data/Condition'
 import SoldOutInfo from '@/components/article/components/data/SoldOutInfo'
@@ -42,6 +45,7 @@ export default {
 	components: {
 		NameHeart,
 		Discounts,
+		PaymentMethodsInfo,
 		Price,
 		Condition,
 		SoldOutInfo,

@@ -31,7 +31,7 @@ export default {
 	// align-items: center
 	img 
 		transition: width 0.25s ease-in
-		width: 120px
+		width: 80px
 		margin-left: 5px	
 	@media screen and (max-width: 992px) 
 		width: calc(100% - 2rem)

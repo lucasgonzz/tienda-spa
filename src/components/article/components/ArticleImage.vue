@@ -34,7 +34,7 @@
 				:key="image.id">
 					<vue-load-image>
 						<img
-						class="img-carrousel shadow-1"
+						class="img-carrousel"
 						slot="image"
 						:src="image.hosting_url" 
 						:alt="article.name">

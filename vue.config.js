@@ -43,8 +43,8 @@ module.exports = {
         // name: "CalzadosMarrox",
 
         // Pinocho
-        themeColor: "#f9b234",
-        name: "Pinocho",
+        // themeColor: "#f9b234",
+        // name: "Pinocho",
 
         // RefrigeracionColman
         // themeColor: "#4987ba",
@@ -63,8 +63,8 @@ module.exports = {
         // name: "IndicaCoffeeGrow",
 
         // Cali
-        // themeColor: "#D8CDB8",
-        // name: "CaliAccesorios",
+        themeColor: "#D8CDB8",
+        name: "CaliAccesorios",
         
         backgroundColor: "#FFF",
         msTileColor: "#FFF",

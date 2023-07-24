@@ -1,5 +1,5 @@
 <template>
-	<div class="cart view p-b-50">
+	<div class="cart view m-t-15 p-b-50">
 		<!-- <b-row
 		v-if="!is_open">
 			<b-col

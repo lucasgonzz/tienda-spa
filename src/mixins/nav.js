@@ -20,7 +20,7 @@ export default {
 				return this.user.name.substring(0, this.user.name.indexOf(' '))
 			}
 			return this.user.name
-		}
+		},
 	},
 	methods: {
 		toLogin() {

@@ -10,8 +10,17 @@
 		<div 
 		@click="saveCart"
 		class="mp-btn shadow-1"></div>
+		
 		<b-button
-		v-if="!is_mp"
+		v-if="is_payway"
+		block
+		@click="payway"
+		variant="success">
+			Ir a pagar
+		</b-button>
+		
+		<b-button
+		v-if="!is_mp && !is_payway"
 		block
 		@click="ready"
 		variant="success">
@@ -24,6 +33,9 @@ import cart from '@/mixins/cart'
 export default {
 	mixins: [cart],
 	computed: {
+		is_payway() {
+			return this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'Payway'
+		},
 		is_mp() {
 			return this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago'
 		},
@@ -32,6 +44,11 @@ export default {
 		saveCart() {
 			this.$store.dispatch('cart/save')
 		},	
+		payway() {
+			if (this.check()) {
+				this.$router.push({name: 'PaymentCard'})
+			}
+		},
 		ready() {
 			if (this.check()) {
 				this.$store.dispatch('cart/save')

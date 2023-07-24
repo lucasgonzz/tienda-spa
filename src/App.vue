@@ -70,9 +70,9 @@ export default {
                 this.setCartFromCookies()
             }
         },
-        route() {
-            this.$scrollToTop()
-        },
+        // route() {
+        //     this.$scrollToTop()
+        // },
     },
     data() {
         return {

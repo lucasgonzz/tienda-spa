@@ -9,13 +9,13 @@
 			<brand-btn></brand-btn>
 
 			<buscador
-			v-if="route_name != 'Payment' && !is_mobile"></buscador>	
+			v-if="show_nav_content && !is_mobile"></buscador>	
 			
 			<right-buttons
-			v-if="route_name != 'Payment'"></right-buttons>
+			v-if="show_nav_content"></right-buttons>
 			
 			<info-compra-segura
-			v-if="route_name == 'Payment'"></info-compra-segura>
+			v-if="!show_nav_content"></info-compra-segura>
 		</b-navbar>
 		
 		<footer-nav></footer-nav>
@@ -52,14 +52,6 @@ export default {
 		Mobile: () => import('@/components/nav/Mobile'),			
 	},
 	computed: {
-        show_nav_content() {
-            let path = this.$route.name
-            return path != 'Register' 
-                    && path != 'Login' 
-                    && path != 'PasswordReset' 
-                    && path != 'CondicionesDeUso' 
-                    && (path != 'Maps' || (path == 'Maps' && this.city == ''))
-        },
         show_nav() {
         	return this.route_name != 'Maps'
         },
@@ -79,7 +71,7 @@ export default {
 	height: 60px !important
 	.navbar-brand
 		img 
-			width: 80px !important
+			width: 50px !important
 
 .navbar
 
