@@ -45,6 +45,20 @@
 					type="text"data-decidir="card_holder_doc_number" placeholder="Numero de documento"/>
 				</div>
 
+				<select
+				class="input-100"
+				v-model="payment_method_id">
+					<option 
+					:value="0">
+						Seleccione tarjeta
+					</option>
+					<option 
+					v-for="payment_method in payment_methods"
+					:value="payment_method.id_medio_pago">
+						{{ payment_method.descripcion }}
+					</option>
+				</select>
+
 
 				<!-- <label for="card_holder_doc_type">Cuotas:</label> -->
 				<select
@@ -73,8 +87,9 @@
 </template>
 <script>
 import cart from '@/mixins/cart'
+import payment_methods from '@/mixins/payment_methods'
 export default {
-	mixins: [cart],
+	mixins: [cart, payment_methods],
 	data() {
 		return {
 			decidir: null,
@@ -84,7 +99,9 @@ export default {
 			mes: '12',
 			ano: '30',
 			documento: '27859328',
-			selected_installments: 1,
+			selected_installments: 0,
+			nacimiento: null,
+			payment_method_id: 0,
 		}
 	},
 	created() {
@@ -117,13 +134,38 @@ export default {
 			if (this.check()) {
 				console.log('enviando')
 				event.preventDefault();
+				// this.getToken()
 			
 				var form = document.querySelector('#formulario');
 				this.decidir.createToken(form, this.sdkResponseHandler);//formulario y callback
 				return false;
 			}
 		},
+		// getToken() {
+		// 	this.$api.post('payway/token', {
+		// 		payment_method_id: this.cart_payment_method.id, 
+		// 		card_number: this.numero_tarjeta, 
+		// 		card_expiration_month: this.mes, 
+		// 		card_expiration_year: this.ano, 
+		// 		card_holder_name: this.titular, 
+		// 		card_holder_birthday: this.nacimiento, 
+		// 		card_holder_door_number: null, 
+		// 		security_code: this.codigo_seguridad, 
+		// 		number: this.documento, 
+		// 		payment_method_id: this.payment_method_id, 
+		// 	})
+		// 	.then(res => {
+		// 		console.log('se guardo payment-card-info, llego esto:')
+		// 		console.log(res.data.model)
+		// 		this.$store.commit('cart/setPaymentCardInfoId', res.data.model.id)
+		// 		this.makeOrder()
+		// 	})
+		// 	.catch(err => {
+		// 		console.log('Error al guardar Pago')
+		// 	})
+		// },
 		sdkResponseHandler(status, response) {
+			console.log('getCardType: '+this.getCardType())
 			console.log('response')
 			console.log(status)
 			console.log(response)
@@ -140,11 +182,13 @@ export default {
 			}
 		},
 		savePaymentCardInfo(response) {
+			// console.log('getCardType: '+this.getCardType())
+			// return
 			this.$api.post('payment-card-info', {
 				token: response.id, 
 				bin: response.bin, 
-				bin: response.bin, 
 				installments: this.selected_installments,
+				payment_method_id: this.payment_method_id,
 			})
 			.then(res => {
 				console.log('se guardo payment-card-info, llego esto:')
@@ -186,6 +230,29 @@ export default {
 				return false
 			}
 			return true
+		},
+		getCardType() {
+			const re = {
+				electron: /^(4026|417500|4405|4508|4844|4913|4917)\d+$/,
+				maestro: /^(5018|5020|5038|5612|5893|6304|6759|6761|6762|6763|0604|6390)\d+$/,
+				dankort: /^(5019)\d+$/,
+				interpayment: /^(636)\d+$/,
+				unionpay: /^(62|88)\d+$/,
+				visa: /^4[0-9]{12}(?:[0-9]{3})?$/,
+				mastercard: /^(5[1-5][0-9]{14}|2(22[1-9][0-9]{12}|2[3-9][0-9]{13}|[3-6][0-9]{14}|7[0-1][0-9]{13}|720[0-9]{12}))$/,
+				amex: /^3[47][0-9]{13}$/,
+				diners: /^3(?:0[0-5]|[68][0-9])[0-9]{11}$/,
+				discover: /^6(?:011|5[0-9]{2})[0-9]{12}$/,
+				jcb: /^(?:2131|1800|35\d{3})\d{11}$/
+			}
+
+			for (var key in re) {
+				if (re[key].test(this.numero_tarjeta)) {
+					return key
+				}
+			}
+
+			return 'unknown'
 		}
 	}
 }

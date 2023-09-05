@@ -11,11 +11,6 @@
 			<span>
 				{{ amount }}
 			</span>
-			<!-- <b-form-input
-			type="number"
-			:min="1"
-			:max="max"
-			v-model="amount"></b-form-input> -->
 			<b-button
 			@click="increment">
 				<i class="icon-plus"></i>
@@ -61,6 +56,8 @@ export default {
 				this.$toast.error('Seleccione '+text)
 			} else if (this.amount < this.max) {
 				this.$store.commit('articles/incrementAmount')
+			} else {
+				this.$toast.error('Ha alcanzado el maximo')
 			}
 		},
 		decrement() {

@@ -57,8 +57,9 @@
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
 import auth from '@/mixins/auth'
+import nav from '@/mixins/nav'
 export default {
-	mixins: [auth],
+	mixins: [auth, nav],
 	components: {
 		BtnLoader
 	},
@@ -97,7 +98,8 @@ export default {
 					if (res.status == 201) {
 						this.$store.commit('auth/setAuthenticated', true)
 						this.$store.commit('auth/setUser', res.data.buyer)
-						this.$router.replace({name : this.route_name, params: {view: 'codigo-de-verificacion'}})
+						this.home()
+						// this.$router.replace({name : this.route_name, params: {view: 'codigo-de-verificacion'}})
 						// this.login(this.register_user)
 					} else {
 						this.$toast.error('Ya hay un usuario registrado con esta informacion, intente con otro, por favor.')

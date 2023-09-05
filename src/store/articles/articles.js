@@ -88,7 +88,8 @@ export default {
 				if (article.article_properties.length) {
 					article.selected_article_properties = {}
 					article.article_properties.forEach(article_property => {
-						article.selected_article_properties[article_property.id] = 0
+						article.selected_article_properties[article_property.article_property_type.name] = 0
+						// article.selected_article_properties[article_property.id] = 0
 					})
 				}
 				// if (article.sizes && article.sizes.length) {

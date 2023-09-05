@@ -62,6 +62,10 @@ module.exports = {
         // themeColor: "#209fc8",
         // name: "IndicaCoffeeGrow",
 
+        // Fenix
+        // themeColor: "#1897ce",
+        // name: "Fenix",
+
         // Cali
         themeColor: "#D8CDB8",
         name: "CaliAccesorios",

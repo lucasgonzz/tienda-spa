@@ -153,9 +153,8 @@ export default {
 		width: 100%
 		background: $green
 		z-index: 300
-		@media screen and (max-width: 992px)
-			max-height: 60vh
-			overflow-y: scroll
+		max-height: 60vh
+		overflow-y: scroll
 
 		&::-webkit-scrollbar 
 			width: 9px
