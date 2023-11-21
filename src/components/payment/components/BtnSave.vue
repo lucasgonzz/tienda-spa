@@ -1,16 +1,17 @@
 <template>
 	<b-form-group
 	class="m-t-15">
-		<p
+		<!-- <p
 		v-if="cart_payment_method && cart_payment_method.type && cart_payment_method.type.name == 'MercadoPago'"
 		class="text-with-icon text-black b-w s">
 			<i class="icon-exclamation"></i>
 			Luego de que MercadoPago procese tu pago, no olvides <strong>regresar al sitio</strong>, presionando el botón "Volver al sitio", para que actualicemos la información de tu pago y enviemos tu pedido.
-		</p>
+		</p> -->
+
 		<div 
 		@click="saveCart"
 		class="mp-btn shadow-1"></div>
-		
+
 		<b-button
 		v-if="is_payway"
 		block
@@ -22,9 +23,11 @@
 		<b-button
 		v-if="!is_mp && !is_payway"
 		block
+		size="lg"
 		@click="ready"
-		variant="success">
-			Hacer pedido
+		class="btn-pay">
+			<i class="icon-lock-1"></i>
+			Finalizar Compra
 		</b-button>
 	</b-form-group>
 </template>
@@ -80,8 +83,16 @@ export default {
 }
 </script>
 <style lang="sass">
+.btn-pay
+	background: #269e24 !important
+	border: 1px solid #269e24 !important
+	padding: .7rem 1rem !important
 .mp-btn
 	.mercadopago-button
 		display: block
 		width: 100%
+		padding: .7rem 1rem
+		font-size: 1.25rem
+		line-height: 1.5
+		border-radius: 0.3rem
 </style>

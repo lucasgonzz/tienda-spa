@@ -9,6 +9,7 @@ export default {
 		sub_categories: [],
 		articles: [],
 		featured: [],
+		in_offer: [],
 
 		selected_category: null,
 		selected_sub_category: null,
@@ -62,6 +63,9 @@ export default {
 		},
 		setFeatured(state, value) {
 			state.featured = value
+		},
+		setInOffer(state, value) {
+			state.in_offer = value
 		},
 		addArticles(state, value) {
 			state.articles = state.articles.concat(value)
@@ -162,6 +166,7 @@ export default {
 				commit('setLoadingArticles', false)
 				commit('setArticles', res.data.articles.data)
 				commit('setFeatured', res.data.featured)
+				commit('setInOffer', res.data.in_offer)
 			})
 			.catch(err => {
 				commit('setLoadingArticles', false)

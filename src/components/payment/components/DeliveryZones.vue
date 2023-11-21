@@ -1,6 +1,6 @@
 <template>
 	<div
-	class="m-b-15"
+	class="m-b-15 background"
 	v-if="deliver && delivery_zones.length">
 		<h5>
 			Precios de envio

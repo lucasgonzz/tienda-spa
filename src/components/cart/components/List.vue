@@ -36,10 +36,9 @@
 			</p> -->
 			<b-button
 			block
-			class="m-b-15"
+			class="m-b-15 btn-pay"
 			size="lg"
-			@click="next"
-			variant="success">
+			@click="next">
 				Iniciar compra
 			</b-button>
 			<b-button
@@ -75,8 +74,12 @@ export default {
 					this.$router.push({name: 'Payment'})
 				}
 			} else {
-				this.$cookies.set('redirect_to', 'Cart')
-				this.$router.push({name: 'Login'})
+				if (this.commerce.online_configuration.register_to_buy) {
+					this.$cookies.set('redirect_to', 'Cart')
+					this.$router.push({name: 'Login'})
+				} else {
+					this.$router.push({name: 'Payment'})
+				}
 			}
 		},
 	}

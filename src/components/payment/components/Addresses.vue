@@ -1,6 +1,6 @@
 <template>
 	<div
-	class="addresses"
+	class="addresses background"
 	v-if="deliver && user">
 		<h5>
 			Direccion
@@ -39,7 +39,6 @@
 				Agregar una direccion
 			</b-button>
 		</b-form-group>
-		<hr>
 	</div>
 </template>
 <script>

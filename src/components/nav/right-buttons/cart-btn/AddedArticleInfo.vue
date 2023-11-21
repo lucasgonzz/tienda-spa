@@ -1,5 +1,6 @@
 <template>
 	<div
+	:class="commerce.online_configuration.register_to_buy ? 'added-article-register-to-buy' : ''"
 	id="added-article-info">
 		<div 
 		@click.stop="close"
@@ -45,11 +46,11 @@ export default {
 	top: 110%
 	border-radius: 5px
 	box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px
-	@media screen and (max-width: 992px)
-		right: 0
+	// @media screen and (max-width: 992px)
+	right: 0
 
-	@media screen and (min-width: 992px)
-		right: -59px
+	// @media screen and (min-width: 992px)
+	// 	right: -59px
 
 	&::before 
 		position: absolute
@@ -61,14 +62,20 @@ export default {
 		border-left: 7px solid transparent
 		border-right: 7px solid transparent
 		border-bottom: 7px solid #DEDEDE
-		@media screen and (max-width: 992px)
-			right: 11.5%
-		@media screen and (min-width: 992px)
-			left: 64%
+		right: 11.5%
+		// @media screen and (max-width: 992px)
+		// 	right: 11.5%
+		// @media screen and (min-width: 992px)
+		// 	left: 64%
 
 	.btn-cancel
 		position: absolute 
 		right: 5px
 		top: 5px
 		font-size: 15px
+
+.added-article-register-to-buy
+	right: -59px
+	&::before 
+		left: 64%
 </style>

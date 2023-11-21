@@ -75,13 +75,13 @@ export default {
 			return this.$store.state.articles.color
 		},
 		images() {
-			if (this.article.colors.length) {
-				console.log('imagenes del color')
-				let images = this.article.images.filter(image => {
-					return image.color_id && image.color_id == this.color.id 
-				})
-				return images
-			}
+			// if (this.article.colors.length) {
+			// 	console.log('imagenes del color')
+			// 	let images = this.article.images.filter(image => {
+			// 		return image.color_id && image.color_id == this.color.id 
+			// 	})
+			// 	return images
+			// }
 			if (this.article.images.length) {
 				return this.article.images
 			} else if (this.commerce.online_configuration.default_article_image_url) {
@@ -169,9 +169,9 @@ export default {
 	.VueCarousel-navigation-button
 		border: none
 	.VueCarousel-navigation-next
-		right: 7%
+		right: 7% !important
 	.VueCarousel-navigation-prev
-		left: 7%
+		left: 7% !important
 	.VueCarousel-wrapper, .VueCarousel-inner
 		width: 100%
 		// height: 100% !important

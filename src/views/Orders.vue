@@ -5,7 +5,8 @@
 			<b-col
 			sm="7"
 			md="6"
-			lg="4">
+			lg="5"
+			xl="4">
 				<orders-list></orders-list>
 			</b-col>
 		</b-row>

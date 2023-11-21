@@ -2,12 +2,15 @@
 <b-modal
 v-if="order"
 id="order-details"
+size="lg"
 title="Detalle de la compra"
 hide-footer>
-	<article-card
-	v-for="article in order.articles"
-	:key="article.id"
-	:article="article"></article-card>
+	<div class="cont-models">
+		<article-card
+		v-for="article in order.articles"
+		:key="article.id"
+		:article="article"></article-card>
+	</div>
 	<p class="order-total">
 		Total: {{ price(total(order)) }}
 	</p>

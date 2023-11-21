@@ -30,6 +30,6 @@ export default {
 </script>
 <style lang="sass">
 .view-messages
-	// margin-top: -15px
+	padding-top: 160px
 	padding-bottom: 0 !important
 </style>

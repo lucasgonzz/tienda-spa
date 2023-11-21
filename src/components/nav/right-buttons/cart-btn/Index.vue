@@ -2,8 +2,9 @@
 	<button 
 	@click="toCart()"
 	class="btn-nav btn-carrito">
-		<i 
-		:class="getIconActive('Cart', 'shopping-cart')"></i>
+		<!-- <i 
+		:class="getIconActive('Cart', 'shopping-cart')"></i> -->
+		<img src="@/assets/cart.png" alt="">
 		<b-badge 
 		v-show="cant_cart_articles > 0"
 		variant="danger"
@@ -39,6 +40,8 @@ export default {
 	i 
 		font-size: 1.2em
 		color: $color_text
+	img 
+		width: 40px
 	.badge
 		padding: 5px 8px
 		font-size: 14px

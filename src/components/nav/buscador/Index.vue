@@ -167,4 +167,7 @@ export default {
 			background-color: lighten($blue, 20)
 			border-radius: 10px
 			border: 2px solid #ffffff
+
+		.text-with-icon
+			color: #000
 </style>

@@ -10,6 +10,13 @@
 		class="btn-remove-article">
 			<i class="icon-cancel"></i>
 		</div>
+
+		<div 
+		v-if="article.stock == 0"
+		class="agotado">
+			Agotado
+		</div>
+
 		<vue-load-image
 		class="img-fluid">
 			<img 
@@ -121,26 +128,16 @@ export default {
 			}
 			return class_
 		},
-		// article_image() {
-		// 	if (this.article.images.length) {
-		// 		return this.article.images[0].hosting_url
-		// 	} else if (this.commerce.online_configuration.default_article_image_url) {
-		// 		return this.commerce.online_configuration.default_article_image_url
-		// 	}
-		// 	return null
-		// 	if (this.article.color) {
-		// 		let images = this.getImagesFromSelectedColor(this.article)
-		// 		return this.imageUrl(images[0].hosting_url)
-		// 	}
-		// 	return this.image(this.article)
-		// },
 		article_name() {
 			if (this.article.variant) {
 				return this.article.name + ' ' + this.article.variant.description
 			} else {
 				return this.article.name
 			}
-		}
+		},
+		cart() {
+			return this.$store.state.cart.cart 
+		},
  	},
 	methods: {
 		callToArticle() {
@@ -155,9 +152,25 @@ export default {
 			})
 			if (this.authenticated) {
 				this.$store.dispatch('cart/removeArticle', this.article)
+			} else {
+				localStorage.cart = JSON.stringify(this.cart) 
 			}
 		},
 	}
 }
 </script>
+<style lang="sass">
+@import '@/sass/_custom'
+.agotado
+	position: absolute
+	top: 0
+	left: 0
+	font-weight: bold 
+	font-size: 16px
+	border-radius: 4px 0 5px 0
+	background: $red 
+	color: #FFF
+	// z-index: 1000
+	padding: 5px 10px
+</style>
  

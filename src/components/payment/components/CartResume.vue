@@ -1,0 +1,34 @@
+<template>
+	<div
+	class="background cart-resume">
+		<h5>
+			Resumen de la compra
+		</h5>
+		<last-article 
+		v-for="article in cart.articles"
+		:show_added_info="false"
+		:article="article"></last-article>
+		<total></total>	
+		<btn-save></btn-save>
+	</div>
+</template>
+<script>
+export default {
+	components: {
+		LastArticle: () => import('@/components/nav/right-buttons/cart-btn/LastArticle'),
+		Total: () => import('@/components/payment/components/payment-method/Total'),
+		BtnSave: () => import('@/components/payment/components/BtnSave'),
+	},
+	computed: {
+		cart() {
+			return this.$store.state.cart.cart
+		}
+	}
+}
+</script>
+<style lang="sass">
+.cart-resume
+	@media screen and (min-width: 768px)
+		max-height: 70vh 
+		overflow-y: auto	
+</style>

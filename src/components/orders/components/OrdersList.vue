@@ -1,43 +1,45 @@
 <template>
-	<b-skeleton-wrapper :loading="loading">
-		<template v-slot:loading>
-			<order-skeleton
-			v-for="i in 3"
-			:key="i"></order-skeleton>
-		</template>
-		<div>
-			<div
-			v-if="orders.length">
-				<h1 class="title">
-					Compras
-				</h1>
+	<div>
+		<h1 class="title m-t-30 m-b-30">
+			Mis Pedidos
+		</h1>
+		<b-skeleton-wrapper :loading="loading">
+			<template v-slot:loading>
+				<order-skeleton
+				v-for="i in 3"
+				:key="i"></order-skeleton>
+			</template>
+			<div>
 				<div
-				v-for="order in orders"
-				:key="order.id"
-				@click="showOrderDetails(order)">
-					<order-component
-					:order="order"></order-component>
-				</div>
-				<infinite-loading 
-				spinner="spiral"
-				@infinite="infiniteHandler">
-					<div slot="no-more">
-						<div class="not-resutls">
-							No tienes mas compras
+				v-if="orders.length">
+					<div
+					v-for="order in orders"
+					:key="order.id"
+					@click="showOrderDetails(order)">
+						<order-component
+						:order="order"></order-component>
+					</div>
+					<infinite-loading 
+					spinner="spiral"
+					@infinite="infiniteHandler">
+						<div slot="no-more">
+							<div class="not-resutls">
+								No tienes mas compras
+							</div>
 						</div>
-					</div>
-					<div slot="no-results">
-					</div>
-				</infinite-loading>
+						<div slot="no-results">
+						</div>
+					</infinite-loading>
+				</div>
+				<p 
+				v-else
+				class="text-with-icon">
+					<i class="icon-bag-o"></i>
+					No tienes ninguna compra
+				</p>
 			</div>
-			<p 
-			v-else
-			class="text-with-icon">
-				<i class="icon-bag-o"></i>
-				No tienes ninguna compra
-			</p>
-		</div>
-	</b-skeleton-wrapper>
+		</b-skeleton-wrapper>
+	</div>
 </template>
 <script>
 import OrderComponent from '@/components/orders/components/OrderComponent'

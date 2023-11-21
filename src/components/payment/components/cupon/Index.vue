@@ -1,5 +1,6 @@
 <template>
-	<div>
+	<div
+	class="background">
 		<h5>
 			Cupones
 		</h5>
@@ -7,7 +8,6 @@
 		<cupon-card
 		v-if="cupon"
 		:cupon="cupon"></cupon-card>
-		<hr>	
 	</div>
 </template>
 <script>

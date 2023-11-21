@@ -38,23 +38,6 @@ export default {
 			cart_saved: false,
 		}
 	},
-	// watch: {
-	// 	cart_payment_method() {
-	// 		console.log('watch')
-	// 		if (!this.cart_saved && this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago') {
-	// 			this.cart_saved = true 
-	// 			this.$store.dispatch('cart/save')
-	// 			this.initMp()
-	// 		} else if (this.cart_saved && !this.cart_payment_method.type) {
-	// 			let btn = document.getElementsByClassName('mp-btn')
-	// 			console.log(btn)
-	// 			if (btn.length) {
-	// 				btn[0].remove()
-	// 			}
-	// 			this.cart_saved = false
-	// 		}
-	// 	}
-	// },
 	computed: {
 		is_selected() {
 			if (this.cart_payment_method && this.cart_payment_method.id == this.payment_method.id) {
@@ -67,13 +50,15 @@ export default {
 		setSelected() {
 			if (!this.cart_payment_method || (this.cart_payment_method.id != this.payment_method.id)) {
 				this.$store.commit('cart/setPaymentMethod', this.payment_method)
-				if (this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago') {
-					this.setBtnMpVisible(true)
-					this.initMp()
-				} else {
-					this.setBtnMpVisible(false)
-				}
 				this.$store.dispatch('cart/save')
+				.then(() => {
+					if (this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago') {
+						this.makeOrder(true)
+						this.initMp()
+					} else {
+						this.setBtnMpVisible(false)
+					}
+				})
 			}
 		},
 		initMp() {
@@ -81,8 +66,6 @@ export default {
 			const mp = new MercadoPago(this.cart_payment_method.public_key, {
 				locale: "es-AR",
 			});
-			this.$store.commit('auth/setMessage', 'Iniciando MercadoPago')
-			this.$store.commit('auth/setLoading', true)
 			this.$api.post('mercado-pago/preference', {
 				payment_method: this.cart_payment_method,
 				cupon: this.cupon,
@@ -90,8 +73,6 @@ export default {
 				articles: this.articles
 			})
 			.then(res => {
-				this.$store.commit('auth/setMessage', '')
-				this.$store.commit('auth/setLoading', false)
 				// Inicializa el checkout
 				console.log(res.data)
 				mp.checkout({
@@ -100,9 +81,10 @@ export default {
 					},
 					render: {
 						container: ".mp-btn", // Indica el nombre de la clase donde se mostrará el botón de pago
-						label: "Pagar", // Cambia el texto del botón de pago (opcional)
+						label: "Pagar a través de Mercado Pago"
 					},
 				});
+				this.setBtnMpVisible(true)
 			})
 			.catch(err => {
 				console.log(err)

@@ -14,6 +14,11 @@ export default {
 			address_id: '',
 			payment_card_info_id: null,
 		},
+		buyer: {
+			name: '',
+			email: '',
+			phone: '',
+		},
 		payment_method: null,
 		delivery_zone: null,
 		cupon: null,
@@ -21,6 +26,9 @@ export default {
 		saving: false,
 	},
 	mutations: {
+		setBuyer(state, value) {
+			state.buyer = value 
+		},
 		setDeliver(state, value) {
 			state.cart.deliver = value
 		},

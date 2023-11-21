@@ -1,24 +1,11 @@
-import cart from '@/mixins/cart'
 export default {
-	mixins: [cart],
-    watch: {
-    	cart() {
-	    	console.log('watch de cart')
-            if (this.isCartInProccess()) {
-                if (!this.cart_updated) {
-    	    		this.setCartPaymentProps()
-        		}
-            } else {
-                this.$router.replace({name: 'Home'})
-            }
-    	}
-    },
     created() {
         this.sendOrder()
     },
     data() {
     	return {
             progress: 10,
+            redirect_time: 7,
             interval: null,
     		cart_updated: false,
     	}
@@ -38,25 +25,31 @@ export default {
     		this.$store.commit('cart/setPaymentStatus', this.$route.query.status)
     		this.$store.dispatch('cart/save')
         	this.cart_updated = true 
+            this.$store.commit('cart/setCart', null)
+            this.redirect()
     	},
     	isCartInProccess() {
             return this.cart.id
     	},
         sendOrder() {
-            console.log('esperando para enviar pedido')
+            console.log('esperando para actualizar')
             this.interval = window.setInterval(() => {
                 this.progress += 10
-                console.log('se aumento a '+this.progress)
                 if (this.progress == 100) {
-                    if (this.cart_updated) {
-                        window.clearInterval(this.interval)
-                        this.makeOrder()
-                        console.log('se envio pedido')
-                    } else {
-                        this.progress = 40 
-                    }
+                    window.clearInterval(this.interval)
+                    this.setCartPaymentProps()
                 }
             }, this.time)
         },
+        redirect() {
+            console.log('esperando para redirect')
+            this.interval = window.setInterval(() => {
+                this.redirect_time -= 1
+                if (this.redirect_time == 0) {
+                    window.clearInterval(this.interval)
+                    this.$router.push({name: 'Thanks'})
+                }
+            }, 1000)
+        }
     }
 }

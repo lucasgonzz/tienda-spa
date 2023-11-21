@@ -5,6 +5,8 @@ id="articles-list">
 	v-if="!loading">
 		<featured></featured>
 
+		<in-offer></in-offer>
+
 		<p 
 		v-if="selected_category || selected_sub_category"
 		class="title">
@@ -76,6 +78,7 @@ id="articles-list">
 <script>
 import InfiniteLoading from 'vue-infinite-loading'
 import Featured from '@/components/home/components/articles-list/Featured'
+import InOffer from '@/components/home/components/articles-list/InOffer'
 import ArticleCard from '@/components/common/ArticleCard'
 import ArticleCardSkeleton from '@/components/common/ArticleCardSkeleton'
 import VueHorizontalList from "vue-horizontal-list"
@@ -87,6 +90,7 @@ export default {
 	components: {
 		InfiniteLoading,
 		Featured,
+		InOffer,
 		ArticleCard,
 		ArticleCardSkeleton,
 		VueHorizontalList,
@@ -154,7 +158,7 @@ export default {
 			this.scroll++
 		},
 		infiniteHandler($state) {
-			if ((this.page < 3 || this.is_from_search || this.is_from_categories) && this.articles.length >= 12) {
+			if (this.commerce.online_configuration.scroll_infinito_en_home || (this.page < 3 || this.is_from_search || this.is_from_categories) && this.articles.length >= 12) {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
 				if (this.selected_category) {

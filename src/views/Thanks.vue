@@ -46,9 +46,7 @@ export default {
     },
 	created() {
 		this.setTitle('Gracias por tu compra')
-		// setTimeout(() => {
-		// 	this.checkNotificationsPermissions()
-		// }, 5000)
+		this.$scrollToTop()
 	}
 }	
 </script>

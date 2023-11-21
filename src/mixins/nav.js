@@ -56,7 +56,10 @@ export default {
 		},
 		toCart() {
 			if (this.$route.name == 'Cart') {
-				this.$store.dispatch('cart/getLastCart')
+				if (this.commerce.online_configuration.register_to_buy) {
+					console.log('se llamo getLastCart desde toCart')
+					this.$store.dispatch('cart/getLastCart')
+				}
 			} else {
 				if (!this.checkCartPaymentStatus()) {
 					if (this.cart.articles.length) {
@@ -106,7 +109,7 @@ export default {
 				}
 			}
 		},
-		orders() {
+		toOrders() {
 			if (this.$route.name == 'Orders') {
 				this.$store.dispatch('orders/getOrders')
 			} else {

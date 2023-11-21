@@ -1,5 +1,6 @@
 <template>
-	<div>
+	<div
+	class="background">
 		<h5>
 			Notas para el pedido
 		</h5>

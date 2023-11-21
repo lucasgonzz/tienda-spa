@@ -16,7 +16,6 @@ export default {
 			state.order = order
 		},
 		setOrders(state, orders) {
-			orders.forEach()
 			state.orders = orders
 		},
 		setDetails(state, value) {
@@ -40,6 +39,7 @@ export default {
 			commit('setLoading', true)
 			return axios.get(`/api/orders?page=1`)
 			.then(res => {
+				console.log(res)
 				commit('setLoading', false)
 				commit('setOrders', res.data.orders.data)
 				commit('setPage', 2)

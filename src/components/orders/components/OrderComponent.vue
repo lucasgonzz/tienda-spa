@@ -1,8 +1,14 @@
 <template>
 	<b-card
-	class="card-compra shadow-2 b-r"
+	class="card-compra shadow-1 b-r"
 	no-body>
 		<div class="card-compra-body">
+			<p>
+				N° {{ order.num }}
+			</p>
+			<p>
+				{{ order.order_status.name }}
+			</p>
 			<p>{{ cantArticles }}</p>
 			<p
 			class="total-order">Total: {{ price(total(order)) }}</p>
@@ -27,7 +33,7 @@ export default {
 				if (cant_articles == 1) {
 					return '1 producto'
 				}
-				return this.amount(cant_articles) + ' productos'
+				return cant_articles+ ' productos'
 			}
 			return null
 		},
@@ -43,6 +49,8 @@ export default {
 		display: flex
 		flex-direction: column
 		align-items: flex-start
+		background: #FFF
+		border-radius: 5px
 		p 
 			margin-bottom: 1em
 			&:last-child

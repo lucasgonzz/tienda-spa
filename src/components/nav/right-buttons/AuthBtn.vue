@@ -1,5 +1,6 @@
 <template>
 	<div
+	v-if="commerce.online_configuration.register_to_buy"
 	class="m-l-15 d-none d-lg-block auth-btn">
 		<div 
 		v-if="authenticated && !is_mobile">
@@ -16,59 +17,11 @@
                         {{ cupons_not_read }}
                     </b-badge>
 				</template>
-				<!-- <b-dropdown-item 
-				@click="cupons">
-					<i class="icon-cupon icon-black"></i>
-                    <b-badge
-                    v-show="cupons_not_read > 0"
-                    class="badge"
-                    variant="danger"
-                    size="sm">
-                        {{ cupons_not_read }}
-                    </b-badge>
-					Cupones
-				</b-dropdown-item>
 				<b-dropdown-item 
-				:class="active('Questions')"
-				@click="questions">
-					<i class="icon-comment icon-black"></i>
-					Preguntas
+				@click="toOrders">
+					<i class="icon-bag"></i>
+					Mis pedidos
 				</b-dropdown-item>
-				<b-dropdown-item 
-				:class="active('Favorites')"
-				@click="favorites">
-					<i class="icon-heart icon-black"></i>
-					Favoritos
-				</b-dropdown-item>
-				<b-dropdown-item 
-				:class="active('Orders')"
-				@click="orders">
-					<i class="icon-bag-o icon-black"></i>
-					Compras
-				</b-dropdown-item>
-                <b-dropdown-item 
-                v-b-modal="'workdays'">
-                    <i class="icon-clock"></i>
-                    Horarios
-                </b-dropdown-item>
-                <b-dropdown-item 
-                :to="{name: 'Location'}"
-                :class="active('Location')">
-                    <i class="icon-location"></i>
-                    Nuestro local
-                </b-dropdown-item>
-				<b-dropdown-item 
-				:class="active('Configuration')"
-				:to="{name: 'Configuration'}">
-					<i class="icon-config icon-black"></i>
-					Configuracion
-				</b-dropdown-item>
-				<b-dropdown-item 
-				v-if="!is_verified"
-				:to="{name: 'Register', params: {view: 'codigo-de-verificacion'}}">
-					<i class="icon-right"></i>
-					Verificar cuenta
-				</b-dropdown-item> -->
 				<b-dropdown-item 
 				@click="logout">
 					<i class="icon-logout icon-black"></i>

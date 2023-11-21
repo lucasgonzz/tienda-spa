@@ -13,7 +13,7 @@
 		<p
 		class="comerciocity-info">
 			<a  
-			href="https://empresa.comerciocity.com"
+			href="https://comerciocity.com"
 			target="_blank">
 				Creado con 
 				<img 

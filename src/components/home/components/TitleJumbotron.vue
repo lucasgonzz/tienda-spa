@@ -1,6 +1,6 @@
 <template>
 <b-row
-class="m-t-0 m-b-0">
+class="m-t-0 m-b-0 row-title-jumbotron">
 	<b-col
 	cols="12">
 		<div
@@ -40,7 +40,9 @@ class="m-t-0 m-b-0">
 									{{ title.lead }}
 								</p>
 							</div>
-							<div class="cont-image">
+							<div 
+							:style="backgroundColor(title)"
+							class="cont-image">
 								<vue-load-image>
 									<img
 									slot="image"
@@ -80,6 +82,9 @@ export default {
 				return 'color: '+title.text_color
 			}
 			return 'color: rgba(255,255,255,.9)'
+		},
+		backgroundColor(title) {
+			return 'background-color: '+title.color
 		}
 	},
 	computed: {
@@ -96,49 +101,52 @@ export default {
 }
 </script>
 <style lang="sass">
-.VueCarousel
-	.VueCarousel-navigation-button
-		border: 1px solid #333
-		border-radius: 50%
-		font-size: 30px
-		width: 50px
-		height: 50px
+.row-title-jumbotron
+	.VueCarousel
+		.VueCarousel-navigation-button
+			border: 1px solid #333
+			border-radius: 50%
+			font-size: 30px
+			width: 50px
+			height: 50px
+			display: flex
+			justify-content: center 
+			align-items: center 
+		.VueCarousel-navigation-next
+			right: 70px
+		.VueCarousel-navigation-prev
+			left: 70px
+		.VueCarousel-slide
+			width: 100%
+	.title-image
 		display: flex
-		justify-content: center 
-		align-items: center 
-	.VueCarousel-navigation-next
-		right: 70px
-	.VueCarousel-navigation-prev
-		left: 70px
-	.VueCarousel-slide
-		width: 100%
-.title-image
-	display: flex
-	flex-direction: row
-	align-items: center
-	height: 50vh 
-	position: relative
-	.title
-		text-align: center
-		position: absolute
-		width: 100% 
-		.header
-			font-size: 15px
-		.lead 
-			font-size: 50px
-			font-weight: 600 
-	.cont-image 
-		overflow-x: hidden
-		width: 100vw
-		height: 100%
-		.vue-load-image
+		flex-direction: row
+		align-items: center
+		height: 50vh 
+		position: relative
+		.title
+			text-align: center
+			position: absolute
+			width: 100% 
+			.header
+				font-size: 15px
+			.lead 
+				font-size: 50px
+				font-weight: 600 
+		.cont-image 
+			overflow-x: hidden
+			width: 100vw
 			height: 100%
-			img 
-				padding: 0
-				min-width: 100%
+			.vue-load-image
 				height: 100%
-				// max-height: 100%
-				// min-width: 100%
-			.spinner-border 
-				margin: 27vh 0
+				img 
+					padding: 0
+					height: 100%
+					min-width: 100%
+					// @media screen and (max-width: 992px)
+					// 	max-width: 100%
+					// @media screen and (min-width: 992px)
+					// 	min-width: 100%
+				.spinner-border 
+					margin: 27vh 0
 </style>

@@ -1,11 +1,11 @@
 <template>
-	<div>
+	<div
+	class="background">
 		<h5>
 			Forma de pago
 		</h5>
 		<payment-methods></payment-methods>
 		<total></total>
-		<hr>
 	</div>
 </template>
 <script>

@@ -1,33 +1,19 @@
 <template>
 	<div
 	class="featured-list m-b-25"
-	v-if="!selected_category && !selected_sub_category && !is_from_search && featured.length">
+	v-if="!selected_category && !selected_sub_category && !is_from_search && in_offer.length">
 		<p 
 		class="title m-b-0">
-			Destacados
+			Ofertas
 		</p>
 		<vue-horizontal-list 
-		:items="featured" :options="options">
+		:items="in_offer" :options="options">
 			<template v-slot:default="{ item }">
 				<article-card
 				full_width
 				:article="item"></article-card>
 			</template>
 		</vue-horizontal-list>
-		<!-- <div 
-		class="cont-featured"
-		v-if="is_mobile">
-			<ul 
-			class="horizontal-ul paddings">
-				<li
-				v-for="article in featured"
-				:key="article.id">
-					<article-card
-					:vertical="true"
-					:article="article"></article-card>
-				</li>
-			</ul>
-		</div> -->
 	</div>
 </template>
 <script>
@@ -36,7 +22,7 @@ import VueHorizontalList from "vue-horizontal-list"
 import categories from "@/mixins/categories"
 import VueScreenSize from 'vue-screen-size'
 export default {
-	name: 'Featured',
+	name: 'InOffer',
 	mixins: [categories],
 	components: {
 		ArticleCard,

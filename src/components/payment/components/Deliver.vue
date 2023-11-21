@@ -1,5 +1,6 @@
 <template>
-	<div>
+	<div
+	class="background">
 		<h5>
 			Entrega del pedido
 		</h5>
@@ -10,11 +11,9 @@
 			button-variant="success"
 			v-model="deliver"
 			:value="deliver_option.value">
-				<!-- <i :class="'icon-'+deliver_option.icon"></i> -->
 				{{ deliver_option.name }}
 			</b-form-radio>
 		</b-form-group>
-		<hr>
 	</div>
 </template>
 <script>

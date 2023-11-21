@@ -22,6 +22,10 @@ export default {
                     this.$store.dispatch('orders/getCurrentOrder')
                     this.$store.dispatch('orders/getOrders')
                 }
+                if (this.isCartAmountUpdated(notification.message)) {
+                    console.log('es cart amount updated')
+                    this.$store.dispatch('cart/getLastCart')
+                }
                 this.checkIfIsMessagesView()
             });
             this.Echo.channel('question.'+this.user.id)

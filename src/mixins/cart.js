@@ -23,6 +23,9 @@ export default {
 		cart() {
 			return this.$store.state.cart.cart
 		},
+		cart_buyer() {
+			return this.$store.state.cart.buyer
+		},
 		delivery_zones() {
 			return this.$store.state.delivery_zones.models
 		},
@@ -59,7 +62,6 @@ export default {
 		total() {
 			let total = 0
 			this.articles.forEach(article => {
-				console.log(this.articlePriceEfectivo(article, false))
 				total += this.articlePriceEfectivo(article, false) * Number(article.pivot.amount)
 			})
 			return total
@@ -132,24 +134,31 @@ export default {
 			}
 			return total
 		},
-		makeOrder() {
+		makeOrder(from_mercadopago = false) {
 			if (this.canMakeOrder()) {
 				this.$store.commit('auth/setLoading', true)
-				this.$store.commit('auth/setMessage', 'Enviando pedido')
+				if (from_mercadopago) {
+					this.$store.commit('auth/setMessage', 'Guardando pedido para luego pagar con Mercado Pago')
+				} else {
+					this.$store.commit('auth/setMessage', 'Enviando pedido')
+				}
 				this.$store.dispatch('cart/save')
 				.then(() => {
 					return this.$api.post('/orders', {
 						commerce_id 	: process.env.VUE_APP_COMMERCE_ID,
 						cart_id         : this.cart.id,
 						dolar_blue      : this.dolar_blue,
+						buyer 			: this.cart_buyer,
 					})
 					.then(() => {
 						this.$store.commit('auth/setLoading', false)
 						this.$store.commit('auth/setMessage', '')
-						this.$store.commit('cart/setCart', null)
-						this.$store.dispatch('orders/getCurrentOrder')
-						// this.$store.dispatch('notifications/getUnreadNotifications')
-						this.$router.push({name: 'Thanks'})
+						if (!from_mercadopago) {
+							this.$store.commit('cart/setCart', null)
+							localStorage.cart = JSON.stringify(this.cart) 
+							this.$store.dispatch('orders/getCurrentOrder')
+							this.$router.push({name: 'Thanks'})
+						} 
 					})
 					.catch(err => {
 						this.$store.commit('auth/setLoading', false)
@@ -161,12 +170,6 @@ export default {
 		},
 		canMakeOrder() {
 			return true 
-			if (!this.order || this.order.status == 'delivered' || this.order.status == 'canceled') {
-				return true
-			} else {
-				this.$toast.error('Estamos procesando tu pedido actual, cuando terminemos podras hacer uno nuevo')
-				return false
-			}
 		},
 	}
 }

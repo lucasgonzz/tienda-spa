@@ -40,10 +40,17 @@
 				Iniciar sesion	
 			</div>
 			<div
-			@click="logout"
-			class="item"
 			v-else>
-				Cerrar sesion	
+				<div
+				@click="toOrders"
+				class="item">
+					Mis Pedidos	
+				</div>
+				<div
+				@click="logout"
+				class="item">
+					Cerrar sesion	
+				</div>
 			</div>
 		</div>
 	</div>

@@ -104,7 +104,7 @@
 .icon-upload:before {
   content: "\7a";
 }
-.icon-config:before {
+.icon-configuration:before {
   content: "\43";
 }
 .icon-sign-out:before {
@@ -292,4 +292,19 @@
 }
 .icon-exclamation:before {
   content: "\5b";
+}
+.icon-list:before {
+  content: "\5d";
+}
+.icon-grid:before {
+  content: "\5e";
+}
+.icon-charts:before {
+  content: "\5f";
+}
+.icon-external-link:before {
+  content: "\60";
+}
+.icon-lock-1:before {
+  content: "\7b";
 }

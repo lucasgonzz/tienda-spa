@@ -27,8 +27,13 @@ export default {
 		},
 		isOrderDelivered(message) {
 			if (message.type) {
-				console.log('essasdsada')
 				return message.type.includes('order_delivered')
+			}
+			return false
+		},
+		isCartAmountUpdated(message) {
+			if (message.type) {
+				return message.type.includes('cart_amount_updated')
 			}
 			return false
 		},

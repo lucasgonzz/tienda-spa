@@ -9,6 +9,9 @@ export default {
 		featured() {
 			return this.$store.state.categories.featured
 		},
+		in_offer() {
+			return this.$store.state.categories.in_offer
+		},
 		articles() {
 			return this.$store.state.categories.articles
 		},

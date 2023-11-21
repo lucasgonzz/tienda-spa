@@ -70,9 +70,6 @@ export default {
                 this.setCartFromCookies()
             }
         },
-        // route() {
-        //     this.$scrollToTop()
-        // },
     },
     data() {
         return {
@@ -108,16 +105,15 @@ export default {
         async callMethods() {
             console.log('callMethods')
             if (!this.data_loaded) {
-                // await this.$store.dispatch('commerce/getCommerce')
+                if (this.commerce.online_configuration.register_to_buy) {
+                    this.$store.dispatch('auth/me')
+                } else {
+                    this.setCartFromCookies()
+                }
                 await this.$store.dispatch('titles/getTitles')
                 await this.$store.dispatch('categories/getIndex')
                 await this.$store.dispatch('categories/getCategories')
-                await this.$store.dispatch('auth/me')
                 await this.$store.dispatch('platelets/getModels')
-                // await this.$store.dispatch('coins/getCoins')
-                // await this.$store.dispatch('last_searchs/getLastSearchsForSearchPage')
-                // await this.$store.dispatch('articles/getArticlesNames')
-                // await this.$store.dispatch('commerce/getWorkdays')
                 await this.$store.dispatch('payment_methods/getModels')
                 await this.$store.dispatch('delivery_zones/getModels')
                 this.data_loaded = true

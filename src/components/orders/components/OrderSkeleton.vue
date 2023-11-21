@@ -1,6 +1,6 @@
 <template>
 	<b-card
-	class="card-compra shadow-2 b-r"
+	class="card-compra shadow-1 b-r m-t-30"
 	no-body>
 		<div class="card-compra-body">
 			<b-skeleton width="20%"></b-skeleton>
