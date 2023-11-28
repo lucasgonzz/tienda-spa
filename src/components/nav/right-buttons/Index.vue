@@ -18,7 +18,7 @@ export default {
 <style lang="sass">
 .right-buttons
 	position: absolute
-	right: 15px
+	right: 35px
 	display: flex
 	flex-direction: row
 	align-items: center 

@@ -12,7 +12,7 @@
 		</div>
 
 		<div 
-		v-if="article.stock == 0"
+		v-if="!hasStock(article)"
 		class="agotado">
 			Agotado
 		</div>

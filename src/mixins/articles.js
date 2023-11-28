@@ -9,15 +9,19 @@ export default {
 		selected_article_variant() {
 			return this.$store.state.articles.selected_article_variant
 		},
-		has_stock() {
-			if (this.article_to_show.article_variants.length) {
+	},
+	methods: {
+		hasStock(article) {
+			if (article.article_variants.length) {
 				console.log('has_stock variants')
 				return !this.selected_article_variant || this.selected_article_variant.stock === null || this.selected_article_variant.stock > 0
 			}
-			return this.article_to_show.stock === null || this.article_to_show.stock > 0
+			if (this.commerce.online_configuration.stock_null_equal_0 && article.stock == null) {
+				console.log('NULL es igual a 0 y el stock de '+article.name+' es null')
+				return false 
+			}
+			return article.stock === null || article.stock > 0
 		},
-	},
-	methods: {
 		toArticle(article) {
 			this.$store.commit('articles/setArticleToShow', article)
 			let params = {slug: article.slug, commerce_id: process.env.VUE_APP_COMMERCE_ID}

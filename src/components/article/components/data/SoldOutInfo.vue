@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="!has_stock">
+	v-if="!hasStock(article_to_show)">
 		<p 
 		class="stock-0 text-danger m-b-10">
 			Producto agotado

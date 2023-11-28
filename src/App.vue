@@ -150,7 +150,7 @@ export default {
 .container-principal
 
     // background: rgba(0,0,0,.1)
-    background: #DEDEDE
+    background: #EBEBEB
 
     // background: url('~@/assets/fondo.jpg') 
     // background-size: 100% auto

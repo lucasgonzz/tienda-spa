@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="article_to_show && articlePriceEfectivo(article_to_show) && has_stock" 
+	v-if="article_to_show && articlePriceEfectivo(article_to_show) && hasStock(article_to_show)" 
 	class="add-to-cart m-b-20">
 		<article-amount></article-amount>
 		<div class="cont-btn-add">

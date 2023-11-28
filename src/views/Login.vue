@@ -50,6 +50,9 @@ import SocialLogin from '@/components/login/components/SocialLogin'
 export default {
 	name: 'Login',
 	mixins: [nav],
+	created() {
+		this.$scrollToTop()
+	},	
 	components: {
 		FormLogin,
 		SocialLogin,
