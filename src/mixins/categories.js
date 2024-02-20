@@ -12,6 +12,9 @@ export default {
 		in_offer() {
 			return this.$store.state.categories.in_offer
 		},
+		novedades() {
+			return this.$store.state.categories.novedades
+		},
 		articles() {
 			return this.$store.state.categories.articles
 		},

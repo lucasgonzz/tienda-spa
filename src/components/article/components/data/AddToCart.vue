@@ -51,6 +51,9 @@ export default {
 		amount() {
 			return this.$store.state.articles.amount
 		},
+		notes() {
+			return this.$store.state.articles.notes
+		},
 		selected_article_variant() {
 			return this.$store.state.articles.selected_article_variant
 		},
@@ -73,8 +76,10 @@ export default {
 		saveCart(buy_now = false) {
 			if (this.checkVariant()) {
 				this.article_to_show.amount = this.amount 
+				this.article_to_show.notes = this.notes 
 				this.article_to_show.pivot = {
 					amount: this.amount,
+					notes: this.notes,
 					variant_id: this.selected_article_variant ? this.selected_article_variant.id : null
 				}
 				this.$store.commit('cart/addArticle', this.article_to_show)
@@ -160,9 +165,9 @@ export default {
 @import '@/sass/_custom'
 .add-to-cart
 	display: flex 
-	flex-direction: row 
+	flex-direction: column
 	.cont-btn-add
-		width: calc(100% - 150px)
+		width: 100%
 		button	 
 			width: 100% 
 			min-height: 50px

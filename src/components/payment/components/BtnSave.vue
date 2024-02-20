@@ -42,6 +42,9 @@ export default {
 		is_mp() {
 			return this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago'
 		},
+		payment_methods() {
+			return this.$store.state.payment_methods.models 
+		},
 	},
 	methods: {
 		saveCart() {
@@ -65,7 +68,7 @@ export default {
 				this.$toast.error('Seleccione metodo de entrega')
 				return false
 			}
-			if (!this.cart_payment_method) {
+			if (!this.cart_payment_method && this.payment_methods.length) {
 				this.$toast.error('Seleccione un metodo de pago')
 				return false
 			}

@@ -1,9 +1,9 @@
 <template>
 	<div
-	class="featured-list m-b-25"
+	class="featured-list"
 	v-if="!selected_category && !selected_sub_category && !is_from_search && featured.length">
 		<p 
-		class="title m-b-0">
+		class="title">
 			Destacados
 		</p>
 		<vue-horizontal-list 

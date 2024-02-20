@@ -14,6 +14,9 @@
                     </transition>
                     <btn-whats-app></btn-whats-app>
                     <footer-component></footer-component>
+
+                    <buyer-messages></buyer-messages>
+
                 </b-container>
             </div>
         </div>
@@ -43,6 +46,8 @@ export default {
         // NotificationsPermissions,
         LogoLoading,
         FooterComponent,
+
+        BuyerMessages: () => import('@/components/buyer-messages/Index'),
     },
     mixins: [WebSockets, transitions, update_app, app, firebase, articles, VueScreenSize.VueScreenSizeMixin],
     computed: {
@@ -111,13 +116,49 @@ export default {
                     this.setCartFromCookies()
                 }
                 await this.$store.dispatch('titles/getTitles')
-                await this.$store.dispatch('categories/getIndex')
+                
+                await this.getIndex()
+                
                 await this.$store.dispatch('categories/getCategories')
+                
+                await this.getCategory()
+
                 await this.$store.dispatch('platelets/getModels')
                 await this.$store.dispatch('payment_methods/getModels')
                 await this.$store.dispatch('delivery_zones/getModels')
                 this.data_loaded = true
             }
+        },
+        getIndex() {
+            if (this.$route.params.category == 'ultimos-ingresados') {
+                return this.$store.dispatch('categories/getIndex')
+            }
+            return null
+        },
+        getCategory() {
+            if (this.$route.params.category != 'ultimos-ingresados') {
+                let category = this.$store.state.categories.categories.find(model => {
+                    return this.routeString(model.name).toLowerCase() == this.$route.params.category.toLowerCase()
+                })
+                if (typeof this.$route.params.sub_category != 'undefined') {
+                    // Hay una sub_categoria como parametro
+                    let sub_category = category.sub_categories.find(model => {
+                        return this.routeString(model.name).toLowerCase() == this.$route.params.sub_category.toLowerCase()
+                    })
+                    if (typeof sub_category != 'undefined') {
+                        this.$store.commit('categories/setSelectedSubCategory', sub_category)
+                        this.$store.dispatch('categories/getArticles')
+                        console.log('pidiendo la sub_category '+sub_category.name)
+                    }
+                } else {
+                    if (typeof category != 'undefined') {
+                        this.$store.commit('categories/setSelectedCategory', category)
+                        this.$store.dispatch('categories/getArticles')
+                        console.log('pidiendo la category '+category.name)
+                    }
+                }
+            }
+            return null
         },
         async callAuthMethods() {
             console.log('callAuthMethods')

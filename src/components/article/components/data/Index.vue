@@ -9,7 +9,7 @@
 		</b-card>
 	</template>
 	<div
-	class="m-t-20 m-b-20"
+	class="m-t-20 m-b-20 article-data"
 	v-if="article_to_show">
 		<name-heart></name-heart>
 		
@@ -22,6 +22,8 @@
 		<condition></condition>	
 
 		<sold-out-info></sold-out-info>
+
+		<notes></notes>
 
 		<add-to-cart></add-to-cart>
 		
@@ -36,6 +38,7 @@ import PaymentMethodsInfo from '@/components/article/components/data/PaymentMeth
 import Price from '@/components/article/components/data/Price'
 import Condition from '@/components/article/components/data/Condition'
 import SoldOutInfo from '@/components/article/components/data/SoldOutInfo'
+import Notes from '@/components/article/components/data/Notes'
 import AddToCart from '@/components/article/components/data/AddToCart'
 import WhatsappLink from '@/components/article/components/data/WhatsappLink'
 
@@ -49,6 +52,7 @@ export default {
 		Price,
 		Condition,
 		SoldOutInfo,
+		Notes,
 		AddToCart,
 		WhatsappLink,
 
@@ -61,3 +65,11 @@ export default {
 	},
 }
 </script>
+<style lang="sass">
+.article-data
+	background: #FFF
+	border-radius: 10px
+	border: 2px solid #DDDDDD
+	padding: 25px
+</style>
+

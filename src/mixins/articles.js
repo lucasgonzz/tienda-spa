@@ -45,6 +45,7 @@ export default {
 		checkCartArticle() {
 			this.checkCartArticleVariant()
 			this.checkCartArticleAmount()
+			this.checkCartArticleNotes()
 		},
 		checkCartArticleVariant() {
 			let articles = this.$store.state.cart.cart.articles
@@ -95,6 +96,15 @@ export default {
 			})
 			if (article_cart != undefined) {
 				this.$store.commit('articles/setAmount', article_cart.amount)
+			}
+		},
+		checkCartArticleNotes() {
+			let articles = this.$store.state.cart.cart.articles
+			let article_cart = articles.find(art => {
+				return art.id == this.article_to_show.id
+			})
+			if (article_cart != undefined) {
+				this.$store.commit('articles/setNotes', article_cart.notes)
 			}
 		},
 		setArticleViewed(article) {

@@ -77,5 +77,5 @@ export default {
 .added-article-register-to-buy
 	right: -59px
 	&::before 
-		left: 64%
+		left: 84%
 </style>

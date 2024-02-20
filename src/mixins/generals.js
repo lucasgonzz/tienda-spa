@@ -140,6 +140,15 @@ export default {
 		},
 	},
 	methods: {
+		commerce_has_extencion(slug){
+			if (this.commerce) {
+				let finded_extencion = this.commerce.extencions.find(extencion => {
+					return extencion.slug == slug 
+				})
+				return typeof finded_extencion != 'undefined'
+			}
+			return false 
+		},
 		articleImage(article) {
 			if (article.images.length) {
 				return article.images[0].hosting_url

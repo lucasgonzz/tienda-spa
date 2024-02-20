@@ -1,6 +1,9 @@
 <template>
 	<div
-	class="article-amount m-b-20">
+	class="article-amount">
+		<strong>
+			Cantidad:
+		</strong>
 		<div
 		class="btn-content">
 			<b-button
@@ -70,10 +73,11 @@ export default {
 @import '@/sass/_custom'
 .article-amount
 	display: flex
-	flex-direction: columns
+	flex-direction: row
 	align-items: center
-	justify-content: space-between
-	width: 150px
+	justify-content: space-around
+	width: 100%
+	margin-bottom: 15px
 
 	.btn-content
 		display: flex

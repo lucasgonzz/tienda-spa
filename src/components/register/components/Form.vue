@@ -133,10 +133,10 @@ export default {
 				this.$toast.error('El email no puede quedar vacio')
 				return false
 			}
-			if (!this.isEmail(this.register_user.email)) {
-				this.$toast.error('Ingresa un correo valido')
-				return false
-			}
+			// if (!this.isEmail(this.register_user.email)) {
+			// 	this.$toast.error('Ingresa un correo valido')
+			// 	return false
+			// }
 			if (this.register_user.password == '') {
 				this.$toast.error('La contraseña no puede quedar vacia')
 				return false

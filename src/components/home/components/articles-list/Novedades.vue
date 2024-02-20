@@ -1,13 +1,13 @@
 <template>
 	<div
-	class="featured-list"
-	v-if="!selected_category && !selected_sub_category && !is_from_search && in_offer.length">
+	class="featured-list p-b-50"
+	v-if="!selected_category && !selected_sub_category && !is_from_search && novedades.length">
 		<p 
 		class="title">
-			Ofertas
+			Novedades
 		</p>
 		<vue-horizontal-list 
-		:items="in_offer" :options="options">
+		:items="novedades" :options="options">
 			<template v-slot:default="{ item }">
 				<article-card
 				full_width
@@ -22,7 +22,7 @@ import VueHorizontalList from "vue-horizontal-list"
 import categories from "@/mixins/categories"
 import VueScreenSize from 'vue-screen-size'
 export default {
-	name: 'InOffer',
+	name: 'Novedades',
 	mixins: [categories],
 	components: {
 		ArticleCard,

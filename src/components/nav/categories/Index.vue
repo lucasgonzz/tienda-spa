@@ -54,7 +54,7 @@ export default {
 			show_sub_category: 0,
 			set_sub_categories_position: false,
 		}
-	},
+	}, 
 	methods: {
 		hover() {
 			if (!this.set_sub_categories_position) {

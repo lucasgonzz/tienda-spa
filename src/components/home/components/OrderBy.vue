@@ -1,5 +1,6 @@
 <template>
-<b-row>
+<b-row
+v-if="selected_category || selected_sub_category">
 	<b-col
 	cols="12"
 	lg="10"
@@ -10,7 +11,7 @@
 			class="order-by">
 				<p
 				class="title sm m-b-10">
-					Ordenar por:
+					Ordenar por
 				</p>
 				<b-form-select
 				:options="options"
@@ -36,6 +37,7 @@ export default {
 			set(value) {
 				this.$store.commit('categories/setOrderBy', value)
 				this.$store.commit('categories/setOrder')
+				this.$store.dispatch('categories/getArticles')
 			},
 			get() {
 				return this.$store.state.categories.order_by
@@ -52,11 +54,11 @@ export default {
 					text: 'Fecha: Viejo al mas nuevo',
 				},
 				{
-					value: 'precio-mayor-menor',
+					value: 'precio-menor-mayor',
 					text: 'Precio: Menor a Mayor',
 				},
 				{
-					value: 'precio-menor-mayor',
+					value: 'precio-mayor-menor',
 					text: 'Precio: Mayor a Menor',
 				},
 				{
@@ -76,29 +78,21 @@ export default {
 .cont-order-by-btn-filter
 	display: flex
 	align-items: flex-end
-	justify-content: space-between
+	justify-content: center
 	margin-top: .7em
+	width: 100%
 	.order-by 
 		display: flex
+		flex-direction: column
+		justify-content: center
+		align-items: center
 		p 
 			margin-bottom: 0
 			font-weight: bold
-@media screen and (max-width: 992px)
-	.order-by 
-		width: 60%
-		flex-direction: column
-		align-items: flex-start
-		p 
-			text-align: left
-@media screen and (min-width: 992px)
-	.order-by
-		flex-direction: row
-		width: 350px
-		align-items: center
-		margin: auto
-		margin-top: 10px
-		p 
-			width: 35%
-		select
-			width: 65%
+			font-size: 20px
+			text-align: center
+		select 
+			height: 70px
+			width: 350px
+			font-size: 25px
 </style>

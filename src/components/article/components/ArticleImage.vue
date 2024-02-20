@@ -32,12 +32,22 @@
 				:data-index="index"
 				v-for="(image, index) in images"
 				:key="image.id">
+					<!-- <div
+					style="width:400px">
+						{{image.hosting_url}}
+						<zoom-on-hover 
+						:img-normal="image.hosting_url"
+						:img-zoom="image.hosting_url"
+						:scale="1.5"></zoom-on-hover>
+					</div> -->
 					<vue-load-image>
 						<img
 						class="img-carrousel"
 						slot="image"
 						:src="image.hosting_url" 
 						:alt="article.name">
+
+
 				        <b-spinner
 						slot="preloader"
 				        variant="success"></b-spinner>
@@ -51,13 +61,13 @@
 </template>
 <script>
 import VueLoadImage from 'vue-load-image'
+import ZoomOnHover from 'vue-zoom-on-hover'
 import { Carousel, Slide } from 'vue-carousel'
-// import VueScreenSize from 'vue-screen-size'
 export default {
 	name: 'ArticleImage',
-	// mixins: [VueScreenSize.VueScreenSizeMixin],
 	components: {
 		VueLoadImage,
+		ZoomOnHover,
 	    Carousel,
 	    Slide
 	},
@@ -145,8 +155,13 @@ export default {
 	box-sizing: border-box
 	display: flex
 	flex-direction: row 
+	background: #FFF
+	margin: 20px 0
+	border-radius: 10px
+	border: 2px solid #DDDDDD
+
 	.images-preview
-		padding: 30px 0
+		// padding: 30px 0
 		width: 150px
 		img 
 			width: 80%

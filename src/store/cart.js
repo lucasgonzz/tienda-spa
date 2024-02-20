@@ -94,6 +94,7 @@ export default {
 				cart.articles.forEach(article => {
 					article.amount = article.pivot.amount
 					article.price = article.pivot.price
+					article.notes = article.pivot.notes
 				})
 				state.payment_method = cart.payment_method 
 				state.delivery_zone = cart.delivery_zone 

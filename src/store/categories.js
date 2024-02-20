@@ -10,6 +10,7 @@ export default {
 		articles: [],
 		featured: [],
 		in_offer: [],
+		novedades: [],
 
 		selected_category: null,
 		selected_sub_category: null,
@@ -66,6 +67,9 @@ export default {
 		},
 		setInOffer(state, value) {
 			state.in_offer = value
+		},
+		setNovedades(state, value) {
+			state.novedades = value
 		},
 		addArticles(state, value) {
 			state.articles = state.articles.concat(value)
@@ -143,10 +147,37 @@ export default {
 			if (state.selected_sub_category) {
 				sub_category_id = state.selected_sub_category.id
 			}
-			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
+			console.log('order_by: '+state.order_by)
+			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+state.order_by+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
 			.then(res => {
 				commit('setLoadingArticles', false)
-				commit('setArticles', res.data.articles.data)
+				let articles = res.data.articles.data 
+
+				articles.forEach(article => {
+					console.log(article.name+' $'+article.final_price)
+				})
+				if (res.data.reverse) {
+					articles = articles.reverse()
+					console.log('________________________________')
+					console.log('Se dio vuelta')
+					articles.forEach(article => {
+						console.log(article.name+' $'+article.final_price)
+					})
+					// if (state.order_by == 'precio-mayor-menor') {
+					// 	console.log('precio-mayor-menor')
+					// 	articles = articles.sort((a, b) => Number(b.final_price) - Number(a.final_price))
+					// } else if (state.order_by == 'precio-menor-mayor') {
+					// 	console.log('precio-menor-mayor')
+					// 	articles = articles.sort((a, b) => Number(a.final_price) - Number(b.final_price))
+					// } 
+					// console.log('________________________________')
+					// console.log('despues del sort')
+					// articles.forEach(article => {
+					// 	console.log(article.name+' $'+article.final_price)
+					// })
+				}
+
+				commit('setArticles', articles)
 				commit('setOrder')
 			})
 			.catch(err => {
@@ -167,6 +198,7 @@ export default {
 				commit('setArticles', res.data.articles.data)
 				commit('setFeatured', res.data.featured)
 				commit('setInOffer', res.data.in_offer)
+				commit('setNovedades', res.data.novedades)
 			})
 			.catch(err => {
 				commit('setLoadingArticles', false)

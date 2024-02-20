@@ -50,6 +50,10 @@ export default {
 </script>
 <style lang="sass">
 .descriptions
+	background: #FFF
+	border-radius: 10px
+	border: 2px solid #DDDDDD
+	padding: 25px
 	.description
 		.title 
 			font-size: 1em

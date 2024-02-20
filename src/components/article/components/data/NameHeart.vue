@@ -1,12 +1,14 @@
 <template>
 	<div 
-	class="name-heart m-b-15">
+	class="cont-name m-b-15">
 		<p class="product-name">
 			{{ article_to_show.name }}
 		</p>
-		<!-- <span 
-		@click="favorite"
-		:class="classHeart()"></span> -->
+		<p
+		v-if="commerce_has_extencion('article_num_in_online')"
+		class="num">
+			N° {{ article_to_show.num }}
+		</p>
 	</div>
 </template>
 <script>
@@ -42,14 +44,20 @@ export default {
 </script>
 <style scoped lang="sass">
 @import '@/sass/_custom'
-.name-heart 
+.cont-name
 	display: flex
-	justify-content: space-between
-.product-name
-	font-size: 1.2em
-	font-weight: bold
-	text-align: left
-	margin-bottom: 0
+	flex-direction: column 
+	justify-content: flex-start
+	p 
+		text-align: left
+	.product-name
+		font-size: 1.5em
+		font-weight: bold
+		text-align: left
+		margin-bottom: 0
+	.num 
+		margin-top: 5px
+		font-size: 1em
 .icon-heart, .icon-heart-o 
 	font-size: 1.7em
 	cursor: pointer

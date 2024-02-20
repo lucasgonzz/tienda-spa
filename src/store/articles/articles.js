@@ -11,6 +11,7 @@ export default {
 		similars: [],
 		article_to_show: null,
 		amount: 1,
+		notes: '',
 		selected_article_variant: null,
 		image_index: 0,
 		articles_names: [],
@@ -106,6 +107,9 @@ export default {
 		},
 		decrementAmount(state) {
 			state.amount--
+		},
+		setNotes(state, value) {
+			state.notes = value
 		},
 		setArticleToShowVariant(state, value) {
 			state.article_to_show = Object.assign({}, state.article_to_show, { variant: value })

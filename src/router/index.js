@@ -34,12 +34,13 @@ import Callback from '../views/Callback.vue'
 import Cupons from '../views/Cupons.vue'
 import Contacto from '../views/Contacto.vue'
 import QuienesSomos from '../views/QuienesSomos.vue'
+import SeleccionEspecial from '../views/SeleccionEspecial.vue'
 
 Vue.use(VueRouter)
 
     const routes = [
     {
-        path: '/inicio/:category?',
+        path: '/inicio/:category?/:sub_category?',
         name: 'Home',
         component: Home
     },
@@ -198,6 +199,11 @@ Vue.use(VueRouter)
         path: '/quienes-somos',
         name: 'QuienesSomos',
         component: QuienesSomos,
+    },
+    {
+        path: '/seleccion-especial/:articles_id',
+        name: 'SeleccionEspecial',
+        component: SeleccionEspecial,
     },
 
 ]

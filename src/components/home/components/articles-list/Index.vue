@@ -7,6 +7,8 @@ id="articles-list">
 
 		<in-offer></in-offer>
 
+		<novedades></novedades>
+
 		<p 
 		v-if="selected_category || selected_sub_category"
 		class="title">
@@ -77,8 +79,11 @@ id="articles-list">
 </template>
 <script>
 import InfiniteLoading from 'vue-infinite-loading'
+
 import Featured from '@/components/home/components/articles-list/Featured'
 import InOffer from '@/components/home/components/articles-list/InOffer'
+import Novedades from '@/components/home/components/articles-list/Novedades'
+
 import ArticleCard from '@/components/common/ArticleCard'
 import ArticleCardSkeleton from '@/components/common/ArticleCardSkeleton'
 import VueHorizontalList from "vue-horizontal-list"
@@ -91,6 +96,7 @@ export default {
 		InfiniteLoading,
 		Featured,
 		InOffer,
+		Novedades,
 		ArticleCard,
 		ArticleCardSkeleton,
 		VueHorizontalList,
@@ -120,7 +126,7 @@ export default {
 			return this.$store.state.articles.featured
 		},
 		articles() {
-			return this.$store.state.categories.articles
+			return this.$store.state.categories.articles 
 		},
 		last_uploads() {
 			return this.$store.state.articles.last_uploads
@@ -136,6 +142,9 @@ export default {
 		},
 		categories() {
 			return this.$store.state.categories.categories
+		},
+		order_by() {
+			return this.$store.state.categories.order_by
 		},
 		is_from_categories() {
 			return this.selected_category || this.selected_sub_category
@@ -162,9 +171,9 @@ export default {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
 				if (this.selected_category) {
-					url += 'from-category/'+this.selected_category.id+'/0'
+					url += 'from-category/'+this.selected_category.id+'/0'+'/'+this.order_by
 				} else if (this.selected_sub_category) {
-					url += 'from-category/0/'+this.selected_sub_category.id
+					url += 'from-category/0/'+this.selected_sub_category.id+'/'+this.order_by
 				} else if (this.is_from_search) {
 					url += 'search/'+this.search_query
 				} else {

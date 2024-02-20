@@ -55,8 +55,8 @@ module.exports = {
         // name: "NebulaStore",
 
         // KasAberturas
-        themeColor: "#f9b234",
-        name: "KasAberturas",
+        // themeColor: "#f9b234",
+        // name: "KasAberturas",
 
         // Indica
         // themeColor: "#209fc8",
@@ -65,6 +65,10 @@ module.exports = {
         // Fenix
         // themeColor: "#1897ce",
         // name: "Fenix",
+
+        // Matias
+        themeColor: "#C0260A",
+        name: "Galvan Mayorista",
 
         // Cali
         // themeColor: "#D8CDB8",
