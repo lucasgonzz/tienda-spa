@@ -69,10 +69,13 @@ export default {
     },
     watch: {
         authenticated() {
+            console.log('watch authenticated')
             if (this.authenticated) {
                 this.callAuthMethods()
             } else {
                 this.setCartFromCookies()
+                this.getIndex()
+                this.getCategory()
             }
         },
     },
@@ -109,6 +112,8 @@ export default {
     methods: {
         async callMethods() {
             console.log('callMethods')
+            console.log('data_loaded:')
+            console.log(this.data_loaded)
             if (!this.data_loaded) {
                 if (this.commerce.online_configuration.register_to_buy) {
                     this.$store.dispatch('auth/me')
@@ -117,11 +122,11 @@ export default {
                 }
                 await this.$store.dispatch('titles/getTitles')
                 
-                await this.getIndex()
+                this.getIndex()
+                this.getCategory()
                 
                 await this.$store.dispatch('categories/getCategories')
                 
-                await this.getCategory()
 
                 await this.$store.dispatch('platelets/getModels')
                 await this.$store.dispatch('payment_methods/getModels')
@@ -130,12 +135,15 @@ export default {
             }
         },
         getIndex() {
+            console.log('getIndex')
+            console.log(this.$route.params.category)
             if (this.$route.params.category == 'ultimos-ingresados') {
                 return this.$store.dispatch('categories/getIndex')
             }
             return null
         },
         getCategory() {
+            console.log('getCategory')
             if (this.$route.params.category != 'ultimos-ingresados') {
                 let category = this.$store.state.categories.categories.find(model => {
                     return this.routeString(model.name).toLowerCase() == this.$route.params.category.toLowerCase()
@@ -171,6 +179,18 @@ export default {
                 await this.$store.dispatch('cupons/getActiveCupons')
                 await this.listenChannels()
                 await this.getLastCart()
+
+                if (this.data_loaded) {
+
+                    console.log('this.data_loaded estaba TRUE')
+
+                    await this.getIndex()
+                    
+                    await this.getCategory()
+                } else {
+                    console.log('this.data_loaded estaba FALSE')
+                }
+
             } else {
                 this.$store.commit('cart/setCart', null)
                 this.$store.commit('orders/setOrder', null)

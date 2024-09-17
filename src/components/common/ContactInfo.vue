@@ -1,5 +1,6 @@
 <template>
 	<b-row
+	v-if="items.length"
 	class="contact-info">
 		<b-col
 		cols="12"

@@ -75,7 +75,7 @@ export default {
 				}
 			} else {
 				if (this.commerce.online_configuration.register_to_buy) {
-					this.$cookies.set('redirect_to', 'Cart')
+					this.$cookies.set('redirect_to', 'Payment')
 					this.$router.push({name: 'Login'})
 				} else {
 					this.$router.push({name: 'Payment'})

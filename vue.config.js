@@ -67,8 +67,12 @@ module.exports = {
         // name: "Fenix",
 
         // Matias
+        // themeColor: "#C0260A",
+        // name: "Galvan Mayorista",
+
+        // Pets
         themeColor: "#C0260A",
-        name: "Galvan Mayorista",
+        name: "Pets",
 
         // Cali
         // themeColor: "#D8CDB8",

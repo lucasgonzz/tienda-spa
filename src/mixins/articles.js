@@ -105,6 +105,8 @@ export default {
 			})
 			if (article_cart != undefined) {
 				this.$store.commit('articles/setNotes', article_cart.notes)
+			} else {
+				this.$store.commit('articles/setNotes', '')
 			}
 		},
 		setArticleViewed(article) {

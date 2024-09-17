@@ -11,6 +11,16 @@ export default {
 			// }
 			this.$store.commit('auth/setMobileSidebarVisibility', false)
 			this.scrollTo('articles-list')
+		},
+		setSubCategory(category, sub_category) {
+			console.log(sub_category)
+			this.$router.push({name: 'Home', params: {category: this.routeString(category.name), sub_category: this.routeString(sub_category.name)}})
+			this.$store.commit('categories/setSelectedCategory', null)
+			this.$store.commit('categories/setSelectedSubCategory', sub_category)
+			this.$store.commit('categories/setIsFromSearch', false)
+			this.$store.dispatch('categories/getArticles')
+			this.$store.commit('auth/setMobileSidebarVisibility', false)
+			this.scrollTo('articles-list')
 		}
 	}
 }

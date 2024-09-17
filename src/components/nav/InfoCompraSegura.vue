@@ -24,7 +24,7 @@
 		width: 50px	
 	p 
 		margin-bottom: 0
-		font-size: 10px
+		font-size: 16px
 		font-weight: bold 
 
 </style>

@@ -60,7 +60,7 @@ export default {
 			}
 		},
 		checkHomeRoute() {
-			if (this.$route.path == '/') {
+			if (this.$route.path == '/' || this.$route.path == '/inicio') {
 				this.$router.replace({name: 'Home', params: {category: 'ultimos-ingresados'}})
 			}
 		},

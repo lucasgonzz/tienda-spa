@@ -57,9 +57,15 @@ export default {
 		},
 		ready() {
 			if (this.check()) {
+				this.$store.commit('auth/setLoading', true)
+				this.$store.commit('auth/setMessage', 'Enviando pedido')
 				this.$store.dispatch('cart/save')
 				.then(() => {
 					this.makeOrder()
+				})
+				.catch(err => {
+					this.$store.commit('auth/setLoading', false)
+
 				})
 			}
 		},

@@ -1,13 +1,15 @@
 <template>
 	<div
-	class="background cart-resume">
-		<h5>
-			Resumen de la compra
-		</h5>
-		<last-article 
-		v-for="article in cart.articles"
-		:show_added_info="false"
-		:article="article"></last-article>
+	class="background">
+		<div class="cart-resume">
+			<h5>
+				Resumen de la compra
+			</h5>
+			<last-article 
+			v-for="article in cart.articles"
+			:show_added_info="false"
+			:article="article"></last-article>
+		</div>
 		<total></total>	
 		<btn-save></btn-save>
 	</div>
@@ -29,6 +31,6 @@ export default {
 <style lang="sass">
 .cart-resume
 	@media screen and (min-width: 768px)
-		max-height: 70vh 
+		max-height: 68vh 
 		overflow-y: auto	
 </style>

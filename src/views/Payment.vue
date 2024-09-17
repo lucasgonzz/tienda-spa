@@ -12,7 +12,7 @@
 				v-if="!commerce.online_configuration.register_to_buy"></buyer>	
 				<deliver
 				v-else></deliver>
-			</b-col>
+			</b-col> 
 			<b-col
 			id="col-cart-resum"
 			v-if="!is_mobile"

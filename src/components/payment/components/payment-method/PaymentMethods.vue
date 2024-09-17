@@ -5,20 +5,6 @@
 		v-for="payment_method in payment_methods"
 		:key="payment_method.id"
 		:payment_method="payment_method"></card-payment-method>
-		<!-- <b-form-group
-		v-for="payment_method in payment_methods"
-		:key="payment_method.id">
-			<b-form-radio
-			v-model="cart_payment_method"
-			:value="payment_method">
-				{{ payment_method.name }}
-				<p 
-				v-if="payment_method.description"
-				class="text-muted">
-					{{ payment_method.description }}
-				</p>
-			</b-form-radio>
-		</b-form-group> -->
 	</div>
 </template>
 <script>

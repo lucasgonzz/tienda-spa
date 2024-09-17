@@ -56,10 +56,17 @@ export default {
 		},
 		redirectAfterLogin() {
 			console.log('redirigiendo a '+this.$cookies.get('redirect_to'))
-			this.$router.replace({name: this.$cookies.get('redirect_to')})
-			if (this.commerce.online_prices == 'only_buyers_with_comerciocity_client') {
-                this.$store.dispatch('categories/getIndex')
+			let redirect = this.$cookies.get('redirect_to')
+			if (redirect == 'Home') {
+				this.$router.replace({name: 'Home', params: {category: 'ultimos-ingresados'}})
+			} else if (redirect == 'Cart') {
+				this.$router.replace({name: 'Cart'})
+			} else if (redirect == 'Payment') {
+				this.$router.replace({name: 'Payment'})
 			}
+			// if (this.commerce.online_prices == 'only_buyers_with_comerciocity_client') {
+            //     this.$store.dispatch('categories/getIndex')
+			// }
 		}
 
 	}

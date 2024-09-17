@@ -5,6 +5,9 @@
 		<b-row 
 		v-if="data_seted"
 		class="m-b-0 m-xl-b-15">
+
+			<category-info></category-info>
+
 			<b-col
 			cols="12"
 			lg="10"
@@ -36,6 +39,7 @@
 import Advise from '@/components/article/modals/Advise'
 
 import CanSeePrices from '@/components/home/components/CanSeePrices'
+import CategoryInfo from '@/components/article/components/CategoryInfo'
 import ArticleImage from '@/components/article/components/ArticleImage'
 import ArticleData from '@/components/article/components/data/Index'
 import ArticleAmount from '@/components/article/components/ArticleAmount'
@@ -62,6 +66,7 @@ export default {
 		Advise,
 
 		CanSeePrices,
+		CategoryInfo,
 		ArticleImage,
 		ArticleData,
 		ArticleAmount,

@@ -24,11 +24,19 @@
 			:alt="commerce.company_name">
 			<b-card
 			class="form-login s">
-				<h4>Bienvenido</h4>
-				<h6>¿Como queres continuar?</h6>
-				<social-login></social-login>
+				<h4>
+					<strong>
+						Bienvenido
+					</strong>
+				</h4>
+				<h6>Elegi como queres continuar</h6>
+				<!-- <social-login></social-login> -->
 				<hr>
-				<h6>Crea tu cuenta</h6>
+				<h6>
+					<strong>
+						¿Aun  no tenes cuenta?
+					</strong>
+				</h6>
 				<b-button
 				class="m-b-20"
 				block

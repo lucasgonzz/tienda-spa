@@ -1,7 +1,10 @@
 <template>
 	<b-skeleton-wrapper :loading="loading">
 		<template v-slot:loading>
-			<b-skeleton-img :height="height"></b-skeleton-img>
+			<div class="m-t-20">
+				<b-skeleton-img 
+				:height="height"></b-skeleton-img>
+			</div>
 		</template>
 		<div
 		class="al-borde cont-article-image"
@@ -28,6 +31,10 @@
 			@page-change="handleSlideClick"
 			:navigateTo="index"
 			:adjustableHeight="true">
+				<img
+				:src="commerce.image_url" 
+				v-if="commerce.online_configuration.show_article_image"
+				class="imagen-logo-empresa"></img>
 				<slide
 				:data-index="index"
 				v-for="(image, index) in images"
@@ -46,6 +53,8 @@
 						slot="image"
 						:src="image.hosting_url" 
 						:alt="article.name">
+
+
 
 
 				        <b-spinner
@@ -151,6 +160,7 @@ export default {
 }
 </script>
 <style lang="sass">
+@import '@/sass/_custom'
 .cont-article-image
 	box-sizing: border-box
 	display: flex
@@ -159,10 +169,53 @@ export default {
 	margin: 20px 0
 	border-radius: 10px
 	border: 2px solid #DDDDDD
+	position: relative
+
+	.imagen-logo-empresa
+		position: absolute
+		bottom: 5px
+		// left: 35%
+		// width: 30%
+		left: 50%
+		transform: translateX(-50%)
+		// width: 200px
+		height: auto 
+		z-index: 1000
+		@media screen and (max-width: 992px)
+			width: 120px
+		@media screen and (min-width: 992px)
+			width: 200px
+
 
 	.images-preview
 		// padding: 30px 0
 		width: 150px
+		overflow-y: auto
+		@media screen and (max-width: 992px)
+			max-height: 50vh
+		@media screen and (min-width: 992px)
+			max-height: 70vh 
+
+
+		scrollbar-width: thin
+		scrollbar-color: $green #ffffff
+
+
+		&::-webkit-scrollbar 
+			@media screen and (max-width: 992px)
+				width: 6px
+			@media screen and (min-width: 992px)
+				width: 8px
+			height: 12px
+
+		&::-webkit-scrollbar-track 
+			background: rgba(0,0,0,0)
+
+		&::-webkit-scrollbar-thumb 
+			background-color: lighten($green, 20)
+			border-radius: 10px
+			border: 2px solid #ffffff
+
 		img 
 			width: 80%
 			margin: 15px 0 

@@ -4,7 +4,7 @@ axios.defaults.withCredentials = true
 export default {
 	namespaced: true,
 	state: {
-		authenticated: null,
+		authenticated: false,
 		user: null,
 		
 		loading_login: false,

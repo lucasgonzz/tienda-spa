@@ -6,7 +6,7 @@
 		<div 
 		v-for="sub_category in category.sub_categories"
 		:key="sub_category.id"
-		@click.stop="setSubCategory(sub_category)"
+		@click.stop="setSubCategory(category, sub_category)"
 		class="sub-category">
 			<i 
 			class="icon-right d-lg-none"></i>
@@ -15,7 +15,9 @@
 	</div>
 </template>
 <script>
+import _categories from '@/mixins/_categories'
 export default {
+	mixins: [_categories],
 	props: {
 		category: Object,
 		set_sub_categories_position: Boolean,
@@ -55,16 +57,6 @@ export default {
 			let left = categories.getBoundingClientRect().right-5
 			this.left = left 
 		},
-		setSubCategory(sub_category) {
-			console.log(sub_category)
-			this.$router.push({name: 'Home', params: {category: this.routeString(this.category.name), sub_category: this.routeString(sub_category.name)}})
-			this.$store.commit('categories/setSelectedCategory', null)
-			this.$store.commit('categories/setSelectedSubCategory', sub_category)
-			this.$store.commit('categories/setIsFromSearch', false)
-			this.$store.dispatch('categories/getArticles')
-			this.$store.commit('auth/setMobileSidebarVisibility', false)
-			this.scrollTo('articles-list')
-		}
 	}
 }
 </script>

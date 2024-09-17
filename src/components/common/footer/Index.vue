@@ -4,6 +4,7 @@
 	:class="margin_bottom"
 	class="footer">
 		<b-col
+		v-if="categories.length"
 		cols="12"
 		md="4">
 			<h3>
@@ -17,6 +18,7 @@
 			</p>
 		</b-col>
 		<b-col
+		v-if="commerce.phone || commerce.email"
 		md="4">
 			<h3>
 				Contactanos
@@ -38,6 +40,8 @@
 			</p>
 		</b-col>
 		<b-col
+		v-if="commerce.online_configuration.instagram 
+			|| commerce.online_configuration.facebook"
 		md="4">
 			<h3>
 				Buscanos en

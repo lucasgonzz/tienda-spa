@@ -17,16 +17,20 @@
 			Agotado
 		</div>
 
-		<vue-load-image
-		class="img-fluid">
-			<img 
-			slot="image"
-			:src="articleImage(article)">
-	        <b-spinner
-			slot="preloader"
-	        variant="success"></b-spinner>
-			<div slot="error">Imagen no encontrada</div>
-		</vue-load-image>
+		<div class="cont-images">
+			
+			<vue-load-image
+			class="img-fluid">
+				<img 
+				slot="image"
+				:src="articleImage(article)">
+		        <b-spinner
+				slot="preloader"
+		        variant="success"></b-spinner>
+				<div slot="error">Imagen no encontrada</div>
+			</vue-load-image>
+			
+		</div>
 		<div
 		class="card-article-body">
 			<p 
@@ -34,7 +38,9 @@
 			class="product-brand">
 				{{ article.brand.name }}
 			</p>
-			<p class="product-name">
+			<p 
+			translate="no"
+			class="product-name">
 				{{ article_name }}
 			</p>
 			<p 
@@ -58,6 +64,7 @@
 			</p>
 			<p 
 			v-if="articlePriceEfectivo(article)"
+			translate="no"
 			class="product-price">
 				{{ articlePriceEfectivo(article) }}
 			</p>
@@ -170,7 +177,7 @@ export default {
 	border-radius: 4px 0 5px 0
 	background: $red 
 	color: #FFF
-	// z-index: 1000
+	z-index: 10
 	padding: 5px 10px
 </style>
  

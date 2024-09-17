@@ -1,5 +1,6 @@
 <template>
 <div 
+v-if="show_messages"
 id="buyer-messages">
 	
 	<div class="cont-foto-perfil">
@@ -19,6 +20,10 @@ id="buyer-messages">
 		Lucas Gonzalez
 
 		<div 
+		v-if="escribiendo"
+		class="escribiendo">Escribiendo...</div>
+
+		<div 
 		@click="esconder_chat"
 		class="esconder-chat">
 			<i 
@@ -36,9 +41,6 @@ id="buyer-messages">
 			{{ message.text }}
 		</div>
 
-		<div 
-		v-if="escribiendo"
-		class="escribiendo">Escribiendo...</div>
 	</div>
 
 	<div class="footer"> 
@@ -76,12 +78,16 @@ id="buyer-messages">
 <script>
 export default {
 	created() {
-		// this.show()
+		this.show()
 	},
 	watch: {
 		authenticated() {
-			// this.show()
+			this.show()
 		},
+		$route() {
+			console.log('watch de rooute')
+			this.show()
+		}
 	},
 	data() {
 		return {
@@ -94,6 +100,12 @@ export default {
 		}
 	},
 	computed: {
+		show_messages() {
+			if (this.commerce && this.user) {
+				return this.commerce.show_buyer_messages && this.$route.name == 'Article'
+			} 
+			return false
+		},
 		last_message() {
 			if (this.messages.length) {
 				return this.messages[this.messages.length-1]
@@ -103,7 +115,10 @@ export default {
 	},
 	methods: {
 		show() {
-			if (this.user) {
+			console.log(this.$route.name)
+			console.log(this.user)
+			if (this.user && this.$route.name == 'Article') {
+				console.log('Paso')
 
 				this.getMessages()
 				.then(() => {
@@ -148,7 +163,7 @@ export default {
 
 					this.escribiendo = false
 					let message = {
-						text: 'Me llamo lucas y queria comentarte algo importante sobre tu negocio, tendras un momento?',
+						text: 'Me llamo Lucas, trabajo con '+this.commerce.company_name+' en el area de sistemas y queria comentarte algo importante para tu negocio, tendras un momento?',
 						from_buyer: false,
 						buyer_message_default_responses: [
 							{
@@ -190,12 +205,13 @@ export default {
 			}) 
 			this.guardar_mensajes()
 			.then(() => {
+				this.message_to_send = ''
 				let mensajes_de_lucas = this.messages.filter(message => {
 					return !message.from_buyer
 				})
 				console.log('mensajes_de_lucas')
 				console.log(mensajes_de_lucas)
-				if (mensajes_de_lucas.length == 2) {
+				if (mensajes_de_lucas.length == 2 && this.messages[this.messages.length-1].text != 'Prefiero dejarlo pasar') {
 					this.add_mensajes_sobre_servicio()
 				}
 			}) 
@@ -214,7 +230,7 @@ export default {
 
 				setTimeout(() => {
 					message = {
-						text: 'Para que a esos costos, podamos aplicarles el o los márgenes de ganancia que quieras, para que tengas el o los precios finales que tus clientes merecen',
+						text: 'Para que a esos costos, podamos aplicarles el o los márgenes de ganancia que quieras, para que tengas el o los precios finales que tus clientes merecen. Sin que tengas que hacer nada, de manera 100% automatica',
 						from_buyer: false,
 						buyer_message_default_responses: [],
 					}
@@ -224,7 +240,7 @@ export default {
 
 					setTimeout(() => {
 						message = {
-							text: 'Decime '+this.user.name.split(' ')[0]+', esto te ayudaría a ahorrarte ese tiempo y esfuerzo, con la posibilidad además de entregarles a tus clientes una pagina web 100% automatizada (prácticamente funciona sin que hagas nada a un 90%).',
+							text: 'Decime '+this.user.name.split(' ')[0]+', esto te ayudaría a ahorrarte ese tiempo y esfuerzo? Ademas esta la posibilidad de entregarles a tus clientes una pagina web 100% automatizada (funciona sin que tengas que hacer nada, esta un 100% automatizada).',
 							from_buyer: false,
 							buyer_message_default_responses: [
 								{
@@ -241,13 +257,13 @@ export default {
 
 						this.body_scroll_bottom()
 
-						this.escribiendo = true 
+						this.escribiendo = false 
 
 						this.guardar_mensajes()
 
-					}, 10000)
+					}, 20000)
 
-				}, 10000)
+				}, 20000)
 
 				this.guardar_mensajes()
 			}, 6000)
@@ -265,6 +281,7 @@ export default {
 		},
 		guardar_mensajes() {
 			this.enviando = true 
+			console.log('guardando '+this.messages.length)
 			return this.$api.post('buyer-message', {
 				messages: this.messages
 			})
@@ -286,7 +303,8 @@ export default {
 	height: 600px
 
 	position: fixed 
-	right: -600px
+	right: -400px
+	// right: -600px
 	bottom: 100px
 	z-index: 1000
 	transition: all 1s
@@ -296,13 +314,14 @@ export default {
 
 	.cont-foto-perfil
 		position: absolute
-		left: -55px
-		top: -35px
+		left: -80px
+		bottom: -35px
 		z-index: 2000
 
 		.foto-perfil
 			width: 70px
 			height: 70px
+			overflow-y: hidden
 			border-radius: 50%
 			border: 3px solid #FFF
 
@@ -335,6 +354,29 @@ export default {
 		font-weight: bold
 		position: relative
 
+		.escribiendo
+			// background: #FFF
+			// width: 160px
+			// height: 15px
+			color: #FFF
+			position: absolute
+			bottom: 0px
+			left: 10px
+			left: 50%
+			transform: translateX(-50%)
+			animation-iteration-count: infinite
+			animation-name: twinkle-1
+			animation-duration: 1s
+			box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px
+			border-radius: 12px
+			font-size: 15px
+			font-weight: bold
+
+		@keyframes twinkle-1 
+			50% 
+				// transform: scale(0.9)
+				opacity: 0.5
+
 	.body 
 		background: #EAEAEA
 		height: 80%
@@ -361,30 +403,6 @@ export default {
 			background: darken($green, 15)
 			align-self: flex-end
 			color: #FFF
-
-
-		.escribiendo
-			background: #FFF
-			color: #333
-			position: fixed
-			bottom: 10px
-			left: 10px
-			width: 160px
-			height: 30px
-			animation-iteration-count: infinite
-			animation-name: twinkle-1
-			animation-duration: 1s
-			box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px
-			border-radius: 12px
-			font-size: 1em
-			font-weight: bold
-
-
-
-		@keyframes twinkle-1 
-			50% 
-				transform: scale(0.9)
-				opacity: 0.5
 	
 
 
@@ -393,7 +411,7 @@ export default {
 		right: 10px
 		top: 14px
 		background: #DFDFDF
-		border-radius: 50%
+		border-radius: 8px
 		width: 30px
 		height: 30px
 		box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px

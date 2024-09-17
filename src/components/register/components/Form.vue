@@ -98,11 +98,12 @@ export default {
 					if (res.status == 201) {
 						this.$store.commit('auth/setAuthenticated', true)
 						this.$store.commit('auth/setUser', res.data.buyer)
-						this.home()
+						this.redirectAfterLogin()
 						// this.$router.replace({name : this.route_name, params: {view: 'codigo-de-verificacion'}})
 						// this.login(this.register_user)
 					} else {
 						this.$toast.error('Ya hay un usuario registrado con esta informacion, intente con otro, por favor.')
+						this.loading = false
 					}
 				})
 				.catch(err => {

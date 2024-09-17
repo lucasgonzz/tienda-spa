@@ -212,7 +212,9 @@ export default {
 			this.form.description = description
 		},
 		initMercadoPago() {
-			this.mp = new MercadoPago(process.env.VUE_APP_MERCADO_PAGO_PUBLIC_KEY)
+
+			this.mp = new MercadoPago('TEST-4f17cb64-8711-487f-b5f3-2e363c42c717')
+			// this.mp = new MercadoPago(process.env.VUE_APP_MERCADO_PAGO_PUBLIC_KEY)
 			const cardForm = this.mp.cardForm({
 				amount: this.form.transaction_amount,
 				autoMount: true,
