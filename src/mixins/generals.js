@@ -10,6 +10,17 @@ export default {
 			return value[0].toUpperCase() + value.substring(1).toLowerCase()
 		},
 	},
+	data() {
+		return {
+			ancho_pantalla: window.innerWidth
+		}
+	},
+	created() {
+		window.addEventListener('resize', () => {
+		    this.ancho_pantalla = window.innerWidth
+		    // console.log('Nuevo ancho:', window.innerWidth);
+		});
+	},
 	computed: {
 		is_local() {
 			return process.env.VUE_APP_API_URL == 'http://tienda.local:8000'
@@ -135,11 +146,17 @@ export default {
 		cart_articles() {
 			return this.$store.state.cart.cart.articles
 		},
+		cart() {
+			return this.$store.state.cart.cart
+		},
 		show_nav_content() {
 			return this.route_name != 'Payment' && this.route_name != 'PaymentCard'
 		},
 	},
 	methods: {
+		precio_por_unidad(article) {
+			return this.price(article.final_price / article.presentacion) 
+		},
 		commerce_has_extencion(slug){
 			if (this.commerce) {
 				let finded_extencion = this.commerce.extencions.find(extencion => {
@@ -210,15 +227,39 @@ export default {
 		isView(name) {
 			return this.route_name == name
 		},
+		is_item_in_cart(item = null) {
+			if (!item) {
+				item = this.article_to_show
+			}
+			let finded = this.get_item_cart(item)
+			return finded != undefined
+		},
+		get_item_cart(item) {
+			let finded 
+			if (item.is_promocion_vinoteca) {
+				finded = this.cart.promociones_vinoteca.find(promo => {
+					return promo.id == item.id 
+				})
+			} else {
+				finded = this.cart.articles.find(article => {
+					return article.id == item.id && (!article.pivot.variant_id || article.pivot.variant_id == item.variant_id)
+				})
+			}
+			return finded
+		},
+
 		isArticleInCart(article = null) {
 			if (!article) {
 				article = this.article_to_show
 			}
+			let finded = this.get_article_cart(article)
+			return finded != undefined
+		},
+		get_article_cart(article) {
 			let finded = this.cart_articles.find(art => {
 				return art.id == article.id && (!art.pivot.variant_id || art.pivot.variant_id == article.variant_id)
 			})
-			console.log('isArticleInCart: '+finded != undefined)
-			return finded != undefined
+			return finded
 		},
 		articlePrice(article, formated = true) {
 			let price = this.articlePriceEfectivo(article, formated)
@@ -229,24 +270,109 @@ export default {
 			return formated ? this.price(price) : price
 		},
 		articlePriceEfectivo(article, formated = true) {
+			if (!this.puede_ver_precios()) {
+				return null
+			}
+
+			let price = Number(article.final_price)
+				
+			if (this.commerce_has_extencion('lista_de_precios_por_rango_de_cantidad_vendida')) {
+
+				let price_type_mas_caro = null
+
+				article.ranges.forEach(range => {
+					if (range.price) {
+						price_type_mas_caro = range
+					}
+				})
+
+				article.ranges.forEach(range => {
+					if (range.price && range.min < price_type_mas_caro.min) {
+						price_type_mas_caro = range 
+					}
+				})
+
+				if (price_type_mas_caro) {
+
+					price = price_type_mas_caro.price
+				} else {
+					console.log('no hay price_type para '+article.name)
+				}
+				
+			} 
+			if (this.commerce.online_configuration.online_price_surchage) {
+				price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
+				price = Math.round(price)
+			}
+			return formated ? this.price(price) : price
+
+
+				
+			// if (this.commerce.online_configuration.online_price_type.slug == 'only_registered' && !this.authenticated) {
+			// 	// console.log('No se muestran percio porque esta en only_registered')
+			// 	return null
+			// } else if (
+			// 	this.commerce.online_configuration.online_price_type.slug == 'only_buyers_with_comerciocity_client' 
+			// 	&& (
+			// 			!this.authenticated 
+			// 			|| (
+			// 				!this.user.comercio_city_client
+			// 				&& !this.user.seller_id
+			// 			)
+			// 		)
+			// 	) {
+			// 	return null
+			// } else {
+			// 	let price = Number(article.final_price)
+				
+			// 	if (this.commerce_has_extencion('lista_de_precios_por_rango_de_cantidad_vendida')) {
+
+			// 		let price_type_mas_caro = null
+
+			// 		article.ranges.forEach(range => {
+			// 			if (range.price) {
+			// 				price_type_mas_caro = range
+			// 			}
+			// 		})
+
+			// 		article.ranges.forEach(range => {
+			// 			if (range.price && range.min < price_type_mas_caro.min) {
+			// 				price_type_mas_caro = range 
+			// 			}
+			// 		})
+
+			// 		if (price_type_mas_caro) {
+
+			// 			price = price_type_mas_caro.price
+			// 		} else {
+			// 			console.log('no hay price_type para '+article.name)
+			// 		}
+					
+			// 	} 
+			// 	if (this.commerce.online_configuration.online_price_surchage) {
+			// 		price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
+			// 		price = Math.round(price)
+			// 	}
+			// 	return formated ? this.price(price) : price
+			// }
+		},
+		puede_ver_precios() {
 			if (this.commerce.online_configuration.online_price_type.slug == 'only_registered' && !this.authenticated) {
 				// console.log('No se muestran percio porque esta en only_registered')
-				return null
-			} else if (this.commerce.online_configuration.online_price_type.slug == 'only_buyers_with_comerciocity_client' && (!this.authenticated || !this.user.comercio_city_client)) {
-				// console.log('entro en only_buyers_with_comerciocity_client')
-				// console.log('authenticated:')
-				// console.log(this.authenticated)
-				// console.log('this.user.comercio_city_client:')
-				// console.log(this.user ? this.user.comercio_city_client : 'no tiene')
-				return null
-			} else {
-				let price = Number(article.final_price)
-				if (this.commerce.online_configuration.online_price_surchage) {
-					price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
-					price = Math.round(price)
-				}
-				return formated ? this.price(price) : price
-			}
+				return false
+			} else if (
+				this.commerce.online_configuration.online_price_type.slug == 'only_buyers_with_comerciocity_client' 
+				&& (
+						!this.authenticated 
+						|| (
+							!this.user.comercio_city_client
+							&& !this.user.seller_id
+						)
+					)
+				) {
+				return false
+			} 
+			return true
 		},
 		checkAuth() {
 			if (this.authenticated) {

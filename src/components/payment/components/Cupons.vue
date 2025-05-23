@@ -1,5 +1,6 @@
 <template>
-	<div>
+	<div
+	v-if="commerce.online_configuration.usar_cupones">
 		<h5>
 			Cupones
 		</h5>

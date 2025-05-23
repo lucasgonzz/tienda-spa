@@ -21,7 +21,7 @@
 <script>
 export default {
 	components: {
-		ArticleCard: () => import('@/components/common/ArticleCard'),
+		ArticleCard: () => import('@/components/common/article-card/Index'),
 	},
 	computed: {
 		title() {

@@ -1,7 +1,7 @@
 <template>
 	<div
 	class="featured-list"
-	v-if="!selected_category && !selected_sub_category && !is_from_search && in_offer.length">
+	v-if="!selected_category && !selected_sub_category && !selected_bodega && !is_from_search && in_offer.length">
 		<p 
 		class="title">
 			Ofertas
@@ -17,7 +17,7 @@
 	</div>
 </template>
 <script>
-import ArticleCard from '@/components/common/ArticleCard'
+import ArticleCard from '@/components/common/article-card/Index'
 import VueHorizontalList from "vue-horizontal-list"
 import categories from "@/mixins/categories"
 import VueScreenSize from 'vue-screen-size'

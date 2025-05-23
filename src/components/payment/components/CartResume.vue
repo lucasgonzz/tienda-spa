@@ -9,6 +9,11 @@
 			v-for="article in cart.articles"
 			:show_added_info="false"
 			:article="article"></last-article>
+
+			<last-article 
+			v-for="promo in cart.promociones_vinoteca"
+			:show_added_info="false"
+			:article="promo"></last-article>
 		</div>
 		<total></total>	
 		<btn-save></btn-save>
@@ -31,6 +36,6 @@ export default {
 <style lang="sass">
 .cart-resume
 	@media screen and (min-width: 768px)
-		max-height: 68vh 
+		max-height: 55vh 
 		overflow-y: auto	
 </style>

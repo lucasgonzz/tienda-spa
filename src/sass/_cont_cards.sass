@@ -3,54 +3,29 @@
 	justify-content: flex-start
 	flex-wrap: wrap
 
-	.model, a 
-		// height: min-content
+	.model 
 		margin: 0 1% 50px
-		@media screen and (max-width: 576px)
-			width: 100%
-			margin-bottom: 1em
-		@media screen and (min-width: 576px) and (max-width: 778px)
-			width: 48%
-		@media screen and (min-width: 778px) and (max-width: 992px)
-			width: 31%
-		@media screen and (min-width: 992px) 
-			width: 23%
-		// @media screen and (min-width: 1200px)
-		// 	width: 19%
 		transition: all .2s
-		// &:hover
-		// 	transform: scale(1.05)
 		.model-body
 			padding: .5rem
+
+	// .model, a 
+	// 	margin: 0 1% 50px
+	// 	@media screen and (max-width: 576px)
+	// 		width: 48%
+	// 	@media screen and (min-width: 576px) and (max-width: 778px)
+	// 		width: 31%
+	// 	@media screen and (min-width: 778px) and (max-width: 992px)
+	// 		width: 23%
+	// 	@media screen and (min-width: 992px) and (max-width: 1400px)
+	// 		width: 18%
+	// 	@media screen and (min-width: 1400px) 
+	// 		width: 13%
+	// 		margin: 0 0.6% 50px
+
 
 	
 .cont-models > a, .model
-	@if ($theme == dark) 
-		background: rgba(0,0,0,.9)
-		color: #FFF
-	@else if ($theme == ligth) 
-		background: #FFF
-		color: rgba(0, 0, 0, .7)
-
-.cart, .article-view
-	.cont-models > a, .cont-models > .model
-
-		// height: auto
-		color: #333
-		margin: 0 .5% 20px
-		@media screen and (max-width: 576px)
-			width: 100%
-			margin-bottom: 1em
-		@media screen and (min-width: 576px) and (max-width: 778px)
-			width: 48%
-		@media screen and (min-width: 778px) and (max-width: 992px)
-			width: 31%
-		@media screen and (min-width: 992px) and (max-width: 1200px)
-			width: 31%
-		@media screen and (min-width: 1200px)
-			width: 24%
-		&:hover
-			text-decoration: none
-			color: #333
-		.model-body
-			padding: .5rem
+	
+	background: #FFF
+	color: rgba(0, 0, 0, .7)

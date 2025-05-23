@@ -11,7 +11,7 @@
 		class="m-l-10">
 			<btn-loader
 			:loader="loading"
-			icon="send-o"></btn-loader>
+			icon="paper-plane"></btn-loader>
 		</b-button>
 	</div>
 </template>

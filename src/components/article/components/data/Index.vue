@@ -12,20 +12,21 @@
 	class="m-t-20 m-b-20 article-data"
 	v-if="article_to_show">
 		<name-heart></name-heart>
+
 		
 		<discounts></discounts>	
 
 		<price></price>
+		<vinoteca></vinoteca>
 		
 		<payment-methods-info></payment-methods-info>
 
 		<condition></condition>	
 
-		<sold-out-info></sold-out-info>
+		<!-- <notes></notes> -->
 
-		<notes></notes>
-
-		<add-to-cart></add-to-cart>
+		<add-to-cart
+		:article="article_to_show"></add-to-cart>
 		
 		<whatsapp-link></whatsapp-link>
 	</div>
@@ -37,9 +38,8 @@ import Discounts from '@/components/article/components/data/Discounts'
 import PaymentMethodsInfo from '@/components/article/components/data/PaymentMethodsInfo'
 import Price from '@/components/article/components/data/Price'
 import Condition from '@/components/article/components/data/Condition'
-import SoldOutInfo from '@/components/article/components/data/SoldOutInfo'
-import Notes from '@/components/article/components/data/Notes'
-import AddToCart from '@/components/article/components/data/AddToCart'
+// import Notes from '@/components/article/components/data/Notes'
+import AddToCart from '@/components/article/components/data/add-to-cart/Index'
 import WhatsappLink from '@/components/article/components/data/WhatsappLink'
 
 import BtnLoader from '@/components/common/BtnLoader'
@@ -47,12 +47,12 @@ export default {
 	name: 'ArticleData',
 	components: {
 		NameHeart,
+		Vinoteca: () => import('@/components/article/components/data/Vinoteca'),
 		Discounts,
 		PaymentMethodsInfo,
 		Price,
 		Condition,
-		SoldOutInfo,
-		Notes,
+		// Notes,
 		AddToCart,
 		WhatsappLink,
 

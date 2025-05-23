@@ -62,7 +62,7 @@ export default {
 				}
 			} else {
 				if (!this.checkCartPaymentStatus()) {
-					if (this.cart.articles.length) {
+					if (this.cant_cart_items > 0) {
 						this.$router.push({name: 'Cart'})
 						this.$scrollToTop()
 					} else {

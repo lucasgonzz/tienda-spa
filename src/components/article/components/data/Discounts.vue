@@ -1,7 +1,7 @@
 <template>
 	<div
 	class="discounts"
-	v-if="article_to_show.discounts.length">
+	v-if="article_to_show.discounts && article_to_show.discounts.length">
 		<b-badge
 		variant="danger"
 		v-for="discount in article_to_show.discounts"

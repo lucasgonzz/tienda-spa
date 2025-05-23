@@ -4,7 +4,7 @@
 		<b-col
 		lg="6">
 			<b-card
-			class="shadow">
+			class="shadow card-thanks">
 				<div
 				v-if="!waiting_call">
 					<p
@@ -29,7 +29,7 @@
 				v-else>
 					<p
 					class="text-with-icon">
-						<i class="icon-phone-o text-success"></i>
+						<i class="icon-phone-o"></i>
 						Recibimos tu petición
 					</p>
 					<p>
@@ -85,3 +85,7 @@ export default {
 	}
 }
 </script>
+<style lang="sass">
+.card-thanks
+	color: #333 !important
+</style>

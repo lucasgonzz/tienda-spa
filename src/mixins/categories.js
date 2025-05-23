@@ -9,6 +9,9 @@ export default {
 		featured() {
 			return this.$store.state.categories.featured
 		},
+		promociones_vinoteca() {
+			return this.$store.state.categories.promociones_vinoteca
+		},
 		in_offer() {
 			return this.$store.state.categories.in_offer
 		},
@@ -23,6 +26,9 @@ export default {
 		},
 		selected_sub_category() {
 			return this.$store.state.categories.selected_sub_category
+		},
+		selected_bodega() {
+			return this.$store.state.categories.selected_bodega
 		},
 		is_from_search() {
 			return this.$store.state.categories.is_from_search

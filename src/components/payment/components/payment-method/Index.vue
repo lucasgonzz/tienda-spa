@@ -1,5 +1,6 @@
 <template>
 	<div
+	v-if="payment_methods.length"
 	class="background">
 		<h5>
 			Forma de pago

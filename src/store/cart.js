@@ -7,27 +7,42 @@ export default {
 	state: {
 		cart: {
 			articles: [],
+			promociones_vinoteca: [],
 			deliver: 0,
 			description: '',
 			payment_id: '',
 			payment_status: '',
 			address_id: '',
 			payment_card_info_id: null,
+			fecha_entrega: 0,
 		},
 		buyer: {
 			name: '',
 			email: '',
 			phone: '',
 		},
+		buyer_id: null,
+		selected_buyer: null,
 		payment_method: null,
 		delivery_zone: null,
 		cupon: null,
 		loading_last_cart: false,
 		saving: false,
+
+		added_item: null,
 	},
 	mutations: {
+		set_added_item(state, value) {
+			state.added_item = value
+		},
 		setBuyer(state, value) {
 			state.buyer = value 
+		},
+		set_buyer_id(state, value) {
+			state.buyer_id = value 
+		},
+		set_selected_buyer(state, value) {
+			state.selected_buyer = value 
 		},
 		setDeliver(state, value) {
 			state.cart.deliver = value
@@ -37,6 +52,9 @@ export default {
 		},
 		setPaymentCardInfoId(state, value) {
 			state.cart.payment_card_info_id = value
+		},
+		set_fecha_entrega(state, value) {
+			state.cart.fecha_entrega = value
 		},
 		setPaymentMethod(state, value) {
 			state.payment_method = value
@@ -59,33 +77,77 @@ export default {
 		setCupon(state, value) {
 			state.cupon = value
 		},
-		addArticle(state, article_param) {
-			let article_repeated_index = state.cart.articles.findIndex(article => {
-				return article.id == article_param.id && (!article.pivot.variant_id || article.pivot.variant_id == article_param.variant_id)
-			})
-			if (article_repeated_index != -1) {
-				state.cart.articles.splice(article_repeated_index, 1)
+		addItem(state, item) {
+
+			let is_promocion_vinoteca = item.is_promocion_vinoteca
+			let index
+
+			if (is_promocion_vinoteca) {
+
+				index = state.cart.promociones_vinoteca.findIndex(promo => {
+					return promo.id == item.id
+				})
+
+			} else {
+
+				index = state.cart.articles.findIndex(article => {
+					return article.id == item.id && (!article.pivot.variant_id || article.pivot.variant_id == item.variant_id)
+				})
+
 			}
-			state.cart.articles.push(article_param)
+
+			if (index != -1) {
+				if (is_promocion_vinoteca) {
+					state.cart.promociones_vinoteca.splice(index, 1)
+				} else {
+					state.cart.articles.splice(index, 1)
+				}
+			} else {
+				if (is_promocion_vinoteca) {
+					state.cart.promociones_vinoteca.push(item)
+				} else {
+					state.cart.articles.push(item)
+				}
+			}
 		},
-		removeArticle(state, {article_param, remove_only_one_amount }) {
-			console.log(article_param)
-			console.log(remove_only_one_amount)
+		removeArticle(state, {item, remove_only_one_amount }) {
 			if (remove_only_one_amount == undefined) {
 				remove_only_one_amount = true
 			}
-			console.log(remove_only_one_amount)
-			let index = state.cart.articles.findIndex(article => {
-				return article.id == article_param.id
-			})
-			if (article_param.amount > 1 && remove_only_one_amount) {
-				let new_amount = article_param.amount
-				new_amount--
-				delete article_param.amount
-				Vue.set(state.cart.articles[index], 'amount', new_amount)
+
+			let is_promocion_vinoteca = item.is_promocion_vinoteca
+
+			let index 
+			if (is_promocion_vinoteca) {
+				console.log('eliminado promocion vinoteca')
+				index = state.cart.promociones_vinoteca.findIndex(promo => {
+					return promo.id == item.id
+				})
 			} else {
-				console.log('se lo eliminio por completo')
-				state.cart.articles.splice(index, 1)
+				console.log('eliminado article')
+				index = state.cart.articles.findIndex(article => {
+					return article.id == item.id
+				})
+			}
+			
+			if (item.amount > 1 && remove_only_one_amount) {
+				let new_amount = item.amount
+				new_amount--
+				delete item.amount
+
+				if (is_promocion_vinoteca) {
+					Vue.set(state.cart.promociones_vinoteca[index], 'amount', new_amount)
+				} else {
+					Vue.set(state.cart.articles[index], 'amount', new_amount)
+				}
+			} else {
+				if (is_promocion_vinoteca) {
+					console.log('se lo eliminio promo')
+					state.cart.promociones_vinoteca.splice(index, 1)
+				} else {
+					console.log('se lo eliminio article')
+					state.cart.articles.splice(index, 1)
+				}
 			}
 		},	
 		setCart(state, cart = null) {
@@ -96,17 +158,24 @@ export default {
 					article.price = article.pivot.price
 					article.notes = article.pivot.notes
 				})
+				cart.promociones_vinoteca.forEach(promo => {
+					promo.amount = promo.pivot.amount
+					promo.price = promo.pivot.price
+					promo.notes = promo.pivot.notes
+				})
 				state.payment_method = cart.payment_method 
 				state.delivery_zone = cart.delivery_zone 
 				state.cupon = cart.cupon 
 			} else {
 				state.cart = {
 					articles: [],
+					promociones_vinoteca: [],
 					deliver: 0,
 					description: '',
 					payment_id: '',
 					address_id: '',
 					payment_card_info_id: null,
+					fecha_entrega: 0,
 				}
 				state.payment_method = null
 				state.delovery_zone = null
@@ -187,10 +256,14 @@ export default {
 			})
 		},
 		removeArticle({ state, commit }, article_param) {
-			if (state.cart.articles.length) {
+			if (
+				state.cart.articles.length
+				|| state.cart.promociones_vinoteca.length
+			) {
 				axios.put('/api/carts', state.cart)
-				.then(() => {
+				.then(res => {
 					console.log('Carrito actualizado')
+					commit('setCart', res.data.cart)
 				})
 				.catch(err => {
 					console.log(err)

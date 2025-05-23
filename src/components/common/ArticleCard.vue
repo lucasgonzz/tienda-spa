@@ -154,7 +154,7 @@ export default {
 		},
 		removeArticle() {
 			this.$store.commit('cart/removeArticle', {
-				article_param: this.article,
+				item: this.article,
 				remove_only_one_amount: true
 			})
 			if (this.authenticated) {

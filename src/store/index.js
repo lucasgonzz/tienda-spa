@@ -25,6 +25,9 @@ import ws from './ws'
 import platelets from './platelets'
 import payment_methods from './payment_methods'
 import delivery_zones from './delivery_zones'
+import delivery_day from './delivery_day'
+
+import bodegas from './bodegas'
 
 Vue.use(Vuex)
 
@@ -61,5 +64,8 @@ export default new Vuex.Store({
 		platelets,
 		payment_methods,
 		delivery_zones,
+
+		bodegas,
+		delivery_day,
 	}
 })

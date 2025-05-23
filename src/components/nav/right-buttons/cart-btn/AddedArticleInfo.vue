@@ -8,8 +8,8 @@
 			<i class="icon-cancel"></i>
 		</div>
 		<last-article
-		v-if="cart.articles.length" 
-		:article="cart.articles[cart.articles.length-1]"></last-article>
+		v-if="added_item"
+		:article="added_item"></last-article>
 	</div>
 </template>
 <script>
@@ -20,6 +20,9 @@ export default {
 	computed: {
 		cart() {
 			return this.$store.state.cart.cart 
+		},
+		added_item() {
+			return this.$store.state.cart.added_item 
 		},
 	},
 	methods: {
@@ -42,7 +45,7 @@ export default {
 	position: absolute
 	background: #DEDEDE
 	width: 300px
-	padding: 10px
+	padding: 10px 15px 10px 10px
 	top: 110%
 	border-radius: 5px
 	box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px

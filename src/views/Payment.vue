@@ -8,11 +8,32 @@
 			xl="6"
 			offset-xl="1"
 			cols="12">
+
+				<whats-app-info></whats-app-info>
+
 				<buyer
 				v-if="!commerce.online_configuration.register_to_buy"></buyer>	
 				<deliver
 				v-else></deliver>
+
+
+				<deliver
+				v-if="!commerce.online_configuration.register_to_buy"></deliver>
+
+				<seller-select-client></seller-select-client>
+
+				<addresses></addresses>
+				<delivery-zones></delivery-zones>
+				<cupon></cupon>
+				<payment-method></payment-method>
+
+				<delivery-day></delivery-day>
+
+				<description></description>
+
 			</b-col> 
+
+
 			<b-col
 			id="col-cart-resum"
 			v-if="!is_mobile"
@@ -22,22 +43,8 @@
 			cols="12">
 				<cart-resume></cart-resume>
 			</b-col>
-			<b-col
-			v-if="show_content"
-			id="3rt-col"
-			md="7"
-			xl="6"
-			offset-xl="1"
-			cols="12">
-				<deliver
-				v-if="!commerce.online_configuration.register_to_buy"></deliver>
-				<addresses></addresses>
-				<delivery-zones></delivery-zones>
-				<cupon></cupon>
-				<payment-method></payment-method>
-				<description></description>
-				<!-- <btn-save></btn-save> -->
-			</b-col>
+			
+
 			<b-col
 			v-if="is_mobile"
 			cols="12">
@@ -58,8 +65,11 @@ import payment_set_height from '@/mixins/payment_set_height'
 export default {
 	mixins: [payment_set_height],
 	components: {
+		WhatsAppInfo: () => import('@/components/payment/components/WhatsAppInfo'),
 		CartResume: () => import('@/components/payment/components/CartResume'),
+		SellerSelectClient: () => import('@/components/payment/components/SellerSelectClient'),
 		Buyer: () => import('@/components/payment/components/Buyer'),
+		DeliveryDay: () => import('@/components/payment/components/DeliveryDay'),
 		Deliver,
 		PaymentMethod,
 		Addresses,
@@ -98,11 +108,7 @@ export default {
 	.row 
 		justify-content: flex-start
 	.col-cart-articles
-		@media screen and (min-width: 768px)
-			position: sticky
-			position: -webkit-sticky
-			top: 100px
-			// right: 25px
+		z-index: 100
 	h5
 		text-align: left !important
 		margin: 10px 0 25px !important

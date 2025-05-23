@@ -1,7 +1,7 @@
 <template>
 	<div
 	class="featured-list"
-	v-if="!selected_category && !selected_sub_category && !is_from_search && featured.length">
+	v-if="!selected_category && !selected_sub_category && !selected_bodega && !is_from_search && featured.length">
 		<p 
 		class="title">
 			Destacados
@@ -31,7 +31,6 @@
 	</div>
 </template>
 <script>
-import ArticleCard from '@/components/common/ArticleCard'
 import VueHorizontalList from "vue-horizontal-list"
 import categories from "@/mixins/categories"
 import VueScreenSize from 'vue-screen-size'
@@ -39,16 +38,22 @@ export default {
 	name: 'Featured',
 	mixins: [categories],
 	components: {
-		ArticleCard,
+		ArticleCard: () => import('@/components/common/article-card/Index'),
 		VueHorizontalList,
 	},
-	data() {
-		return {
-			options: {
+	computed: {
+		options() {
+			let options = {
 				responsive: [
 					{ end: 576, size: 2 },
-					{ start: 768, end: 992, size: 3 },
-					{ start: 992, size: 4 },
+					{ 
+						start: 768, 
+						end: 992, 
+						size: this.commerce.online_configuration.cantidad_tarjetas_en_notebook },
+					{ 
+						start: 992, 
+						size: this.commerce.online_configuration.cantidad_tarjetas_en_escritorio
+					},
 				],
 				list: {
 					// 1200 because @media (min-width: 1200px) and therefore I want to switch to windowed mode
@@ -60,10 +65,12 @@ export default {
 				position: {
 					start: 1,
 				},
-				autoplay: { play: true, repeat: true, speed: 2000 },
-			},
+				autoplay: { play: true, repeat: true, speed: 4000 },
+			}
+
+			return options
 		}
-	},
+	}
 }
 </script>
 <style lang="sass">
@@ -71,4 +78,8 @@ export default {
 	padding: 0 0 1em
 .cont-featured
 	position: relative
+
+.featured-list
+	.vhl-item
+		margin: 0 0 70px !important
 </style>

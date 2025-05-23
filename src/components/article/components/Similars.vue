@@ -5,8 +5,7 @@
 		<b-col
 		cols="12"
 		md="11"
-		lg="10"
-		xl="8">
+		lg="10">
 			<p 
 			class="title animate__animated animate__fadeIn">
 				Articulos similares
@@ -52,7 +51,7 @@
 	</b-row>
 </template>
 <script>
-import ArticleCard from '@/components/common/ArticleCard'
+import ArticleCard from '@/components/common/article-card/Index'
 import ArticleCardSkeleton from '@/components/common/ArticleCardSkeleton'
 
 import InfiniteLoading from 'vue-infinite-loading'

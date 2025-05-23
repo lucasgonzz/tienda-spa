@@ -1,0 +1,35 @@
+@import '@/sass/_custom'
+.cont-items
+
+	&:hover 
+		font-weight: normal
+
+	.item
+		cursor: pointer 
+		text-align: left
+
+		&:hover
+			background: $green
+			color: $hover_color_text
+			font-weight: bold
+
+	.active-item
+		background: $green
+		color: $hover_color_text
+		font-weight: bold
+
+
+	.header
+		display: flex  
+		flex-direction: row  
+		justify-content: space-between
+		padding: 10px 
+		border-bottom: 1px solid rgba(0,0,0,.3)
+
+		span
+			width: 60% 
+			// border: 2px solid red
+
+		div
+			width: 40% 
+			// border: 2px solid green

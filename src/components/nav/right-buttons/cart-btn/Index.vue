@@ -4,12 +4,13 @@
 	class="btn-nav btn-carrito">
 		<!-- <i 
 		:class="getIconActive('Cart', 'shopping-cart')"></i> -->
-		<img src="@/assets/cart.png" alt="">
+		<!-- <img src="@/assets/cart.png" alt=""> -->
+		<i class="icon-shopping-cart"></i>
 		<b-badge 
-		v-show="cant_cart_articles > 0"
+		v-show="cant_cart_items > 0"
 		variant="danger"
 		class="badge">
-			{{ cant_cart_articles }}
+			{{ cant_cart_items }}
 		</b-badge>
 		<added-article-info></added-article-info>
 	</button>
@@ -38,8 +39,8 @@ export default {
 .btn-carrito
 	position: relative
 	i 
-		font-size: 1.2em
-		color: $color_text
+		font-size: 30px
+		color: $color_text !important
 	img 
 		width: 40px
 	.badge

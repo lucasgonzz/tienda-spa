@@ -50,7 +50,7 @@ export default {
 }
 </script>
 <style lang="sass">
-// @import '@/sass/_custom'
+@import '@/sass/_custom'
 // $buyer_color: ''
 // $commerce_color: ''
 // @if ($theme == dark) 
@@ -73,14 +73,14 @@ export default {
 .buyer-message
 	align-self: flex-end
 	.text
-		color: #000
+		color: $color_text
 	.since
-		color: #000
+		color: $color_text
 .commerce-message
 	.text
-		color: #000 
+		color: #333 
 	.since
-		color: #000 
+		color: #333 
 .message
 	border-radius: .5em
 	padding: .5em

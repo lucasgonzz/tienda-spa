@@ -9,11 +9,13 @@ export default {
 		sub_categories: [],
 		articles: [],
 		featured: [],
+		promociones_vinoteca: [],
 		in_offer: [],
 		novedades: [],
 
 		selected_category: null,
 		selected_sub_category: null,
+		selected_bodega: null,
 		is_from_search: false,
 
 		sub_categories_to_show: [],
@@ -65,6 +67,9 @@ export default {
 		setFeatured(state, value) {
 			state.featured = value
 		},
+		set_promociones_vinoteca(state, value) {
+			state.promociones_vinoteca = value
+		},
 		setInOffer(state, value) {
 			state.in_offer = value
 		},
@@ -83,6 +88,9 @@ export default {
 		},
 		setSelectedSubCategory(state, value) {
 			state.selected_sub_category = value
+		},
+		setSelectedBodega(state, value) {
+			state.selected_bodega = value
 		},
 		setIsFromSearch(state, value) {
 			state.is_from_search = value 
@@ -147,36 +155,39 @@ export default {
 			if (state.selected_sub_category) {
 				sub_category_id = state.selected_sub_category.id
 			}
-			console.log('order_by: '+state.order_by)
-			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+state.order_by+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
+
+			let bodega_id = 0
+			if (state.selected_bodega) {
+				bodega_id = state.selected_bodega.id
+			}
+
+			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+bodega_id+'/'+state.order_by+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
 			.then(res => {
 				commit('setLoadingArticles', false)
 				let articles = res.data.articles.data 
+				// let articles_ordenados = []
+				
+				// console.log('Antes del sort')
+				// articles.forEach(article => {
+				// 	console.log(article.name+' $'+article.final_price)
+				// })
 
-				articles.forEach(article => {
-					console.log(article.name+' $'+article.final_price)
-				})
-				if (res.data.reverse) {
-					articles = articles.reverse()
-					console.log('________________________________')
-					console.log('Se dio vuelta')
-					articles.forEach(article => {
-						console.log(article.name+' $'+article.final_price)
-					})
-					// if (state.order_by == 'precio-mayor-menor') {
-					// 	console.log('precio-mayor-menor')
-					// 	articles = articles.sort((a, b) => Number(b.final_price) - Number(a.final_price))
-					// } else if (state.order_by == 'precio-menor-mayor') {
-					// 	console.log('precio-menor-mayor')
-					// 	articles = articles.sort((a, b) => Number(a.final_price) - Number(b.final_price))
-					// } 
-					// console.log('________________________________')
-					// console.log('despues del sort')
-					// articles.forEach(article => {
-					// 	console.log(article.name+' $'+article.final_price)
-					// })
-				}
+				// if (state.order_by == 'precio-mayor-menor') {
+				// 	console.log('precio-mayor-menor')
+				// 	articles_ordenados = articles.sort((a, b) => Number(a.final_price) - Number(b.final_price))
+				// } else if (state.order_by == 'precio-menor-mayor') {
+				// 	console.log('precio-menor-mayor')
+				// 	articles_ordenados = articles.sort((a, b) => Number(b.final_price) - Number(a.final_price))
+				// } else {
+				// 	articles_ordenados = articles
+				// }
+				// console.log('________________________________')
+				// console.log('despues del sort')
+				// articles_ordenados.forEach(article => {
+				// 	console.log(article.name+' $'+article.final_price)
+				// })
 
+				// commit('setArticles', articles_ordenados)
 				commit('setArticles', articles)
 				commit('setOrder')
 			})
@@ -197,6 +208,7 @@ export default {
 				commit('setLoadingArticles', false)
 				commit('setArticles', res.data.articles.data)
 				commit('setFeatured', res.data.featured)
+				commit('set_promociones_vinoteca', res.data.promociones_vinoteca)
 				commit('setInOffer', res.data.in_offer)
 				commit('setNovedades', res.data.novedades)
 			})

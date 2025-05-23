@@ -12,8 +12,7 @@
 		v-else
 		variant="success" :value="progress" :max="100" show-progress animated></b-progress>
 
-        <p
-        class="text-success">
+        <p>
         	{{ message }}
         </p>
 	</div> 
@@ -58,4 +57,5 @@ export default {
 	p 
 		margin-top: 10px
 		font-weight: bold
+		color: $color_text
 </style>

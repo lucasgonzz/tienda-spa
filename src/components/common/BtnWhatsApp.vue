@@ -38,12 +38,13 @@ export default {
 	transform: translateX(100vw)
 	background: #25D366
 	border-radius: 50%
-	width: 50px
+	width: 50px !important
 	height: 50px
 	display: flex
 	justify-content: center
 	align-items: center
 	transition: all .3s
+	z-index: 1000
 	i 
 		font-size: 25px
 		color: #FFF

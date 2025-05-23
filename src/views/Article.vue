@@ -1,33 +1,13 @@
 <template>
 	<div 
+	v-if="data_seted"
 	class="view article-view">
+		<add-to-cart-modal></add-to-cart-modal>
+		
 		<advise></advise>	
-		<b-row 
-		v-if="data_seted"
-		class="m-b-0 m-xl-b-15">
+		
+		<article-view></article-view>
 
-			<category-info></category-info>
-
-			<b-col
-			cols="12"
-			lg="10"
-			xl="7">
-				<article-image></article-image>
-			</b-col>
-			<b-col
-			class="p-relative"
-			cols="12"
-			md="11"
-			lg="10"
-			xl="3">
-				<article-data></article-data>
-				<variants></variants>
-				<div class="positions">
-					<description></description>
-					<!-- <preguntar></preguntar> -->
-				</div>
-			</b-col>
-		</b-row>
 		<similars></similars>
 
 		<contact-info></contact-info>
@@ -42,7 +22,6 @@ import CanSeePrices from '@/components/home/components/CanSeePrices'
 import CategoryInfo from '@/components/article/components/CategoryInfo'
 import ArticleImage from '@/components/article/components/ArticleImage'
 import ArticleData from '@/components/article/components/data/Index'
-import ArticleAmount from '@/components/article/components/ArticleAmount'
 import Variants from '@/components/article/components/data/Variants'
 import Description from '@/components/article/components/Description'
 import Questions from '@/components/article/components/questions/Index'
@@ -69,7 +48,6 @@ export default {
 		CategoryInfo,
 		ArticleImage,
 		ArticleData,
-		ArticleAmount,
 		Variants,
 		Description,
 		Questions,
@@ -77,7 +55,10 @@ export default {
 		Preguntar,
 		Categories,
 		Platelets,
+
+		ArticleView: () => import('@/components/article/components/article-view/Index'),
 		ContactInfo: () => import('@/components/common/ContactInfo'),
+		AddToCartModal: () => import('@/components/common/add-to-cart-modal/Index'),
 	},
 	data() {
 		return {

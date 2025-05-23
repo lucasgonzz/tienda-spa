@@ -22,6 +22,7 @@ export default {
 		if (!this.is_mobile) {
 			document.getElementById('message-text').focus()
 		}
+		this.$store.dispatch('messages/getMessages')
 		this.$store.dispatch('messages/setMessagesRead')
 		this.$store.commit('messages/setMessagesRead')
 		this.$store.commit('messages/setMessagesNotRead')

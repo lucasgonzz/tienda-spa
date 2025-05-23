@@ -10,6 +10,13 @@
 			@keyup="callSearch"
 			placeholder="¿Que estas buscando?"
 			class="input-search"></b-form-input>
+			<div 
+			v-if="results.length"
+			@click="cancelar"
+			class="icon icon-right">
+				Cancelar
+				<!-- <i class="icon-cancel"></i> -->
+			</div>
 		</div>
 		<div 
 		class="results">
@@ -41,6 +48,7 @@ export default {
 			loading: false,
 			interval: null,
 			results: [],
+			se_busco_con_enter: false,
 		}
 	},
 	computed: {
@@ -54,12 +62,23 @@ export default {
 		},
 	},
 	methods: {
+		cancelar() {
+			this.results = []
+			this.query = ''
+		},
 		callSearch(e) {
 			this.results = [] 
 			if (e.key == 'Enter') {
+
+				this.se_busco_con_enter = true
+
 				this.clearResults()
 				this.searchArticle()
+				
 			} else if (e.key != 'ArrowDown' && e.key != 'ArrowUp') {
+				
+				this.se_busco_con_enter = false
+				
 				this.loading = true 
 				if (this.interval) {
 		            window.clearInterval(this.interval)
@@ -86,13 +105,24 @@ export default {
 			.then(res => {
 				this.loading = false 
 				this.results = res.data.articles.data 
-				console.log(this.results)
+
+				/*
+					* Si el usuario preciona ENTER, igualmente se mandan a buscar los resultados
+					entonces controlo y, si se busco con enter, limpio los resultados
+					para que se esconda el recuadro
+				*/
+				this.esconder_resultados()				
 			})
 			.catch(err => {
 				console.log(err)
 				this.loading = false 
 				this.$toast.error('Hubo un error al realizar la busqueda')
 			})
+		},
+		esconder_resultados() {
+			if (this.se_busco_con_enter) {
+				this.results = []
+			}
 		},
 		clearResults() {
 			this.results = []
@@ -132,6 +162,21 @@ export default {
 		border-radius: 15px 0 0 15px
 		i
 			color: rgba(0, 0, 0, .6)
+
+	.icon-right
+		border-radius: 0 15px 15px 0
+		position: absolute
+		height: 100%
+		right: 0
+		width: 60px
+		font-weight: bold
+		text-decoration: underline
+		cursor: pointer
+		justify-content: flex-start
+		font-size: 12px
+		&:before  
+			display: none
+
 	.bg-gray 
 		background: #e9ecef !important
 	.input-search
@@ -170,4 +215,7 @@ export default {
 
 		.text-with-icon
 			color: #000
+
+		.spinner-border
+			color: $color_text
 </style>

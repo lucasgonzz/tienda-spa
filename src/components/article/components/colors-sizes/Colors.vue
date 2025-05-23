@@ -35,7 +35,7 @@ export default {
 	}, 
 	methods: {
 		setColor(color) {
-			if (!this.isArticleInCart()) {
+			if (!this.is_item_in_cart()) {
 				this.setColorAndImages(color)
 				this.$scrollToTop()
 			} else {

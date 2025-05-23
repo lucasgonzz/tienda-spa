@@ -70,9 +70,20 @@ module.exports = {
         // themeColor: "#C0260A",
         // name: "Galvan Mayorista",
 
+        // Golonorte
+        // themeColorConorte",
+
+        // Golonorte
+        themeColor: "#00237C",
+        name: "Golonorte",
+
+        // Truvari
+        // themeColor: "#EBEBEB",
+        // name: "TruvariBebidas",
+
         // Pets
-        themeColor: "#C0260A",
-        name: "Pets",
+        // themeColor: "#C0260A",
+        // name: "Pets",
 
         // Cali
         // themeColor: "#D8CDB8",

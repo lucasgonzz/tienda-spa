@@ -8,7 +8,9 @@
             <div
             v-else>
                 <nav-component></nav-component>
-                <b-container fluid class="container-principal">
+                <b-container 
+                fluid 
+                :class="_class">
                     <transition name="slide-left">
                         <router-view/>
                     </transition>
@@ -64,18 +66,31 @@ export default {
             return this.$store.state.install_btn.deferred_prompt
         },
         tienda_pausada() {
+            if (typeof process.env.VUE_APP_NO_PAUSAR_TIENDA_ONLINE != 'undefined') {
+                return false
+            }
             return this.commerce.online_configuration.pausar_tienda_online 
+        },
+        _class() {
+            let _class = 'plantilla-'+this.commerce.online_configuration.online_template.slug 
+            
+            _class += ' tarjetas-telefono-'+this.commerce.online_configuration.cantidad_tarjetas_en_telefono
+
+            _class += ' tarjetas-tablet-'+this.commerce.online_configuration.cantidad_tarjetas_en_tablet
+
+            _class += ' tarjetas-notebook-'+this.commerce.online_configuration.cantidad_tarjetas_en_notebook
+
+            _class += ' tarjetas-escritorio-'+this.commerce.online_configuration.cantidad_tarjetas_en_escritorio
+
+            return _class
         },
     },
     watch: {
         authenticated() {
-            console.log('watch authenticated')
             if (this.authenticated) {
                 this.callAuthMethods()
-            } else {
-                this.setCartFromCookies()
-                this.getIndex()
-                this.getCategory()
+
+                this.escuchar_mensajes()
             }
         },
     },
@@ -92,51 +107,77 @@ export default {
             console.log('tiene www')
             location.replace(process.env.VUE_APP_APP_URL);
         }
+
         this.checkHomeRoute()
-        window.addEventListener("beforeinstallprompt", e => {
-            e.preventDefault();
-            // Stash the event so it can be triggered later.
-            this.$store.commit('install_btn/setDeferredPrompt', e)
-        });
-        window.addEventListener("appinstalled", () => {
-            this.$store.commit('install_btn/setDeferredPrompt', null)
-        });
-        this.$store.commit('auth/setLoading', true)
-        this.$store.dispatch('commerce/getCommerce')
-        .then(() => {
-            this.$store.commit('auth/setLoading', false)
-            this.callMethods()
-        })
+
+        // this.clearCartCookies()
+
+        this.instalar_app()
+
+        // Obtengo el comercio, despues ollamo a callMethods
+        this.get_commerce()
+
         this.$scrollToTop()
     },
     methods: {
+        escuchar_mensajes() {
+            setInterval(() => {
+                if (this.$route.name != 'Messages') {
+                    
+                    this.$store.dispatch('messages/getMessages')
+                }
+            }, 20000)
+        },
+        get_commerce() {
+
+            this.$store.commit('auth/setLoading', true)
+            this.$store.dispatch('commerce/getCommerce')
+            .then(() => {
+                this.$store.commit('auth/setLoading', false)
+                this.callMethods()
+            })
+            .catch(err => {
+                console.log(err)
+            })
+        },
+        instalar_app() {
+            window.addEventListener("beforeinstallprompt", e => {
+                e.preventDefault();
+                // Stash the event so it can be triggered later.
+                this.$store.commit('install_btn/setDeferredPrompt', e)
+            });
+
+            window.addEventListener("appinstalled", () => {
+                this.$store.commit('install_btn/setDeferredPrompt', null)
+            });
+        },
         async callMethods() {
             console.log('callMethods')
-            console.log('data_loaded:')
-            console.log(this.data_loaded)
+
+            await this.$store.dispatch('auth/me')
+
             if (!this.data_loaded) {
-                if (this.commerce.online_configuration.register_to_buy) {
-                    this.$store.dispatch('auth/me')
-                } else {
-                    this.setCartFromCookies()
-                }
-                await this.$store.dispatch('titles/getTitles')
+
+                this.data_loaded = true
                 
-                this.getIndex()
-                this.getCategory()
+                // await this.$store.dispatch('titles/getTitles')
+                this.$store.dispatch('titles/getTitles')
                 
                 await this.$store.dispatch('categories/getCategories')
                 
+                this.getIndex()
+                this.getCategory()
 
-                await this.$store.dispatch('platelets/getModels')
-                await this.$store.dispatch('payment_methods/getModels')
-                await this.$store.dispatch('delivery_zones/getModels')
-                this.data_loaded = true
+                await this.$store.dispatch('bodegas/getModels')
+
+                // await this.$store.dispatch('platelets/getModels')
+
+                this.$store.dispatch('payment_methods/getModels')
+                this.$store.dispatch('delivery_zones/getModels')
             }
         },
         getIndex() {
             console.log('getIndex')
-            console.log(this.$route.params.category)
             if (this.$route.params.category == 'ultimos-ingresados') {
                 return this.$store.dispatch('categories/getIndex')
             }
@@ -171,25 +212,15 @@ export default {
         async callAuthMethods() {
             console.log('callAuthMethods')
             if (this.authenticated) {
-                this.runFirebase()
-                await this.$store.dispatch('last_searchs/getLastSearchs')
+                console.log('esta authenticated')
+                // this.runFirebase()
+                // await this.$store.dispatch('last_searchs/getLastSearchs')
                 await this.$store.dispatch('orders/getCurrentOrder')
                 await this.$store.dispatch('messages/getMessages')
-                await this.$store.dispatch('help/setWaitingCall')
-                await this.$store.dispatch('cupons/getActiveCupons')
+                // await this.$store.dispatch('help/setWaitingCall')
+                // await this.$store.dispatch('cupons/getActiveCupons')
                 await this.listenChannels()
                 await this.getLastCart()
-
-                if (this.data_loaded) {
-
-                    console.log('this.data_loaded estaba TRUE')
-
-                    await this.getIndex()
-                    
-                    await this.getCategory()
-                } else {
-                    console.log('this.data_loaded estaba FALSE')
-                }
 
             } else {
                 this.$store.commit('cart/setCart', null)
@@ -208,24 +239,26 @@ export default {
     -moz-osx-font-smoothing: grayscale 
     text-align: center
     height: 100vh
-.container-principal
 
-    // background: rgba(0,0,0,.1)
+.plantilla-clasico
+    background: #FFF
+
+
+
+.plantilla-moderno
     background: #EBEBEB
 
-    // background: url('~@/assets/fondo.jpg') 
-    // background-size: 100% auto
-    // background-position: center top
-    // background-attachment: fixed
-    // background-repeat: repeat
+// .container-principal 
 
-    // overflow-y: hidden
-    min-height: 100vh
-    .btn-update
-        @media screen and (max-width: 998px)
-            margin-top: 70px
-            margin-bottom: -30px
-        @media screen and (min-width: 998px)
-            margin-top: 100px
-            margin-bottom: -60px
+//     background: red
+
+//     // overflow-y: hidden
+//     min-height: 100vh
+//     .btn-update
+//         @media screen and (max-width: 998px)
+//             margin-top: 70px
+//             margin-bottom: -30px
+//         @media screen and (min-width: 998px)
+//             margin-top: 100px
+//             margin-bottom: -60px
 </style>

@@ -6,7 +6,7 @@
 	<div
 	v-else>
 		<div
-		v-if="!articles.length"
+		v-if="!cant_cart_items"
 		class="text-with-icon">
 			<i class="icon-shopping-cart"></i>
 			Tu carrito esta vacio
@@ -23,6 +23,12 @@
 				v-for="article in articles"
 				:key="article.key"
 				:article="article"></article-card>
+				
+				<article-card
+				v-for="promo in promociones_vinoteca"
+				:key="promo.key"
+				:article="promo"></article-card>
+				
 			</div>
 			<p class="total title m-t-20 m-lg-t-0">
 				<strong>
@@ -44,8 +50,9 @@
 			<b-button
 			block
 			size="lg"
+			class="w-100"
 			:to="{name: 'Home'}"
-			variant="success">
+			variant="primary">
 				Ver mas productos
 			</b-button>
 		</div>
@@ -53,7 +60,7 @@
 </template>
 <script>
 import Loading from '@/components/cart/components/Loading' 
-import ArticleCard from '@/components/common/ArticleCard' 
+import ArticleCard from '@/components/common/article-card/Index' 
 import BtnLoader from '@/components/common/BtnLoader'
 
 import cart from '@/mixins/cart' 
@@ -72,6 +79,7 @@ export default {
 			if (this.authenticated) {
 				if (this.canMakeOrder()) {
 					this.$router.push({name: 'Payment'})
+					this.$scrollToTop()
 				}
 			} else {
 				if (this.commerce.online_configuration.register_to_buy) {

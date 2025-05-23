@@ -1,11 +1,11 @@
 <template>
 	<a 
-	class="link-whatsapp"
+	class="link-whatsapp w-100"
     target="_blank"
     :href="'https://api.whatsapp.com/send?phone='+commerce.phone">
     	<strong>
 			<i class="icon-whatsapp"></i>
-			Cualquier duda consultala al instante!
+			Cualquier duda consulta al instante
     	</strong>
 	</a>
 </template>

@@ -45,10 +45,10 @@ export default {
 	mixins: [cart],
 	computed: {
 		cant_articles_text() {
-			if (this.cant_cart_articles == 1) {
+			if (this.cant_cart_items == 1) {
 				return '1 producto'
 			}
-			return this.cant_cart_articles+' productos'
+			return this.cant_cart_items+' productos'
 		},
 		tarjeta_description() {
 			if (this.cart.deliver) {

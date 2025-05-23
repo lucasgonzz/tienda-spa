@@ -25,7 +25,7 @@
 		@click="login(user_login)"
 		block
 		class="m-b-20"
-		variant="success">
+		variant="primary">
 			<btn-loader
 			text="Ingresar"
 			:loader="loading">
@@ -34,8 +34,8 @@
 		<b-button
 		block
 		:to="{name: 'PasswordReset'}"
-		class="m-b-10 text-success"
-		variant="outline-success">
+		class="m-b-10 text-success w-100"
+		variant="outline-primary">
 			Olvide mi contraseña
 		</b-button>
 	</div>

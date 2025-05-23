@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="!hasStock(article_to_show)">
+	v-if="!hasStock(article)">
 		<p 
 		class="stock-0 text-danger m-b-10">
 			Producto agotado
@@ -27,6 +27,9 @@ export default {
 	mixins: [articles],
 	components: {
 		BtnLoader,
+	},
+	props: {
+		article: Object,
 	},
 	data() {
 		return {
@@ -59,7 +62,8 @@ export default {
 </script>
 <style scoped lang="sass">
 .stock-0 
-	text-align: left
+	text-align: center  
+	font-size: 20px
 	margin: 1em 0 0
 	font-weight: 700
 </style>

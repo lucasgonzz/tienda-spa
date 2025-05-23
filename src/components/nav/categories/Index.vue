@@ -1,35 +1,51 @@
 <template>
-	<div 
-	v-if="!is_mobile || show"
+	<b-sidebar
+    shadow
+    @shown="disableScroll" 
+    @hidden="enableScroll"
+	title="Categorias"
+	class="cont-items"
 	id="cont-categories">
 		<div 
 		v-for="category in categories"
 		:key="category.id"
-		class="category">
+		:class="is_active_category(category) ? 'active-item' : ''"
+		class="item">
 			<div 
-			@click.stop="setCategory(category, false)"
-			@mouseover="hover"
 			class="header">
-				{{ category.name }}
+				<span
+				@click.stop="setCategory(category)">
+					{{ category.name }}
+				</span>
+
 				<div
-				@click.stop="setCategory(category)"
+				class="j-end"
+				@click.stop="show_sub_categories(category)"
 				v-if="category.sub_categories.length">
+					({{category.sub_categories.length}}) 
 					<i 
-					class="icon-right d-none d-lg-inline-block"></i>
-					<i 
-					class="icon-down d-lg-none"></i>
+					class="icon-down-open p-l-5"></i>
+				</div>
+
+				<div
+				class="j-end"
+				@click.stop="show_sub_categories(category)"
+				v-else>
+					({{ category.articles_count }})
 				</div>
 			</div>
+
 			<div
 			class="cont-sub-categories-parent"
 			v-if="category.sub_categories.length">
+
 				<sub-categories
 				:set_sub_categories_position="set_sub_categories_position"
-				v-if="!is_mobile || show_sub_category == category.id"
+				v-if="is_active_category(category)"
 				:category="category"></sub-categories>
 			</div>		
 		</div>	
-	</div>
+	</b-sidebar>
 </template>
 <script>
 import categories from '@/mixins/_categories'
@@ -56,106 +72,74 @@ export default {
 		}
 	}, 
 	methods: {
+		is_active_category(category) {
+			return this.show_sub_category == category.id
+		},
+	    disableScroll() {
+	    	if (!this.is_mobile) {
+	    		console.log('desactivando scroll')
+	      		document.body.style.overflow = 'hidden';
+	    	}
+	    },
+	    enableScroll() {
+	      	document.body.style.overflow = 'auto';
+	    },
 		hover() {
 			if (!this.set_sub_categories_position) {
 				this.set_sub_categories_position = true
 			}
 		},
 		setCategory(category, check_mobile = true) {
-			if (!this.is_mobile || !check_mobile) {
-				this.setSelectedCategory(category)
+			this.setSelectedCategory(category)
+		},
+		show_sub_categories(category) {
+			if (this.show_sub_category == category.id) {
+				this.show_sub_category = 0
 			} else {
-				if (this.show_sub_category == category.id) {
-					this.show_sub_category = 0
-				} else {
-					this.show_sub_category = category.id 
-				}
+				this.show_sub_category = category.id 
 			}
-		}
+		},
 	}
 }
 </script>
 <style lang="sass">
 @import '@/sass/_custom'
 #cont-categories
-	scrollbar-width: auto
-	scrollbar-color: #ffffff #ffffff
 
-	&::-webkit-scrollbar
-		width: 5px
-		height: 5px
+	&:hover 
+		font-weight: normal
 
-	&::-webkit-scrollbar-track 
-		background: #333
-		margin-top: 30px
-
-	&::-webkit-scrollbar-thumb 
-		background-color: lighten(#ffffff, 20)
-		border: 2px solid #ffffff
-
-	@media screen and (max-width: 992px)
-		background: darken($green, 10)
-		margin: 0 -15px
-		padding: 0 15px
-	@media screen and (min-width: 992px)
-		opacity: 0	
-		display: none
-		transition: all .2s
-		max-height: 70vh
-		// width: 100vw
-		overflow: visible auto
-
-		position: absolute
-		top: 0px
-		left: -50px
-		padding-top: 30px
-		&::before
-			position: absolute
-			display: block
-			content: ''
-			width: 0 
-			height: 0 
-			top: 25px
-			left: 80px
-			border-left: 7px solid transparent
-			border-right: 7px solid transparent
-			border-bottom: 7px solid #333
-
-	.category
+	.item
 		cursor: pointer 
 		text-align: left
-		z-index: 500
-		// position: relative 
+		color: #333
+		margin: 0
 
-		@media screen and (max-width: 992px)
-			width: 100%
-			padding: 12px 0 
-			border-bottom: 1px solid darken($green, 20)
-		@media screen and (min-width: 992px)
+		&:hover
+			background: $green
+			color: $hover_color_text
 			font-weight: bold
-			font-size: 13px
-			color: rgba(255,255,255,.9)
-			box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px
-			background: #333
-			width: 300px
-			padding: 12px 30px
 
-			&:hover
-				background: $green
-				color: $hover_color_text
-				& > .cont-sub-categories-parent > .cont-sub-categories
-					opacity: 100
-					display: block
+	.active-item
+		background: $green
+		color: $hover_color_text
+		font-weight: bold
 
-		&:first-child
-			border-radius: 7px 7px 0 0
-		&:last-child
-			border-radius: 0 0 7px 7px
+
+	.header
+		display: flex  
+		flex-direction: row  
+		justify-content: space-between
+		padding: 10px 20px
+		border-bottom: 1px solid rgba(0,0,0,.3)
+
+		span
+			width: 80% 
+			// border: 2px solid red
+
+		div
+			width: 20% 
+			// border: 2px solid green
+
 		
-		.header 
-			@media screen and (max-width: 992px)
-				background: darken($green, 10)
-			display: flex
-			flex-direction: row 
-			justify-content: space-between
 </style>

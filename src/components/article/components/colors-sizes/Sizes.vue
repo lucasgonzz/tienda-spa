@@ -44,7 +44,7 @@ export default {
 	}, 
 	methods: {
 		setSize(size) {
-			if (!this.isArticleInCart()) {
+			if (!this.is_item_in_cart()) {
 				this.$set(this.article, 'size', size)
 			} else {
 				this.$toast.error('Ya esta en el carrito')

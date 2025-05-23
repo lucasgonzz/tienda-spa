@@ -10,7 +10,8 @@ export default {
 		images: [],
 		similars: [],
 		article_to_show: null,
-		amount: 1,
+		amount: '',
+		// amount: 1,
 		notes: '',
 		selected_article_variant: null,
 		image_index: 0,
@@ -76,26 +77,19 @@ export default {
 			state.articles_names = state.articles_names.concat(value)
 		},
 		setArticleToShow(state, article) {
-			// if (article && article.variants && article.variants.length) {
-			// 	article.variant = article.variants[0]	
-			// 	article.key += '-'+article.variants[0].id	
-			// } else if (article) {
-			// 	article.image = article.images[0]
-			// }
 			if (article) {
 				article.image = article.images[0]
-				state.amount = 1
+				// state.amount = 1
+
 				state.selected_article_variant = null
-				if (article.article_properties.length) {
+				
+				if (article.article_properties && article.article_properties.length) {
 					article.selected_article_properties = {}
 					article.article_properties.forEach(article_property => {
 						article.selected_article_properties[article_property.article_property_type.name] = 0
 						// article.selected_article_properties[article_property.id] = 0
 					})
 				}
-				// if (article.sizes && article.sizes.length) {
-				// 	article.size = 0
-				// }
 			}
 			state.article_to_show = article
 		},

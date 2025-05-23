@@ -1,14 +1,18 @@
 export default {
 	computed: {
-		cant_cart_articles() {
-			let cant_articles = 0
+		cant_cart_items() {
+			let cant_items = 0
 			let cart = this.$store.state.cart.cart
 			if (cart) {
 				cart.articles.forEach(article => {
-					cant_articles += article.amount
+					cant_items += article.amount
+				})
+
+				cart.promociones_vinoteca.forEach(promo => {
+					cant_items += promo.amount
 				})
 			}
-			return cant_articles
+			return cant_items
 		},
 		loading_last_cart() {
 			return this.$store.state.cart.loading_last_cart
@@ -20,12 +24,19 @@ export default {
 			}
 			return []
 		},
+		promociones_vinoteca() {
+			let cart = this.$store.state.cart.cart
+			if (cart) {
+				return cart.promociones_vinoteca
+			}
+			return []
+		},
 		cart() {
 			return this.$store.state.cart.cart
 		},
-		cart_buyer() {
-			return this.$store.state.cart.buyer
-		},
+		// cart_buyer() {
+		// 	return this.$store.state.cart.buyer
+		// },
 		delivery_zones() {
 			return this.$store.state.delivery_zones.models
 		},
@@ -60,11 +71,12 @@ export default {
 			return this.$store.state.orders.order
 		},
 		total() {
-			let total = 0
-			this.articles.forEach(article => {
-				total += this.articlePriceEfectivo(article, false) * Number(article.pivot.amount)
-			})
-			return total
+			return this.$store.state.cart.cart.total
+			// let total = 0
+			// this.articles.forEach(article => {
+			// 	total += article.pivot.price * Number(article.pivot.amount)
+			// })
+			// return total
 		},
 		total_with_payment_method_discount() {
 			if (this.cart_payment_method && this.cart_payment_method.discount) {
@@ -103,7 +115,16 @@ export default {
 		},
 		total_final() {
 			return this.total_with_deliver
-		}
+		},
+		buyer_id() {
+			return this.$store.state.cart.buyer_id
+		},
+		selected_buyer() {
+			return this.$store.state.cart.selected_buyer
+		},
+		fecha_entrega() {
+			return this.$store.state.cart.fecha_entrega
+		},
 	},
 	methods: {
 		setBtnMpVisible(set_visible) {
@@ -148,13 +169,20 @@ export default {
 						commerce_id 	: process.env.VUE_APP_COMMERCE_ID,
 						cart_id         : this.cart.id,
 						dolar_blue      : this.dolar_blue,
-						buyer 			: this.cart_buyer,
+						buyer_id		: this.buyer_id,
+						seller_id		: this.user.seller_id,
+						buyer 			: this.user,
+						selected_buyer 	: this.selected_buyer,
+						fecha_entrega 	: this.fecha_entrega,
 					})
 					.then(() => {
 						this.$store.commit('auth/setLoading', false)
 						this.$store.commit('auth/setMessage', '')
 						if (!from_mercadopago) {
 							this.$store.commit('cart/setCart', null)
+							this.$store.commit('cart/set_buyer_id', null)
+							this.$store.commit('cart/set_selected_buyer', null)
+
 							localStorage.cart = JSON.stringify(this.cart) 
 							this.$store.dispatch('orders/getCurrentOrder')
 							this.$router.push({name: 'Thanks'})

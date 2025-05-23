@@ -53,4 +53,5 @@ export default {
 			width: 80px
 		p 
 			text-align: left 
+			color: $color_text 
 </style>

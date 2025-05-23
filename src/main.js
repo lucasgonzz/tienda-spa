@@ -42,7 +42,7 @@ Vue.prototype.$scrollToTop = (() => {
 			top: 0,
 			behavior: 'smooth'
 		})
-	}, 100)
+	}, 300)
 }) 
 
 // Metadata

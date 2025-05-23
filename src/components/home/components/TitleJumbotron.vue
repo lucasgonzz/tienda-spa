@@ -47,7 +47,7 @@ class="m-t-0 m-b-0 row-title-jumbotron">
 									<img
 									slot="image"
 									class="slide-img" 
-									:src="is_mobile ? title.crop_image_url : title.image_url">
+									:src="ancho_pantalla < 400 ? title.crop_image_url : title.image_url">
 							        <b-spinner
 									slot="preloader"
 							        variant="link"></b-spinner>
@@ -122,8 +122,17 @@ export default {
 		display: flex
 		flex-direction: row
 		align-items: center
-		height: 50vh 
 		position: relative
+		
+		@media screen and (max-width: 300px)
+			height: 50vh 
+		@media screen and (min-width: 301px) and (max-width: 400px)
+			height: 65vh 
+		@media screen and (min-width: 401px) and (max-width: 1206px)
+			height: 50vh 
+		@media screen and (min-width: 1206px)
+			height: 55vh 
+		
 		.title
 			text-align: center
 			position: absolute
@@ -137,6 +146,9 @@ export default {
 			overflow-x: hidden
 			width: 100vw
 			height: 100%
+			display: flex 
+			justify-content: center
+			align-items: center
 			.vue-load-image
 				height: 100%
 				img 

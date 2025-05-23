@@ -1,5 +1,8 @@
 <template>
 	<div class="home view">
+		<add-to-cart-modal></add-to-cart-modal>
+
+
 		<sub-categories-sidebar></sub-categories-sidebar>
 		
 		<title-jumbotron></title-jumbotron>	
@@ -11,8 +14,7 @@
 		class="row-articles">
 			<b-col
 			:class="class_products"
-			cols="12"
-			xl="10">
+			cols="12">
 				<waiting-call></waiting-call>
 				<articles-list></articles-list> 
 			</b-col>
@@ -42,6 +44,8 @@ export default {
     	}
     },
 	components: {
+		AddToCartModal: () => import('@/components/common/add-to-cart-modal/Index'),
+		ContactInfo: () => import('@/components/common/ContactInfo'),
 		SubCategoriesSidebar,
 		TitleJumbotron,
 		OrderPhone,
@@ -54,7 +58,6 @@ export default {
         OrderBy,
         SubCategories,
         WaitingCall,
-		ContactInfo: () => import('@/components/common/ContactInfo'),
 	},
 	computed: {
 		selected_category() {

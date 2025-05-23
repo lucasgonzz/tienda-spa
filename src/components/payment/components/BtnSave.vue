@@ -45,6 +45,9 @@ export default {
 		payment_methods() {
 			return this.$store.state.payment_methods.models 
 		},
+		buyer_id() {
+			return this.$store.state.cart.buyer_id
+		},
 	},
 	methods: {
 		saveCart() {
@@ -78,12 +81,27 @@ export default {
 				this.$toast.error('Seleccione un metodo de pago')
 				return false
 			}
-			if (this.cart.deliver && !this.cart.address_id) {
-				this.$toast.error('Seleccione una direccion')
+			if (
+				this.cart.deliver 
+				&& (
+					(
+						this.user.comercio_city_client
+						&& this.user.comercio_city_client.address == ''
+					)
+					|| (
+						this.user.address == ''
+					)
+				) 
+			) {
+				this.$toast.error('Indique una direccion para la entrega del pedido')
 				return false
 			}
 			if (this.cart.deliver && this.delivery_zones.length && !this.cart_delivery_zone) {
 				this.$toast.error('Seleccione el precio de envio')
+				return false
+			}
+			if (this.user.seller_id && !this.buyer_id) {
+				this.$toast.error('Seleccione el CLIENTE para el pedido')
 				return false
 			}
 			return true

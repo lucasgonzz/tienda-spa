@@ -20,6 +20,7 @@ export default {
 			}
 		},
 		setCartFromCookies() {
+			return
 			let cart = localStorage.cart
 			if (typeof cart != 'undefined') {
 				this.$store.commit('cart/setCart', JSON.parse(cart))

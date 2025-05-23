@@ -1,7 +1,7 @@
 <template>
 	<div
 	class="article-variants"
-	v-if="article_to_show.article_properties.length">
+	v-if="article_to_show.article_properties && article_to_show.article_properties.length">
 		<b-form-select
 		v-for="article_property in article_to_show.article_properties"
 		:key="article_property.article_property_type.name"

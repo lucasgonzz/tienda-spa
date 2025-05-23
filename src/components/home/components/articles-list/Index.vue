@@ -2,23 +2,29 @@
 <div
 id="articles-list">
 	<div
-	v-if="!loading">
+	v-if="!loading_articles && !loading_categories">
 		<featured></featured>
+
+		<promociones-vinoteca></promociones-vinoteca>
 
 		<in-offer></in-offer>
 
 		<novedades></novedades>
 
 		<p 
-		v-if="selected_category || selected_sub_category"
+		v-if="selected_category || selected_sub_category || selected_bodega"
 		class="title">
 			<span
 			v-if="selected_category">
 				{{ selected_category.name | first_upper }}
 			</span>
 			<span
-			v-else>
+			v-else-if="selected_sub_category">
 				{{ selected_sub_category.name | first_upper }}
+			</span>
+			<span
+			v-else-if="selected_bodega">
+				{{ selected_bodega.name | first_upper }}
 			</span>
 		</p>
 		<p
@@ -70,7 +76,7 @@ id="articles-list">
 			<b-skeleton width="50%" type="input" class="m-t-50 m-b-50"></b-skeleton>
 			<div class="cont-models m-t-15">
 				<article-card-skeleton
-				v-for="i in 6"
+				v-for="i in 10"
 				:key="i"></article-card-skeleton>
 			</div>
 		</div>
@@ -84,7 +90,7 @@ import Featured from '@/components/home/components/articles-list/Featured'
 import InOffer from '@/components/home/components/articles-list/InOffer'
 import Novedades from '@/components/home/components/articles-list/Novedades'
 
-import ArticleCard from '@/components/common/ArticleCard'
+import ArticleCard from '@/components/common/article-card/Index'
 import ArticleCardSkeleton from '@/components/common/ArticleCardSkeleton'
 import VueHorizontalList from "vue-horizontal-list"
 import articles_mixin from "@/mixins/articles"
@@ -93,6 +99,7 @@ export default {
 	name: 'ArticleList',
 	mixins: [articles_mixin, VueScreenSize.VueScreenSizeMixin],
 	components: {
+		PromocionesVinoteca: () => import('@/components/home/components/articles-list/PromocionesVinoteca'),
 		InfiniteLoading,
 		Featured,
 		InOffer,
@@ -107,8 +114,11 @@ export default {
 		}
 	},
 	computed: {
-		loading() {
+		loading_articles() {
 			return this.$store.state.categories.loading_articles
+		},
+		loading_categories() {
+			return this.$store.state.categories.loading_categories
 		},
 		page() {
 			return this.$store.state.categories.page
@@ -136,6 +146,9 @@ export default {
 		},
 		selected_category() {
 			return this.$store.state.categories.selected_category
+		},
+		selected_bodega() {
+			return this.$store.state.categories.selected_bodega
 		},
 		is_from_search() {
 			return this.$store.state.categories.is_from_search
@@ -171,9 +184,11 @@ export default {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
 				if (this.selected_category) {
-					url += 'from-category/'+this.selected_category.id+'/0'+'/'+this.order_by
+					url += 'from-category/'+this.selected_category.id+'/0/0/'+this.order_by
 				} else if (this.selected_sub_category) {
-					url += 'from-category/0/'+this.selected_sub_category.id+'/'+this.order_by
+					url += 'from-category/0/'+this.selected_sub_category.id+'/0/'+this.order_by
+				} else if (this.selected_bodega) {
+					url += 'from-category/0/0/'+this.selected_bodega.id+'/'+this.order_by
 				} else if (this.is_from_search) {
 					url += 'search/'+this.search_query
 				} else {

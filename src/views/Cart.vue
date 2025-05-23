@@ -13,9 +13,7 @@
 		</b-row> -->
 		<b-row>
 			<b-col
-			cols="12"
-			lg="10"
-			xl="8">
+			cols="12">
 				<list
 				class="m-t-15"></list>
 			</b-col>

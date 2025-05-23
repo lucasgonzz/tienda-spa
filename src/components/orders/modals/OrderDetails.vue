@@ -17,7 +17,7 @@ hide-footer>
 </b-modal>
 </template>
 <script>
-import ArticleCard from '@/components/common/ArticleCard'
+import ArticleCard from '@/components/common/article-card/Index'
 import OrdersMixin from '@/mixins/orders'
 export default {
 	mixins: [OrdersMixin],

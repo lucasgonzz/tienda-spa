@@ -1,38 +1,31 @@
 <template>
-	<!-- <b-row
-	v-if="article && (article.descriptions && article.descriptions.length)"
-	class="j-xl-start">
-		<b-col
-		cols="12"
-		md="11"
-		lg="10"
-		xl="8"> -->
+	<div 
+	v-if="show"
+	class="descriptions m-b-15">
+		<div
+		class="card">
+			<h5
+			class="header">
+				Descripcion
+			</h5>
 			<div 
-			v-if="article && (article.descriptions && article.descriptions.length)"
-			class="descriptions m-b-15">
-				<div
-				v-if="article && article.descriptions && article.descriptions.length">
-					<h5
-					:class="m_t"
-					class="text-left">
-						Descripcion
-					</h5>
-					<div 
-					v-for="description in article.descriptions"
-					class="description">
-						<p
-						class="title">
-							{{ description.title }}
-						</p>
-						<p
-						class="text-left">
-							{{ description.content}}
-						</p>
-					</div>
-				</div>
+			v-for="description in article.descriptions"
+			class="body description">
+				<p
+				class="title">
+					{{ description.title }}
+				</p>
+				<p
+				v-html="descripcionConSaltos(description.content)"></p>
 			</div>
-		<!-- </b-col>
-	</b-row> -->
+			<div 
+			v-if="article.description"
+			class="body description">
+				<p
+				v-html="descripcionConSaltos(article.description)"></p>
+			</div>
+		</div>
+	</div>
 </template>
 <script>
 export default {
@@ -40,10 +33,19 @@ export default {
 		article() {
 			return this.$store.state.articles.article_to_show
 		},
-		m_t() {
-			if (this.article.colors.length) {
-				return 'm-t-20'
+		show() {
+			if (
+				(this.article.descrptions && this.article.descrptions.length) 
+				|| this.article.description
+			) {
+				return true
 			}
+			return false
+		}
+	},
+	methods: {
+		descripcionConSaltos(text) {
+			return text.replace(/\n/g, '<br>');
 		}
 	}
 }
@@ -53,10 +55,9 @@ export default {
 	background: #FFF
 	border-radius: 10px
 	border: 2px solid #DDDDDD
-	padding: 25px
-	.description
-		.title 
-			font-size: 1em
-			font-weight: bold 
-			margin-bottom: 0 
+	.title 
+		font-size: 1.2em
+		font-weight: bold 
+		margin: 10px 0
+		text-align: left
 </style>

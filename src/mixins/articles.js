@@ -11,8 +11,28 @@ export default {
 		},
 	},
 	methods: {
+		remove_cart(article) {
+			if (confirm('¿Seguro quiere quitar '+article.name+' del carrito?')) {
+				
+				this.$store.commit('cart/removeArticle', {
+					item: article,
+					remove_only_one_amount: false
+				})
+				this.$store.commit('auth/setMessage', 'Guardando carrito')
+				this.$store.commit('auth/setLoading', true)
+				this.$store.dispatch('cart/save')
+				.then(() => {
+					this.$store.commit('auth/setLoading', false)
+				})
+				.catch(err => {
+					this.$store.commit('auth/setLoading', false)
+					console.log(err)
+					this.$toast.error('Error al guardar carrito')
+				})
+			}
+		},
 		hasStock(article) {
-			if (article.article_variants.length) {
+			if (article.article_variants && article.article_variants.length) {
 				console.log('has_stock variants')
 				return !this.selected_article_variant || this.selected_article_variant.stock === null || this.selected_article_variant.stock > 0
 			}
@@ -26,7 +46,10 @@ export default {
 			this.$store.commit('articles/setArticleToShow', article)
 			let params = {slug: article.slug, commerce_id: process.env.VUE_APP_COMMERCE_ID}
 			this.$router.push({name: 'Article', params})
-			this.$scrollToTop()
+
+			setTimeout(() => {
+				this.$scrollToTop()
+			}, 1000)
 		},
 		setVariantImage() {
 			let index = this.article_to_show.images.findIndex(image => {

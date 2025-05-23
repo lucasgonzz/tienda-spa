@@ -14,6 +14,7 @@
 	</div>
 </template>
 <style lang="sass">
+@import '@/sass/_custom'
 .info-ssl
 	display: flex
 	flex-direction: row 
@@ -21,10 +22,20 @@
 	position: absolute 
 	right: 15px
 	img 
-		width: 50px	
+
+		@media screen and (max-width: 768px)
+			width: 35px	
+		@media screen and (min-width: 768px)
+			width: 50px
+
 	p 
 		margin-bottom: 0
-		font-size: 16px
 		font-weight: bold 
+		color: $color_text
+
+		@media screen and (max-width: 768px)
+			font-size: 9px
+		@media screen and (min-width: 768px)
+			font-size: 16px
 
 </style>

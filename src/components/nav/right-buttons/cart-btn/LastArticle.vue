@@ -24,7 +24,7 @@
 						<strong>
 							Total 
 						</strong>
-						({{ cart.articles.length }} productos): {{ price(total) }}
+						({{ cant_cart_items }} productos): {{ price(total) }}
 					</p>
 				</div>
 			</div>	

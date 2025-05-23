@@ -78,16 +78,16 @@ id="buyer-messages">
 <script>
 export default {
 	created() {
-		this.show()
+		// this.show()
 	},
 	watch: {
-		authenticated() {
-			this.show()
-		},
-		$route() {
-			console.log('watch de rooute')
-			this.show()
-		}
+		// authenticated() {
+		// 	this.show()
+		// },
+		// $route() {
+		// 	console.log('watch de rooute')
+		// 	this.show()
+		// }
 	},
 	data() {
 		return {

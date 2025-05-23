@@ -31,10 +31,10 @@
 			@page-change="handleSlideClick"
 			:navigateTo="index"
 			:adjustableHeight="true">
-				<img
+				<!-- <img
 				:src="commerce.image_url" 
 				v-if="commerce.online_configuration.show_article_image"
-				class="imagen-logo-empresa"></img>
+				class="imagen-logo-empresa"></img> -->
 				<slide
 				:data-index="index"
 				v-for="(image, index) in images"
@@ -252,5 +252,20 @@ export default {
 				max-height: 50vh
 			@media screen and (min-width: 992px)
 				max-height: 70vh 
+
+#add-to-cart-modal
+	@media screen and (max-width: 800px)
+		.cont-article-image
+			margin: 0
+			.VueCarousel
+				margin: auto
+				width: 50%
+				.VueCarousel-inner
+					height: auto
+					.VueCarousel-slide
+						width: 50%
+						.img-carrousel
+							height: auto
+
 
 </style>

@@ -4,31 +4,55 @@
 		<div 
 		@click="home"
 		class="item">
-			Inicio	
+			<span class="item-text">
+				Inicio	
+			</span>
 		</div>
 		<div 
-		class="item p-0 item-categories">
+		class="item">
 			<div
 			@click="showCategories"
+			v-b-toggle.cont-categories
 			class="cont-item">
-				Productos	
-				<i class="icon-down"></i>
+				<span class="item-text">
+					Productos	
+				</span>
 			</div>
 			<categories
 			:show="show"></categories>
 		</div>	
+
 		<div 
+		v-if="commerce_has_extencion('vinoteca')"
+		class="item">
+			<div
+			v-b-toggle.cont-bodegas
+			class="cont-item">
+				<span class="item-text">
+					Bodegas
+				</span>
+			</div>
+			<bodegas></bodegas>
+		</div>	
+
+		<div 
+		v-if="commerce.online_configuration.mensaje_contacto"
 		class="item">
 			<router-link 
 			:to="{name: 'Contacto'}">
-				Contacto	
+				<span class="item-text">
+					Contacto	
+				</span>
 			</router-link>
 		</div>
 		<div 
+		v-if="commerce.online_configuration.quienes_somos"
 		class="item">
 			<router-link 
 			:to="{name: 'QuienesSomos'}">
-				Quienes somos	
+				<span class="item-text">
+					Quienes somos	
+				</span>
 			</router-link>
 		</div>
 		<div
@@ -62,6 +86,7 @@ export default {
 	mixins: [nav, auth],
 	components: {
 		Categories: () => import('@/components/nav/categories/Index'),
+		Bodegas: () => import('@/components/nav/bodegas/Index'),
 	},
 	data() {
 		return {
@@ -94,24 +119,12 @@ export default {
 		cursor: pointer 
 		margin: 0 1em	
 		position: relative
-		color: $color_text !important
-		&:hover
-			font-weight: bold  
+		color: $color_text 
+		&:hover 
+			.item-text
+				font-weight: bold  
 		@media screen and (max-width: 992px)
 			padding: 15px 0
 		a 
 			color: $color_text
-
-	.item-categories
-		@media (hover: hover) 
-			&:hover
-				& > #cont-categories
-					opacity: 100
-					display: block
-		@media screen and (max-width: 992px)
-			.cont-item
-				padding: 15px 0 
-				display: flex
-				flex-direction: row 
-				justify-content: space-between
 </style>

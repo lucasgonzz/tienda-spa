@@ -1,9 +1,9 @@
 <template>
 	<div
 	v-if="show_nav"
+	:class="scroll_bottom ? 'navbar-small' : ''"
 	class="cont-nav">
 		<b-navbar 
-		:class="scroll_bottom ? 'navbar-small' : ''"
 		toggleable="lg" 
 		type="dark">
 			<brand-btn></brand-btn>
@@ -68,7 +68,10 @@ export default {
 	z-index: 100
 
 .navbar-small
-	height: 60px !important
+	.navbar 
+		height: 60px !important
+	.footer-nav
+		display: none
 	.navbar-brand
 		img 
 			width: 50px !important

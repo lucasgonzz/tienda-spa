@@ -1,11 +1,26 @@
 <template>
 	<div
-	class="addresses background"
+	class="addresses background m-b-30"
 	v-if="deliver && user">
 		<h5>
 			Direccion
 		</h5>
-		<div
+
+		<b-form-input
+		v-if="user.seller_id && selected_buyer"
+		v-model="selected_buyer.comercio_city_client.address"
+		placeholder="Ingrerse Direccion para el envio"></b-form-input>
+
+		<b-form-input
+		v-else-if="user.comercio_city_client"
+		v-model="user.comercio_city_client.address"
+		placeholder="Ingrerse Direccion para el envio"></b-form-input>
+
+		<b-form-input
+		v-else
+		v-model="user.address"
+		placeholder="Ingrerse Direccion para el envio"></b-form-input>
+		<!-- <div
 		v-if="user.addresses.length">
 			<div 
 			class="address b-r s"
@@ -38,7 +53,7 @@
 			:to="{name: 'Maps'}">
 				Agregar una direccion
 			</b-button>
-		</b-form-group>
+		</b-form-group> -->
 	</div>
 </template>
 <script>
@@ -54,20 +69,22 @@ export default {
 		},
 		deliver() {
 			return this.$store.state.cart.cart.deliver
-		}
+		},
+		selected_buyer() {
+			return this.$store.state.cart.selected_buyer
+		},
 	}
 }
 </script>
 <style lang="sass">
 @import '@/sass/_custom'
-.addresses
-	.address
-		margin-bottom: 1em
-		padding: 1em 
-		background: lighten($green, 20)
-		.street 
-			font-weight: bold
-			margin-bottom: .5em
-		.details 
-			color: rgba(0,0,0,.7)
+.address
+	margin-bottom: 1em
+	padding: 1em 
+	background: lighten($green, 20)
+	.street 
+		font-weight: bold
+		margin-bottom: .5em
+	.details 
+		color: rgba(0,0,0,.7)
 </style>
