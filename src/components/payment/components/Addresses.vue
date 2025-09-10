@@ -12,13 +12,13 @@
 		placeholder="Ingrerse Direccion para el envio"></b-form-input>
 
 		<b-form-input
-		v-else-if="user.comercio_city_client"
-		v-model="user.comercio_city_client.address"
+		v-else-if="user.address"
+		v-model="user.address"
 		placeholder="Ingrerse Direccion para el envio"></b-form-input>
 
 		<b-form-input
-		v-else
-		v-model="user.address"
+		v-else-if="user.comercio_city_client"
+		v-model="user.comercio_city_client.address"
 		placeholder="Ingrerse Direccion para el envio"></b-form-input>
 		<!-- <div
 		v-if="user.addresses.length">

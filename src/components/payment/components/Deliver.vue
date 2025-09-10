@@ -28,11 +28,13 @@ export default {
 					value: 1,
 				})
 			}
-			options.push({
-				name: 'Retiro por local',
-				icon: 'poniter',
-				value: 0,
-			})
+			if (this.commerce.online_configuration.retiro_por_local) {
+				options.push({
+					name: 'Retiro por local',
+					icon: 'poniter',
+					value: 0,
+				})
+			}
 			return options
 		},
 		deliver: {

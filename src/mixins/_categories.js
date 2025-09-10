@@ -23,7 +23,10 @@ export default {
 			this.$store.commit('categories/setSelectedSubCategory', sub_category)
 			this.$store.commit('categories/setIsFromSearch', false)
 			this.$store.dispatch('categories/getArticles')
+
+			// esto es para que se esconda en nav de mobile 
 			this.$store.commit('auth/setMobileSidebarVisibility', false)
+			
 			this.scrollTo('articles-list')
 		}
 	}

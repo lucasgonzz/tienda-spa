@@ -3,6 +3,7 @@
     shadow
     @shown="disableScroll" 
     @hidden="enableScroll"
+    v-model="categories_sidebar_visibility"
 	title="Categorias"
 	class="cont-items"
 	id="cont-categories">
@@ -61,6 +62,14 @@ export default {
 		categories() {
 			return this.$store.state.categories.categories
 		},
+        categories_sidebar_visibility: {
+            get() {
+                return this.$store.state.auth.categories_sidebar_visibility
+            },
+            set(value) {
+                this.$store.commit('auth/set_categories_sidebar_visibility', value)
+            }
+        },
 	},
 	created() {
 		console.log('se creo categories')
@@ -82,6 +91,7 @@ export default {
 	    	}
 	    },
 	    enableScroll() {
+	    	console.log('activando scroll')
 	      	document.body.style.overflow = 'auto';
 	    },
 		hover() {
@@ -102,44 +112,3 @@ export default {
 	}
 }
 </script>
-<style lang="sass">
-@import '@/sass/_custom'
-#cont-categories
-
-	&:hover 
-		font-weight: normal
-
-	.item
-		cursor: pointer 
-		text-align: left
-		color: #333
-		margin: 0
-
-		&:hover
-			background: $green
-			color: $hover_color_text
-			font-weight: bold
-
-	.active-item
-		background: $green
-		color: $hover_color_text
-		font-weight: bold
-
-
-	.header
-		display: flex  
-		flex-direction: row  
-		justify-content: space-between
-		padding: 10px 20px
-		border-bottom: 1px solid rgba(0,0,0,.3)
-
-		span
-			width: 80% 
-			// border: 2px solid red
-
-		div
-			width: 20% 
-			// border: 2px solid green
-
-		
-</style>

@@ -139,7 +139,7 @@ export default {
 		text-align: left
 		color: rgba(0,0,0,.9)
 		font-weight: bold
-		margin: 35px 0
+		margin: 15px 0
 		padding-left: 35px
 	.cont 
 		padding: 0 2em 2em
@@ -155,7 +155,7 @@ export default {
 		text-align: left
 		color: rgba(0,0,0,.9)
 		font-size: 15px
-		margin-bottom: 20px
+		margin-bottom: 5px
 		cursor: pointer 
 	p 
 		padding-left: 35px

@@ -3,10 +3,10 @@
     shadow
     @shown="disableScroll" 
     @hidden="enableScroll"
+    v-model="bodegas_sidebar_visibility"
 	title="Bodegas"
 	class="cont-items"
 	id="cont-bodegas">
-
 		<div 
 		v-for="bodega in bodegas"
 		:key="bodega.id"
@@ -43,6 +43,14 @@ export default {
 		selected_bodega() {
 			return this.$store.state.categories.selected_bodega
 		},
+        bodegas_sidebar_visibility: {
+            get() {
+                return this.$store.state.auth.bodegas_sidebar_visibility
+            },
+            set(value) {
+                this.$store.commit('auth/set_bodegas_sidebar_visibility', value)
+            }
+        },
 	},
 	methods: {
 	    disableScroll() {
@@ -60,6 +68,8 @@ export default {
 		},
 	    setBodega(bodega) {
 	    	this.enableScroll()
+			this.$router.push({name: 'Home', params: { category: 'bodega', sub_category: this.routeString(bodega.name)}})
+
 			this.$bvModal.hide('add-to-cart-modal')
 			this.$store.commit('categories/setSelectedCategory', null)
 			this.$store.commit('categories/setIsFromSearch', false)
@@ -67,11 +77,14 @@ export default {
 			this.$store.commit('categories/setSelectedBodega', bodega)
 			this.$store.dispatch('categories/getArticles')
 
-			if (this.$route.name != 'Home') {
-				this.$router.push({name: 'Home'})
-			}
+			// if (this.$route.name != 'Home') {
+			// }
 
+			// esto es para que se esconda en nav de mobile 
 			this.$store.commit('auth/setMobileSidebarVisibility', false)
+			this.$store.commit('auth/set_categories_sidebar_visibility', false)
+			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
+			
 			this.scrollTo('articles-list')
 	    },
 	    

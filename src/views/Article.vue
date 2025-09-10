@@ -72,7 +72,11 @@ export default {
 		},
 		title() {
 			if (this.article) {
-				return this.article.name
+				let title = this.article.name
+				if (this.article.bodega) {
+					title += ' - '+this.article.bodega.name
+				}
+				return title
 			}
 			return ''
 		},
@@ -100,7 +104,6 @@ export default {
 			})
 		},
 		setArticleProps() {
-			this.setTitle(this.article.name)
 			this.$store.dispatch('articles/getSimilars')
 			this.checkCartArticle()
 			this.data_seted = true

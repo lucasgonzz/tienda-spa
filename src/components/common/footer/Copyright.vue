@@ -3,12 +3,7 @@
 	class="copyright"
 	cols="12">
 		<p>
-			Copyright {{ commerce.company_name }} - {{year }}. Todos los derechos reservados. Defensa de las y los consumidores. Para reclamos 
-			<a href="https://autogestion.produccion.gob.ar/consumidores" target="_blank">
-				<strong>
-					ingrese aquí
-				</strong>
-			</a>
+			Copyright {{ commerce.company_name }} - {{year }}. Todos los derechos reservados.
 		</p>
 		<p
 		class="comerciocity-info">

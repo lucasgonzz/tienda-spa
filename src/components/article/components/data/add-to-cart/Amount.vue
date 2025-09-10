@@ -1,9 +1,8 @@
 <template>
 	<div
 	class="article-amount">
-
 		<b-form-input 
-		:placeholder="max ? 'Max '+max : ''"
+		:placeholder="placeholder"
 		@keyup.enter="addToCart"
 		:disabled="is_item_in_cart(article)"
 		v-model="amount"
@@ -25,7 +24,18 @@ export default {
 		this.set_focus()
 	},
 	computed: {
-		amount: {
+		placeholder() {
+			if (this.commerce_has_extencion('vinoteca')) {
+				if (this.article.presentacion) {
+					return 'Cant CAJAS'
+				}
+			}
+			if (this.max) {
+				return 'Max '+this.max 
+			}
+			return ''
+		},
+		amount: { 
 			get() {
 				if (this.is_item_in_cart(this.article)) {
 					return this.get_item_cart(this.article).pivot.amount

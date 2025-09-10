@@ -33,7 +33,7 @@ export default {
 					} else {
 						this.llamarDenuevo()
 					}
-				}, 2000)
+				}, 1000)
 			}
 		},
 		llamarDenuevo() {

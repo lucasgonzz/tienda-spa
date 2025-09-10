@@ -88,7 +88,7 @@ export default {
 						this.user.comercio_city_client
 						&& this.user.comercio_city_client.address == ''
 					)
-					|| (
+					&& (
 						this.user.address == ''
 					)
 				) 

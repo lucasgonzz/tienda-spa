@@ -29,13 +29,13 @@
 						Bienvenido
 					</strong>
 				</h4>
-				<h6>Elegi como queres continuar</h6>
-				<!-- <social-login></social-login> -->
+				<hr>
+				<h6><strong>Ingresa con tu cuenta</strong></h6>
+				<form-login></form-login>
+
 				<hr>
 				<h6>
-					<strong>
-						¿Aun  no tenes cuenta?
-					</strong>
+					¿Aun  no tenes cuenta?
 				</h6>
 				<b-button
 				class="m-b-20"
@@ -44,9 +44,6 @@
 				variant="success">
 					Registrarse
 				</b-button>
-				<hr>
-				<h6>O ingresa con tu cuenta</h6>
-				<form-login></form-login>
 			</b-card>
 		</b-col>
 	</b-row>

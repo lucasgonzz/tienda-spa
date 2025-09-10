@@ -1,4 +1,5 @@
-<template> 
+<template>
+<div>
 	<div
 	v-if="puede_ver_precios() || is_promocion_vinoteca">
 		<p 
@@ -41,6 +42,15 @@
 			</div>
 		</div>
 	</div>
+	<p
+	class="info-para-ver-precios"
+	v-else>
+		<a @click.stop="toLogin">Inicie sesion</a> o 
+		<a 
+		target="_blank"
+		:href="'https://api.whatsapp.com/send?phone='+commerce.phone">Solicite alta de cliente</a> para ver precios
+	</p>
+</div> 
 </template>
 <script>
 export default {
@@ -50,6 +60,14 @@ export default {
 	computed: {
 		is_promocion_vinoteca() {
 			return typeof this.article.bar_code == 'undefined'
+		}
+	},
+	methods: {
+		toLogin() {
+			this.$router.push({name: 'Login'})
+		},
+		toWhatsapp() {
+			let link = 'https://api.whatsapp.com/send?phone='+this.commerce.phone
 		}
 	}
 }

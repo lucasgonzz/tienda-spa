@@ -25,11 +25,10 @@
 			variant="outline-primary">
 				<i class="icon-cart"></i>
 			</b-button>
-
 			<b-button
 			v-else
 			class="btn-add-to-cart"
-			@click="remove_cart(article)"
+			@click.stop="remove_cart(article)"
 			variant="danger">
 				<i class="icon-cart"></i>
 			</b-button>
@@ -47,6 +46,7 @@ export default {
 	methods: {
 		add_to_cart() {
 			this.$store.commit('articles/setArticleToShow', this.article)
+			this.set_amount_add_to_cart()
 			this.$bvModal.show('add-to-cart-modal')
 		}
 	}

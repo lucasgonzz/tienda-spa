@@ -38,6 +38,11 @@ module.exports = {
         workboxOptions: {
             skipWaiting: true
         },
+        // Ferretotal
+        themeColor: "#C7C7C7",
+        name: "Ferretotal",
+
+
         // CalzadosMarrox
         // themeColor: "#190D5F",
         // name: "CalzadosMarrox",
@@ -74,12 +79,12 @@ module.exports = {
         // themeColorConorte",
 
         // Golonorte
-        themeColor: "#00237C",
-        name: "Golonorte",
+        // themeColor: "#00237C",
+        // name: "Golonorte",
 
         // Truvari
-        // themeColor: "#EBEBEB",
-        // name: "TruvariBebidas",
+        themeColor: "#EBEBEB",
+        name: "TruvariBebidas",
 
         // Pets
         // themeColor: "#C0260A",

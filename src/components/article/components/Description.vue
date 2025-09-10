@@ -35,7 +35,7 @@ export default {
 		},
 		show() {
 			if (
-				(this.article.descrptions && this.article.descrptions.length) 
+				(this.article.descriptions && this.article.descriptions.length) 
 				|| this.article.description
 			) {
 				return true

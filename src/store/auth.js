@@ -14,6 +14,9 @@ export default {
 		message: '',
 
 		mobile_sidebar_visibility: false,
+
+		categories_sidebar_visibility: false,
+		bodegas_sidebar_visibility: false,
 	},
 	getters: {
 
@@ -45,6 +48,12 @@ export default {
 		},
 		setMobileSidebarVisibility(state, value) {
 			state.mobile_sidebar_visibility = value
+		},
+		set_categories_sidebar_visibility(state, value) {
+			state.categories_sidebar_visibility = value
+		},
+		set_bodegas_sidebar_visibility(state, value) {
+			state.bodegas_sidebar_visibility = value
 		},
 	},
 	actions: {

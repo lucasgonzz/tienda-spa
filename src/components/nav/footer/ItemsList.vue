@@ -24,8 +24,18 @@
 
 		<div 
 		v-if="commerce_has_extencion('vinoteca')"
+		@click="home"
+		class="item">
+			<span class="item-text">
+				Promociones	
+			</span>
+		</div>
+
+		<div
+		v-if="commerce_has_extencion('vinoteca')"
 		class="item">
 			<div
+			@click="show_bodegas"
 			v-b-toggle.cont-bodegas
 			class="cont-item">
 				<span class="item-text">
@@ -51,7 +61,7 @@
 			<router-link 
 			:to="{name: 'QuienesSomos'}">
 				<span class="item-text">
-					Quienes somos	
+					{{ commerce.online_configuration.titulo_quienes_somos }}	
 				</span>
 			</router-link>
 		</div>
@@ -95,8 +105,17 @@ export default {
 	},
 	methods: {
 		showCategories() {
-			this.show = !this.show
+			console.log('mostrando categories')
+
+			// this.$store.commit('auth/setMobileSidebarVisibility', false)
+			// this.$store.commit('auth/set_categories_sidebar_visibility', )
+			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
 		},
+		show_bodegas() {
+			// this.$store.commit('auth/setMobileSidebarVisibility', false)
+			this.$store.commit('auth/set_categories_sidebar_visibility', false)
+			// this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
+		}
 	}
 }
 </script>
@@ -120,9 +139,9 @@ export default {
 		margin: 0 1em	
 		position: relative
 		color: $color_text 
-		&:hover 
-			.item-text
-				font-weight: bold  
+		font-weight: bold  
+			// .item-text
+		// &:hover 
 		@media screen and (max-width: 992px)
 			padding: 15px 0
 		a 

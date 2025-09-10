@@ -108,6 +108,25 @@ export default {
 		    
 		    message += `*Cliente: ${buyer_name}*\n\n`;
 
+		    if (
+		    	this.order.buyer 
+		    ) {
+		    	
+
+		    	if (this.order.buyer.phone) {
+
+		    		message += `*Telefono: ${this.order.buyer.phone}*\n\n`;
+
+		    	} else if (
+		    		this.order.buyer.comercio_city_client
+		    		&& this.order.buyer.comercio_city_client.phone
+		    	) {
+
+		    		message += `*Telefono: ${this.order.buyer.comercio_city_client.phone}*\n\n`;
+		    	}
+
+		    } 
+
 
 		    if (this.order.deliver) {
 

@@ -7,11 +7,11 @@
 		xl="8">
 			<h3
 			class="m-b-25">
-				Quienes somos
+				{{ commerce.online_configuration.titulo_quienes_somos }}
 			</h3>
 			<p
+			v-html="commerce.online_configuration.quienes_somos"
 			class="text-left">
-				{{ commerce.online_configuration.quienes_somos }}
 			</p>
 		</b-col>
 	</b-row>

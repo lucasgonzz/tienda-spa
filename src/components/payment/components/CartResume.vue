@@ -36,6 +36,7 @@ export default {
 <style lang="sass">
 .cart-resume
 	@media screen and (min-width: 768px)
-		max-height: 55vh 
+		max-height: 70vh 
+		// max-height: 55vh 
 		overflow-y: auto	
 </style>

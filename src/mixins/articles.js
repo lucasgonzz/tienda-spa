@@ -44,12 +44,19 @@ export default {
 		},
 		toArticle(article) {
 			this.$store.commit('articles/setArticleToShow', article)
+			this.set_amount_add_to_cart()
 			let params = {slug: article.slug, commerce_id: process.env.VUE_APP_COMMERCE_ID}
 			this.$router.push({name: 'Article', params})
 
 			setTimeout(() => {
 				this.$scrollToTop()
 			}, 1000)
+		},
+		set_amount_add_to_cart() {
+			let amount = this.commerce.online_configuration.default_amount_add_to_cart
+			if (amount) {
+				this.$store.commit('articles/setAmount', amount)
+			}
 		},
 		setVariantImage() {
 			let index = this.article_to_show.images.findIndex(image => {

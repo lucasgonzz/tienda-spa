@@ -34,8 +34,7 @@
 		<b-button
 		block
 		:to="{name: 'PasswordReset'}"
-		class="m-b-10 text-success w-100"
-		variant="outline-primary">
+		class="m-b-10 text-success w-100">
 			Olvide mi contraseña
 		</b-button>
 	</div>

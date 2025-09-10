@@ -81,7 +81,7 @@ export default {
 	created() {
 		this.setTitle('Pedido')
 		this.$store.commit('cart/setPaymentMethod', null)
-		this.setFirstColHeigth()
+		// this.setFirstColHeigth()
 	},
 	computed: {
 		show_content() {
@@ -108,7 +108,7 @@ export default {
 	.row 
 		justify-content: flex-start
 	.col-cart-articles
-		z-index: 100
+		// z-index: 100
 	h5
 		text-align: left !important
 		margin: 10px 0 25px !important

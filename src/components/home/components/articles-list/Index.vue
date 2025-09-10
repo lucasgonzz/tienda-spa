@@ -3,9 +3,9 @@
 id="articles-list">
 	<div
 	v-if="!loading_articles && !loading_categories">
-		<featured></featured>
-
 		<promociones-vinoteca></promociones-vinoteca>
+
+		<featured></featured>
 
 		<in-offer></in-offer>
 
@@ -16,15 +16,15 @@ id="articles-list">
 		class="title">
 			<span
 			v-if="selected_category">
-				{{ selected_category.name | first_upper }}
+				{{ selected_category.name }}
 			</span>
 			<span
 			v-else-if="selected_sub_category">
-				{{ selected_sub_category.name | first_upper }}
+				{{ selected_sub_category.name }}
 			</span>
 			<span
 			v-else-if="selected_bodega">
-				{{ selected_bodega.name | first_upper }}
+				{{ selected_bodega.name }}
 			</span>
 		</p>
 		<p

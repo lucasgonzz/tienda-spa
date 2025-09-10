@@ -1,5 +1,5 @@
 {
-  "name": "Golonorte",
+  "name": "Ferretotal",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -36,6 +36,7 @@
     "vue-social-auth": "^1.4.3",
     "vue-toast-notification": "^0.5.4",
     "vue-zoom-on-hover": "^1.0.6",
+    "vue2-editor": "^2.10.3",
     "vuex": "^3.4.0"
   },
   "devDependencies": {
