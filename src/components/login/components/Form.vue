@@ -34,7 +34,7 @@
 		<b-button
 		block
 		:to="{name: 'PasswordReset'}"
-		class="m-b-10 text-success w-100">
+		class="m-b-10 w-100">
 			Olvide mi contraseña
 		</b-button>
 	</div>
@@ -87,7 +87,13 @@ export default {
 }
 </script>
 <style lang="sass">
+@import '@/sass/_custom'
 .form-login
+
+	button	
+		color: $hover_color_text
+	
+
 	.text-muted
 		text-align: left
 	.text-register

@@ -38,9 +38,18 @@ module.exports = {
         workboxOptions: {
             skipWaiting: true
         },
+
+
+
+        // vantres
+        themeColor: "#0c49a2",
+        name: "Vantres",
+
+
+
         // Ferretotal
-        themeColor: "#C7C7C7",
-        name: "Ferretotal",
+        // themeColor: "#C7C7C7",
+        // name: "Ferretotal",
 
 
         // CalzadosMarrox
@@ -83,8 +92,8 @@ module.exports = {
         // name: "Golonorte",
 
         // Truvari
-        themeColor: "#EBEBEB",
-        name: "TruvariBebidas",
+        // themeColor: "#EBEBEB",
+        // name: "TruvariBebidas",
 
         // Pets
         // themeColor: "#C0260A",
@@ -93,6 +102,9 @@ module.exports = {
         // Cali
         // themeColor: "#D8CDB8",
         // name: "CaliAccesorios",
+        
+
+
         
         backgroundColor: "#FFF",
         msTileColor: "#FFF",

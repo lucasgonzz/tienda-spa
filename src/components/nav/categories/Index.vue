@@ -1,7 +1,6 @@
 <template>
 	<b-sidebar
     shadow
-    @shown="disableScroll" 
     @hidden="enableScroll"
     v-model="categories_sidebar_visibility"
 	title="Categorias"
@@ -73,6 +72,14 @@ export default {
 	},
 	created() {
 		console.log('se creo categories')
+	},
+	watch: {
+	    categories_sidebar_visibility(new_val) {
+	        if (new_val) {
+	            // El sidebar empieza a abrirse: desactivar scroll ya
+	            this.disableScroll()
+	        }
+	    }
 	},
 	data() {
 		return {
