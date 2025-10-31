@@ -1,7 +1,7 @@
 <template>
 	<div
 	class="featured-list p-b-50"
-	v-if="!selected_category && !selected_sub_category && !selected_bodega && !is_from_search && novedades.length">
+	v-if="!selected_category && !selected_sub_category && !selected_bodega && !selected_cepa && !is_from_search && novedades.length">
 		<p 
 		class="title">
 			Novedades

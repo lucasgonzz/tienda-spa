@@ -5,6 +5,7 @@ export default {
 			this.$store.commit('categories/setSelectedCategory', category)
 			this.$store.commit('categories/setIsFromSearch', false)
 			this.$store.commit('categories/setSelectedSubCategory', null)
+			this.$store.commit('categories/setSelectedCepa', null)
 			this.$store.commit('categories/setSelectedBodega', null)
 			this.$store.dispatch('categories/getArticles')
 			this.$router.push({name: 'Home', params: {category: this.routeString(category.name)}})

@@ -28,6 +28,7 @@ import delivery_zones from './delivery_zones'
 import delivery_day from './delivery_day'
 
 import bodegas from './bodegas'
+import cepas from './cepas'
 
 Vue.use(Vuex)
 
@@ -67,5 +68,6 @@ export default new Vuex.Store({
 
 		bodegas,
 		delivery_day,
+		cepas,
 	}
 })

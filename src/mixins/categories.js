@@ -30,6 +30,9 @@ export default {
 		selected_bodega() {
 			return this.$store.state.categories.selected_bodega
 		},
+		selected_cepa() {
+			return this.$store.state.categories.selected_cepa
+		},
 		is_from_search() {
 			return this.$store.state.categories.is_from_search
 		},

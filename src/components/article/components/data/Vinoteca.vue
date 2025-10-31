@@ -18,6 +18,11 @@
 		class="text-left m-b-5">
 			Bodega: <strong>{{ article_to_show.bodega.name }}</strong>
 		</p>
+		<p 
+		v-if="article_to_show.origen"
+		class="text-left m-b-5">
+			Origen: <strong>{{ article_to_show.origen }}</strong>
+		</p>
 		<p
 		v-if="article_to_show.cepa"
 		class="text-left m-b-5">

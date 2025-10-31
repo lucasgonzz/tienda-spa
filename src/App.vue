@@ -165,6 +165,7 @@ export default {
                 
                 await this.$store.dispatch('categories/getCategories')
                 await this.$store.dispatch('bodegas/getModels')
+                await this.$store.dispatch('cepas/getModels')
                 
                 this.getIndex()
                 this.getCategory()
@@ -177,13 +178,22 @@ export default {
             }
         },
         getIndex() {
-            if (this.$route.params.category == 'ultimos-ingresados') {
+            if (
+                (
+                    this.$route.name == 'Home'
+                    && this.$route.params.category == 'ultimos-ingresados'
+                )
+                || this.$route.name == 'PromocionesVinoteca'
+            ) {
                 return this.$store.dispatch('categories/getIndex')
             }
             return null
         },
         getCategory() {
-            if (this.$route.params.category != 'ultimos-ingresados') {
+            if (
+                this.$route.name == 'Home'
+                && this.$route.params.category != 'ultimos-ingresados'
+            ) {
 
                 let category_param = this.$route.params.category.toLowerCase()
 
@@ -199,6 +209,22 @@ export default {
                     if (bodega) {
 
                         this.$store.commit('categories/setSelectedBodega', bodega)
+                        this.$store.dispatch('categories/getArticles')
+
+                    }
+
+                } else if (category_param == 'cepa') {
+
+                    console.log('parametro de cepa:')
+
+                    let cepa = this.$store.state.cepas.models.find(model => {
+                        return this.routeString(model.name).toLowerCase() == this.$route.params.sub_category.toLowerCase()
+                    })
+
+                    console.log(cepa)
+                    if (cepa) {
+
+                        this.$store.commit('categories/setSelectedCepa', cepa)
                         this.$store.dispatch('categories/getArticles')
 
                     }

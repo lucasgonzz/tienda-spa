@@ -26,15 +26,25 @@
 					:loader="saving"></btn-loader>
 				</b-button>
 				
-				<b-button
-				v-else
-				@click="remove_cart(article)"
-				variant="outline-danger"
-				size="sm"
-				block>
-					<i class="icon-cart"></i>
-					Quitar
-				</b-button>
+				<div
+				v-else>
+					<b-button-group>
+						
+						<b-button
+						@click="update_article_cart()"
+						variant="success"
+						block>
+							Actualizar
+						</b-button>
+						<b-button
+						class="m-0"
+						@click="remove_cart(article)"
+						variant="outline-danger"
+						block>
+							<i class="icon-cart"></i>
+						</b-button>
+					</b-button-group>
+				</div>
 			</div>
 		</div>
 
@@ -83,6 +93,28 @@ export default {
 		},
 		agregar_al_carrito() {
 			this.saveCart()
+		},
+		update_article_cart() {
+			console.log(this.article)
+			console.log(this.article.is_promocion_vinoteca)
+			let is_promocion_vinoteca = typeof this.article.is_promocion_vinoteca != 'undefined' ? true : false
+
+			this.$store.commit('auth/setMessage', 'Cargando')
+			this.$store.commit('auth/setLoading', true)
+			this.$api.put('carts/update-article-amount/'+this.cart.id, {
+				id: this.article.id,
+				is_promocion_vinoteca: is_promocion_vinoteca,
+				amount: this.amount
+			})
+			.then(res => {
+				this.$store.commit('cart/setCart', res.data.cart)
+				this.$store.commit('auth/setLoading', false)
+				this.$toast.success('Carrito actualizado')
+			})
+			.catch(err => {
+				this.$store.commit('auth/setLoading', false)
+				this.$toast.error(err)
+			})
 		},
 		saveCart(buy_now = false) {
 			let amount = Number(this.amount)
@@ -207,6 +239,7 @@ export default {
 		justify-content: space-between
 		input  
 			width: 25% !important
+
 		button	 
 			width: 70%
 			margin-left: 10px

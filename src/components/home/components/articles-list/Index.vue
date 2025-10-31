@@ -12,7 +12,7 @@ id="articles-list">
 		<novedades></novedades>
 
 		<p 
-		v-if="selected_category || selected_sub_category || selected_bodega"
+		v-if="selected_category || selected_sub_category || selected_bodega || selected_cepa"
 		class="title">
 			<span
 			v-if="selected_category">
@@ -25,6 +25,10 @@ id="articles-list">
 			<span
 			v-else-if="selected_bodega">
 				{{ selected_bodega.name }}
+			</span>
+			<span
+			v-else-if="selected_cepa">
+				{{ selected_cepa.name }}
 			</span>
 		</p>
 		<p
@@ -149,6 +153,9 @@ export default {
 		},
 		selected_bodega() {
 			return this.$store.state.categories.selected_bodega
+		},
+		selected_cepa() {
+			return this.$store.state.categories.selected_cepa
 		},
 		is_from_search() {
 			return this.$store.state.categories.is_from_search

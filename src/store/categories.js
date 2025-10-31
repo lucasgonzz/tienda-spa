@@ -16,6 +16,7 @@ export default {
 		selected_category: null,
 		selected_sub_category: null,
 		selected_bodega: null,
+		selected_cepa: null,
 		is_from_search: false,
 
 		sub_categories_to_show: [],
@@ -92,6 +93,9 @@ export default {
 		setSelectedBodega(state, value) {
 			state.selected_bodega = value
 		},
+		setSelectedCepa(state, value) {
+			state.selected_cepa = value
+		},
 		setIsFromSearch(state, value) {
 			state.is_from_search = value 
 		},
@@ -161,7 +165,12 @@ export default {
 				bodega_id = state.selected_bodega.id
 			}
 
-			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+bodega_id+'/'+state.order_by+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
+			let cepa_id = 0
+			if (state.selected_cepa) {
+				cepa_id = state.selected_cepa.id
+			}
+
+			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+bodega_id+'/'+cepa_id+'/'+state.order_by+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
 			.then(res => {
 				commit('setLoadingArticles', false)
 				let articles = res.data.articles.data 

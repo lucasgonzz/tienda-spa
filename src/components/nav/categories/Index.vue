@@ -76,7 +76,6 @@ export default {
 	watch: {
 	    categories_sidebar_visibility(new_val) {
 	        if (new_val) {
-	            // El sidebar empieza a abrirse: desactivar scroll ya
 	            this.disableScroll()
 	        }
 	    }

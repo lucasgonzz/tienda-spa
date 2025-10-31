@@ -1,13 +1,8 @@
 <template>
-	<div
-	v-if="loading_last_cart">
-		<loading></loading>
-	</div>
-	<div
-	v-else>
+	<div>
 		<div
-		v-if="!cant_cart_items"
-		class="text-with-icon">
+		v-if="cant_cart_items == 0"
+		class="text-with-icon text-black">
 			<i class="icon-shopping-cart"></i>
 			Tu carrito esta vacio
 		</div>
@@ -30,36 +25,10 @@
 				:article="promo"></article-card>
 				
 			</div>
-			<p class="total title m-t-20 m-lg-t-0">
-				<strong>
-					Total: {{ price(total) }}
-				</strong>
-			</p>
-			<!-- <p 
-			v-if="percentage_card"
-			class="total">
-				Con tarjetas: {{ price(total) }}
-			</p> -->
-			<b-button
-			block
-			class="m-b-15 btn-pay"
-			size="lg"
-			@click="next">
-				Iniciar compra
-			</b-button>
-			<b-button
-			block
-			size="lg"
-			class="w-100"
-			:to="{name: 'Home'}"
-			variant="primary">
-				Ver mas productos
-			</b-button>
 		</div>
 	</div>
 </template>
 <script>
-import Loading from '@/components/cart/components/Loading' 
 import ArticleCard from '@/components/common/article-card/Index' 
 import BtnLoader from '@/components/common/BtnLoader'
 
@@ -68,7 +37,6 @@ export default {
 	name: 'CartList',
 	mixins: [cart],
 	components: {
-		Loading,
 		ArticleCard,
 		BtnLoader,
 	},

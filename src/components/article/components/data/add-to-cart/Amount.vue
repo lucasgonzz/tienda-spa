@@ -4,7 +4,6 @@
 		<b-form-input 
 		:placeholder="placeholder"
 		@keyup.enter="addToCart"
-		:disabled="is_item_in_cart(article)"
 		v-model="amount"
 		type="number"
 		id="item-amount"
@@ -37,9 +36,9 @@ export default {
 		},
 		amount: { 
 			get() {
-				if (this.is_item_in_cart(this.article)) {
-					return this.get_item_cart(this.article).pivot.amount
-				}
+				// if (this.is_item_in_cart(this.article)) {
+				// 	return this.get_item_cart(this.article).pivot.amount
+				// }
 				return this.$store.state.articles.amount
 			}, 
 			set(value) {

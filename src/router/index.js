@@ -35,6 +35,7 @@ import Cupons from '../views/Cupons.vue'
 import Contacto from '../views/Contacto.vue'
 import QuienesSomos from '../views/QuienesSomos.vue'
 import SeleccionEspecial from '../views/SeleccionEspecial.vue'
+import PromocionesVinoteca from '../views/PromocionesVinoteca.vue'
 
 Vue.use(VueRouter)
 
@@ -204,6 +205,11 @@ Vue.use(VueRouter)
         path: '/seleccion-especial/:articles_id',
         name: 'SeleccionEspecial',
         component: SeleccionEspecial,
+    },
+    {
+        path: '/promociones',
+        name: 'PromocionesVinoteca',
+        component: PromocionesVinoteca,
     },
 
 ]

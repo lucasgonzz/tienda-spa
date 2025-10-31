@@ -124,8 +124,27 @@ export default {
 			let article_cart = articles.find(art => {
 				return art.id == this.article_to_show.id
 			})
+
 			if (article_cart != undefined) {
+				console.log('checkCartArticleAmount, article_cart:')
+				console.log(article_cart)
 				this.$store.commit('articles/setAmount', article_cart.amount)
+			} else {
+
+				let promociones_vinoteca = this.$store.state.cart.cart.promociones_vinoteca
+				let promo_cart = promociones_vinoteca.find(pr => {
+					return pr.id == this.article_to_show.id
+				})
+
+				if (promo_cart != undefined) {
+					console.log('checkCartArticleAmount, promo_cart:')
+					console.log(promo_cart)
+					this.$store.commit('articles/setAmount', promo_cart.amount)
+				} else {
+
+					this.$store.commit('articles/setAmount', '')
+				}
+
 			}
 		},
 		checkCartArticleNotes() {

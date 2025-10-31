@@ -2,24 +2,24 @@
 	<b-sidebar
     shadow
     @hidden="enableScroll"
-    v-model="bodegas_sidebar_visibility"
-	title="Bodegas"
+    v-model="cepas_sidebar_visibility"
+	title="Cepas"
 	class="cont-items"
-	id="cont-bodegas">
+	id="cont-cepas">
 		<div 
-		v-for="bodega in bodegas"
-		:key="bodega.id"
-		:class="is_active_bodega(bodega) ? 'active-item' : ''"
+		v-for="cepa in cepas"
+		:key="cepa.id"
+		:class="is_active_cepa(cepa) ? 'active-item' : ''"
 		class="item">
 			<div 
-			@click.stop="setBodega(bodega)"
+			@click.stop="setCepa(cepa)"
 			class="header">
 				<span>
-					{{ bodega.name }}
+					{{ cepa.name }}
 				</span>
 				<div
 				class="j-end">
-					({{ bodega.articles_count }})
+					({{ cepa.articles_count }})
 				</div>
 			</div>
 		</div>	
@@ -32,27 +32,24 @@ export default {
 	props: {
 		show: Boolean,
 	},
-	components: {
-		SubCategories: () => import('@/components/nav/categories/SubCategories'),
-	},
 	computed: {
-		bodegas() {
-			return this.$store.state.bodegas.models
+		cepas() {
+			return this.$store.state.cepas.models
 		},
-		selected_bodega() {
-			return this.$store.state.categories.selected_bodega
+		selected_cepa() {
+			return this.$store.state.categories.selected_cepa
 		},
-        bodegas_sidebar_visibility: {
+        cepas_sidebar_visibility: {
             get() {
-                return this.$store.state.auth.bodegas_sidebar_visibility
+                return this.$store.state.auth.cepas_sidebar_visibility
             },
             set(value) {
-                this.$store.commit('auth/set_bodegas_sidebar_visibility', value)
+                this.$store.commit('auth/set_cepas_sidebar_visibility', value)
             }
         },
 	},
 	watch: {
-	    bodegas_sidebar_visibility(new_val) {
+	    cepas_sidebar_visibility(new_val) {
 	        if (new_val) {
 	            this.disableScroll()
 	        }
@@ -69,19 +66,19 @@ export default {
 	    	console.log('activando scroll')
 	      	document.body.style.overflow = 'auto';
 	    },
-		is_active_bodega(bodega) {
-			return this.selected_bodega && this.selected_bodega.id == bodega.id
+		is_active_cepa(cepa) {
+			return this.selected_cepa && this.selected_cepa.id == cepa.id
 		},
-	    setBodega(bodega) {
+	    setCepa(cepa) {
 	    	this.enableScroll()
-			this.$router.push({name: 'Home', params: { category: 'bodega', sub_category: this.routeString(bodega.name)}})
+			this.$router.push({name: 'Home', params: { category: 'cepa', sub_category: this.routeString(cepa.name)}})
 
 			this.$bvModal.hide('add-to-cart-modal')
 			this.$store.commit('categories/setSelectedCategory', null)
 			this.$store.commit('categories/setIsFromSearch', false)
 			this.$store.commit('categories/setSelectedSubCategory', null)
-			this.$store.commit('categories/setSelectedCepa', null)
-			this.$store.commit('categories/setSelectedBodega', bodega)
+			this.$store.commit('categories/setSelectedBodega', null)
+			this.$store.commit('categories/setSelectedCepa', cepa)
 			this.$store.dispatch('categories/getArticles')
 
 			// if (this.$route.name != 'Home') {

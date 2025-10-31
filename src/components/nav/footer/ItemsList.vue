@@ -24,7 +24,7 @@
 
 		<div 
 		v-if="commerce_has_extencion('vinoteca')"
-		@click="home"
+		@click="to_promociones_vinotecas"
 		class="item">
 			<span class="item-text">
 				Promociones	
@@ -44,6 +44,21 @@
 			</div>
 			<bodegas></bodegas>
 		</div>	
+
+		<div
+		v-if="commerce_has_extencion('vinoteca')"
+		class="item">
+			<div
+			@click="show_cepas"
+			v-b-toggle.cont-cepas
+			class="cont-item">
+				<span class="item-text">
+					Cepas
+				</span>
+			</div>
+			<cepas></cepas>
+		</div>	
+
 
 		<div 
 		v-if="commerce.online_configuration.mensaje_contacto"
@@ -97,6 +112,7 @@ export default {
 	components: {
 		Categories: () => import('@/components/nav/categories/Index'),
 		Bodegas: () => import('@/components/nav/bodegas/Index'),
+		Cepas: () => import('@/components/nav/cepas/Index'),
 	},
 	data() {
 		return {
@@ -105,17 +121,21 @@ export default {
 	},
 	methods: {
 		showCategories() {
-			console.log('mostrando categories')
-
-			// this.$store.commit('auth/setMobileSidebarVisibility', false)
-			// this.$store.commit('auth/set_categories_sidebar_visibility', )
 			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
+			this.$store.commit('auth/set_cepas_sidebar_visibility', false)
 		},
 		show_bodegas() {
-			// this.$store.commit('auth/setMobileSidebarVisibility', false)
 			this.$store.commit('auth/set_categories_sidebar_visibility', false)
-			// this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
-		}
+			this.$store.commit('auth/set_cepas_sidebar_visibility', false)
+		},
+		show_cepas() {
+			this.$store.commit('auth/set_categories_sidebar_visibility', false)
+			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
+		},
+		to_promociones_vinotecas() {
+			this.$router.push({name: 'PromocionesVinoteca'})
+			this.$scrollToTop()
+		},
 	}
 }
 </script>

@@ -42,6 +42,7 @@ export default {
 			this.$store.commit('auth/setMobileSidebarVisibility', false)
 			
 			this.$store.commit('categories/setIsFromSearch', false)
+			this.$store.commit('categories/setSelectedCepa', null)
 			this.$store.commit('categories/setSelectedBodega', null)
 			this.$store.commit('categories/setSelectedCategory', null)
 			this.$store.commit('categories/setSelectedSubCategory', null)
