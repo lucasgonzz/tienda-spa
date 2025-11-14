@@ -191,11 +191,13 @@ export default {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
 				if (this.selected_category) {
-					url += 'from-category/'+this.selected_category.id+'/0/0/'+this.order_by
+					url += 'from-category/'+this.selected_category.id+'/0/0/0/'+this.order_by
 				} else if (this.selected_sub_category) {
-					url += 'from-category/0/'+this.selected_sub_category.id+'/0/'+this.order_by
+					url += 'from-category/0/'+this.selected_sub_category.id+'/0/0/'+this.order_by
 				} else if (this.selected_bodega) {
-					url += 'from-category/0/0/'+this.selected_bodega.id+'/'+this.order_by
+					url += 'from-category/0/0/'+this.selected_bodega.id+'/0/'+this.order_by
+				} else if (this.selected_cepa) {
+					url += 'from-category/0/0/0/'+this.selected_cepa.id+'/'+this.order_by
 				} else if (this.is_from_search) {
 					url += 'search/'+this.search_query
 				} else {

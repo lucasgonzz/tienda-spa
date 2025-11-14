@@ -42,8 +42,8 @@ module.exports = {
 
 
         // vantres
-        themeColor: "#0c49a2",
-        name: "Vantres",
+        // themeColor: "#0c49a2",
+        // name: "Vantres",
 
 
 
@@ -92,8 +92,8 @@ module.exports = {
         // name: "Golonorte",
 
         // Truvari
-        // themeColor: "#EBEBEB",
-        // name: "TruvariBebidas",
+        themeColor: "#EBEBEB",
+        name: "TruvariBebidas",
 
         // Pets
         // themeColor: "#C0260A",
