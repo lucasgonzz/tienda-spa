@@ -9,6 +9,11 @@
 		class="num">
 			N° {{ article_to_show.num }}
 		</p>
+		<!-- <p
+		@click="share"
+		class="compartir">
+			Compartir
+		</p> -->
 	</div>
 </template>
 <script>
@@ -58,6 +63,10 @@ export default {
 	.num 
 		margin-top: 5px
 		font-size: 1em
+	.compartir 
+		margin-top: 5px
+		font-size: 1em
+		text-decoration: underline
 .icon-heart, .icon-heart-o 
 	font-size: 1.7em
 	cursor: pointer

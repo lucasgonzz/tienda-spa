@@ -46,7 +46,10 @@ export default {
 			this.$store.commit('articles/setArticleToShow', article)
 			this.set_amount_add_to_cart()
 			let params = {slug: article.slug, commerce_id: process.env.VUE_APP_COMMERCE_ID}
+			console.log('params:')
+			console.log(params)
 			this.$router.push({name: 'Article', params})
+			console.log('se mandaron params')
 
 			setTimeout(() => {
 				this.$scrollToTop()
