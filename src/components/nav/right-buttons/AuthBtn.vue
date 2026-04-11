@@ -17,13 +17,19 @@
                         {{ cupons_not_read }}
                     </b-badge>
 				</template>
-				<b-dropdown-item 
-				@click="toOrders">
-					<i class="icon-bag"></i>
-					Mis pedidos
-				</b-dropdown-item>
-				<b-dropdown-item 
-				@click="logout">
+			<b-dropdown-item 
+			@click="toOrders">
+				<i class="icon-bag"></i>
+				Mis pedidos
+			</b-dropdown-item>
+			<b-dropdown-item
+			v-if="user.comercio_city_client_id"
+			@click="toCuentaCorriente">
+				<i class="icon-user"></i>
+				Mi cuenta corriente
+			</b-dropdown-item>
+			<b-dropdown-item 
+			@click="logout">
 					<i class="icon-logout icon-black"></i>
 					Salir
 				</b-dropdown-item>

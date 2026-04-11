@@ -36,6 +36,7 @@ import Contacto from '../views/Contacto.vue'
 import QuienesSomos from '../views/QuienesSomos.vue'
 import SeleccionEspecial from '../views/SeleccionEspecial.vue'
 import PromocionesVinoteca from '../views/PromocionesVinoteca.vue'
+import CuentaCorriente from '../views/CuentaCorriente.vue'
 
 Vue.use(VueRouter)
 
@@ -210,6 +211,11 @@ Vue.use(VueRouter)
         path: '/promociones',
         name: 'PromocionesVinoteca',
         component: PromocionesVinoteca,
+    },
+    {
+        path: '/cuenta-corriente',
+        name: 'CuentaCorriente',
+        component: CuentaCorriente,
     },
 
 ]

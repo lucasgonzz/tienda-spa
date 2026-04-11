@@ -29,6 +29,7 @@ import delivery_day from './delivery_day'
 
 import bodegas from './bodegas'
 import cepas from './cepas'
+import current_acount from './current_acount'
 
 Vue.use(Vuex)
 
@@ -69,5 +70,6 @@ export default new Vuex.Store({
 		bodegas,
 		delivery_day,
 		cepas,
+		current_acount,
 	}
 })

@@ -123,6 +123,11 @@ export default {
 					this.$store.dispatch('orders/getOrders')
 				}
 			}
+		},
+		toCuentaCorriente() {
+			if (this.$route.name != 'CuentaCorriente') {
+				this.$router.push({name: 'CuentaCorriente'})
+			}
 		}
 	}
 }
