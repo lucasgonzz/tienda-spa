@@ -7,7 +7,7 @@
 		<img 
 		@click="home"
 		class="img-brand-mobile apretable c-p"
-        src="@/assets/icon.png"
+        :src="commerce.image_url"
 		alt="logo">
 	</b-navbar-brand>
 </template>

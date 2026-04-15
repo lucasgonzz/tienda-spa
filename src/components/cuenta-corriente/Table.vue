@@ -32,7 +32,7 @@
 				variant="primary"
 				:title="pdfTitle(data.item)"
 				@click="openPdf(data.item)">
-					<i class="icon-printer m-r-5"></i>{{ data.value }}
+					{{ data.value }}
 				</b-button>
 				<span v-else>{{ data.value }}</span>
 			</template>
@@ -101,7 +101,7 @@ export default {
 		},
 		statusVariant(status) {
 			const variants = {
-				'sin_pagar': 'warning',
+				'sin_pagar': 'danger',
 				'pagandose': 'info',
 				'pagado': 'primary',
 				'nota_credito': 'secondary',

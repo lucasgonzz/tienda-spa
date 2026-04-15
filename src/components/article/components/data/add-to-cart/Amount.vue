@@ -52,9 +52,9 @@ export default {
 				&& this.selected_article_variant 
 				&& this.selected_article_variant.stock
 			) {
-				return this.selected_article_variant.stock 
+				return Number(this.selected_article_variant.stock) 
 			} else if (this.article.stock != null) {
-				return this.article.stock 
+				return Number(this.article.stock) 
 			}
 			return null
 		}
@@ -72,6 +72,11 @@ export default {
 		},
 		check_amount() {
 			if (this.max && this.amount > this.max) {
+
+				console.log('max: ')
+				console.log(this.max)
+				console.log('amount: ')
+				console.log(this.amount)
 
 				this.$toast.error('Solo hay '+this.max+' unidades en STOCK')
 				this.amount = this.max

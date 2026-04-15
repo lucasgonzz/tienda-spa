@@ -124,14 +124,14 @@ export default {
 		align-items: center
 		position: relative
 		
-		@media screen and (max-width: 300px)
-			height: 50vh 
-		@media screen and (min-width: 301px) and (max-width: 400px)
-			height: 65vh 
-		@media screen and (min-width: 401px) and (max-width: 1206px)
-			height: 50vh 
-		@media screen and (min-width: 1206px)
-			height: 55vh 
+		// @media screen and (max-width: 300px)
+		// 	height: 50vh 
+		// @media screen and (min-width: 301px) and (max-width: 400px)
+		// 	height: 65vh 
+		// @media screen and (min-width: 401px) and (max-width: 1206px)
+		// 	height: 50vh 
+		// @media screen and (min-width: 1206px)
+		// 	height: 55vh 
 		
 		.title
 			text-align: center

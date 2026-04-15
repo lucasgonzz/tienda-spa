@@ -121,9 +121,10 @@ export default {
 			this.$store.dispatch('current_acount/getMovements')
 		},
 		printEstadoCuenta() {
-			const empresa_url = this.commerce.api_url ? `https://${this.commerce.api_url}` : ''
+			const empresa_url = this.commerce.api_url ? this.commerce.api_url : ''
 			if (!empresa_url || !this.current_credit_account) return
 			const url = `${empresa_url}/current-acount/pdf/${this.current_credit_account.id}/${this.cantidad_movimientos}/simple`
+
 			window.open(url)
 		},
 	}
