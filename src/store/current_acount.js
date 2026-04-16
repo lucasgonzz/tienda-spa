@@ -9,7 +9,7 @@ export default {
 		current_credit_account: null,
 		models: [],
 		loading: false,
-		cantidad_movimientos: 500,
+		cantidad_movimientos: 50,
 	},
 	mutations: {
 		setCreditAccounts(state, value) {

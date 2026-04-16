@@ -115,6 +115,11 @@ export default {
 	data() {
 		return {
 			index: 0,
+			auto_scroll_timeout: null,
+			auto_scroll_interval: null,
+			auto_scroll_pending_pixels: 0,
+			auto_scroll_programmatic: false,
+			auto_scroll_events: ['scroll'],
 		}
 	},
 	computed: {
@@ -166,11 +171,116 @@ export default {
 		order_by() {
 			return this.$store.state.categories.order_by
 		},
+		online_configuration() {
+			if (this.commerce && this.commerce.online_configuration) {
+				return this.commerce.online_configuration
+			}
+			return {}
+		},
 		is_from_categories() {
 			return this.selected_category || this.selected_sub_category
 		},
+		auto_scroll_home_speed() {
+			const value = Number(this.online_configuration.auto_scroll_home)
+			return Number.isFinite(value) && value > 0 ? value : null
+		},
+		auto_scroll_home_init_seconds() {
+			const value = Number(this.online_configuration.auto_scroll_home_init)
+			return Number.isFinite(value) && value >= 0 ? value : 10
+		},
+		auto_scroll_home_interval_ms() {
+			const value = Number(this.online_configuration.auto_scroll_home_interval)
+			return Number.isFinite(value) && value > 0 ? value : 1000
+		},
+	},
+	watch: {
+		auto_scroll_home_speed() {
+			this.restartAutoScroll()
+		},
+		auto_scroll_home_init_seconds() {
+			this.restartAutoScroll()
+		},
+		auto_scroll_home_interval_ms() {
+			this.restartAutoScroll()
+		},
+	},
+	mounted() {
+		this.setAutoScrollListeners()
+		this.restartAutoScroll()
+	},
+	beforeDestroy() {
+		this.clearAutoScrollTimeout()
+		this.stopAutoScroll()
+		this.removeAutoScrollListeners()
 	},
 	methods: {
+		restartAutoScroll() {
+			this.stopAutoScroll()
+			this.clearAutoScrollTimeout()
+			if (!this.auto_scroll_home_speed) {
+				return
+			}
+			this.auto_scroll_timeout = setTimeout(() => {
+				this.startAutoScroll()
+			}, this.auto_scroll_home_init_seconds * 1000)
+		},
+		clearAutoScrollTimeout() {
+			if (this.auto_scroll_timeout) {
+				clearTimeout(this.auto_scroll_timeout)
+				this.auto_scroll_timeout = null
+			}
+		},
+		startAutoScroll() {
+			if (!this.auto_scroll_home_speed || this.auto_scroll_interval) {
+				return
+			}
+			this.auto_scroll_interval = setInterval(() => {
+				this.auto_scroll_pending_pixels += this.auto_scroll_home_speed * this.auto_scroll_home_interval_ms / 1000
+
+				const pixels_to_scroll = this.auto_scroll_pending_pixels > 0
+					? Math.floor(this.auto_scroll_pending_pixels)
+					: Math.ceil(this.auto_scroll_pending_pixels)
+
+				if (pixels_to_scroll !== 0) {
+					this.auto_scroll_programmatic = true
+					window.scrollBy(0, pixels_to_scroll)
+					this.auto_scroll_pending_pixels -= pixels_to_scroll
+					setTimeout(() => { this.auto_scroll_programmatic = false }, 0)
+				}
+			}, this.auto_scroll_home_interval_ms)
+		},
+		stopAutoScroll() {
+			if (this.auto_scroll_interval) {
+				clearInterval(this.auto_scroll_interval)
+				this.auto_scroll_interval = null
+			}
+			this.auto_scroll_pending_pixels = 0
+
+			// alert('Se limpio autoscroll')
+		},
+		onUserActivity() {
+			console.log('onUserActivity')
+			console.log('auto_scroll_programmatic: '+this.auto_scroll_programmatic)
+			console.log('auto_scroll_home_speed: '+this.auto_scroll_home_speed)
+			if (this.auto_scroll_programmatic) {
+				return
+			}
+			if (!this.auto_scroll_interval) {
+				return
+			}
+			this.stopAutoScroll()
+			// this.restartAutoScroll()
+		},
+		setAutoScrollListeners() {
+			this.auto_scroll_events.forEach(event_name => {
+				window.addEventListener(event_name, this.onUserActivity, { passive: true })
+			})
+		},
+		removeAutoScrollListeners() {
+			this.auto_scroll_events.forEach(event_name => {
+				window.removeEventListener(event_name, this.onUserActivity)
+			})
+		},
 		showContactInfo() {
 			if (this.index == 5) {
 				return true
@@ -187,7 +297,7 @@ export default {
 			this.scroll++
 		},
 		infiniteHandler($state) {
-			if (this.commerce.online_configuration.scroll_infinito_en_home || (this.page < 3 || this.is_from_search || this.is_from_categories) && this.articles.length >= 12) {
+			if (this.online_configuration.scroll_infinito_en_home || (this.page < 3 || this.is_from_search || this.is_from_categories) && this.articles.length >= 12) {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
 				if (this.selected_category) {
