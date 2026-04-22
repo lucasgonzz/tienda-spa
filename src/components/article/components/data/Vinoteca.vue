@@ -4,7 +4,7 @@
 	class="cont-name m-b-15">
 		<hr>
 		<p
-		v-if="puede_ver_precios() && article_to_show.presentacion"
+		v-if="puede_ver_precios() && article_to_show.presentacion && !article_to_show.precio_pausado"
 		class="text-left m-b-5">
 			Precio por unidad: <strong>{{ precio_por_unidad(article_to_show) }} </strong>
 		</p>

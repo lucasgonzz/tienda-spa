@@ -47,7 +47,7 @@ class="m-t-0 m-b-0 row-title-jumbotron">
 									<img
 									slot="image"
 									class="slide-img" 
-									:src="ancho_pantalla < 400 ? title.crop_image_url : title.image_url">
+									:src="ancho_pantalla < 700 ? title.crop_image_url : title.image_url">
 							        <b-spinner
 									slot="preloader"
 							        variant="link"></b-spinner>
@@ -102,6 +102,16 @@ export default {
 </script>
 <style lang="sass">
 .row-title-jumbotron
+	.slide-img
+		width: 100vw 
+
+	
+	.vue-load-image
+		height: 100%
+		.spinner-border 
+			margin: 27vh 0
+
+
 	.VueCarousel
 		.VueCarousel-navigation-button
 			border: 1px solid #333
@@ -118,47 +128,4 @@ export default {
 			left: 70px
 		.VueCarousel-slide
 			width: 100%
-	.title-image
-		display: flex
-		flex-direction: row
-		align-items: center
-		position: relative
-		
-		// @media screen and (max-width: 300px)
-		// 	height: 50vh 
-		// @media screen and (min-width: 301px) and (max-width: 400px)
-		// 	height: 65vh 
-		// @media screen and (min-width: 401px) and (max-width: 1206px)
-		// 	height: 50vh 
-		// @media screen and (min-width: 1206px)
-		// 	height: 55vh 
-		
-		.title
-			text-align: center
-			position: absolute
-			width: 100% 
-			.header
-				font-size: 15px
-			.lead 
-				font-size: 50px
-				font-weight: 600 
-		.cont-image 
-			overflow-x: hidden
-			width: 100vw
-			height: 100%
-			display: flex 
-			justify-content: center
-			align-items: center
-			.vue-load-image
-				height: 100%
-				img 
-					padding: 0
-					height: 100%
-					min-width: 100%
-					// @media screen and (max-width: 992px)
-					// 	max-width: 100%
-					// @media screen and (min-width: 992px)
-					// 	min-width: 100%
-				.spinner-border 
-					margin: 27vh 0
 </style>

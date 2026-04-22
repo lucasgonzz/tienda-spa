@@ -23,6 +23,7 @@
 				v-if="article.presentacion">
 					
 					<p
+					v-if="!article.precio_pausado"
 					class="precio-unitario">
 						Precio Unitario: {{ precio_por_unidad(article) }}
 					</p>

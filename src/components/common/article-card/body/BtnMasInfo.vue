@@ -22,6 +22,7 @@
 			v-if="!is_item_in_cart(article)"
 			class="btn-add-to-cart"
 			@click.stop="add_to_cart"
+			:disabled="article.precio_pausado ? true : false"
 			variant="outline-primary">
 				<i class="icon-cart"></i>
 			</b-button>

@@ -261,17 +261,32 @@ export default {
 			})
 			return finded
 		},
+		/**
+		 * Precio mostrado en tienda (formateado o número según formated).
+		 * Si el artículo tiene precio pausado, devuelve el texto configurado sin pasar por formato monetario.
+		 */
 		articlePrice(article, formated = true) {
 			let price = this.articlePriceEfectivo(article, formated)
-			// console.log('aca: '+price)
-			// if (this.percentage_card) {
-			// 	price = price + (price * this.percentage_card_formated)
-			// } 
+			if (this.puede_ver_precios() && article.precio_pausado) {
+				return price
+			}
 			return formated ? this.price(price) : price
 		},
+		/**
+		 * Precio efectivo o texto de precio pausado.
+		 * Con precio pausado y formated=false devuelve null (no hay importe unitario numérico).
+		 */
 		articlePriceEfectivo(article, formated = true) {
 			if (!this.puede_ver_precios()) {
 				return null
+			}
+
+			// Texto fijo de configuración online en lugar del importe
+			if (article.precio_pausado) {
+				const texto = this.commerce && this.commerce.online_configuration
+					? this.commerce.online_configuration.text_precio_pausado
+					: ''
+				return texto
 			}
 
 			let price = Number(article.final_price)

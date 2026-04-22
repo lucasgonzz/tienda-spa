@@ -1,5 +1,7 @@
 <template>
-	<div class="payment-methods-info">
+	<div 
+	v-if="article_to_show && !article_to_show.precio_pausado"
+	class="payment-methods-info">
 		<div 
 		v-for="payment_method in payment_methods_to_show"
 		class="payment-method-info shadow-1">

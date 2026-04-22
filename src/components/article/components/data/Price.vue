@@ -1,15 +1,22 @@
 <template>
 	<div
-	v-if="commerce.online_configuration.online_price_type && article_to_show && articlePriceEfectivo(article_to_show)">
-		<price-ranges
-		is_from_article_page
-		:article="article_to_show"></price-ranges>
-		
-		<p 
-		v-if="!article_to_show.ranges"
-		class="price">
-			{{ articlePriceEfectivo(article_to_show) }}
-		</p>
+	v-if="commerce.online_configuration.online_price_type && article_to_show && (article_to_show.precio_pausado || articlePriceEfectivo(article_to_show))">
+		<template v-if="article_to_show.precio_pausado">
+			<p class="price">
+				{{ articlePriceEfectivo(article_to_show) }}
+			</p>
+		</template>
+		<template v-else>
+			<price-ranges
+			is_from_article_page
+			:article="article_to_show"></price-ranges>
+			
+			<p 
+			v-if="!article_to_show.ranges"
+			class="price">
+				{{ articlePriceEfectivo(article_to_show) }}
+			</p>
+		</template>
 	</div>
 </template>
 <script>

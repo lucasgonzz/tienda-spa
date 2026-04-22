@@ -77,7 +77,7 @@
 			</b-button>
 			<div
 			class="m-t-15"
-			v-if="is_cart_view && article.amount > 1">
+			v-if="is_cart_view && article.amount > 1 && !article.precio_pausado">
 				<hr
 				class="m-t-0">
 				<p
