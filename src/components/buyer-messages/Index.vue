@@ -27,7 +27,7 @@ id="buyer-messages">
 		@click="esconder_chat"
 		class="esconder-chat">
 			<i 
-			class="icon-right"></i>
+			class="bi bi-x-lg"></i>
 		</div>
 	</div>
 
@@ -346,7 +346,7 @@ export default {
 
 
 	.header	
-		background: darken($green, 15)
+		background: color-mix(in srgb, $green 85%, black 15%)
 		color: #FFF
 		border-radius: 8px 8px 0 0 
 		padding: 15px
@@ -400,7 +400,7 @@ export default {
 			margin-bottom: 5px
 
 		.from-buyer 
-			background: darken($green, 15)
+			background: color-mix(in srgb, $green 85%, black 15%)
 			align-self: flex-end
 			color: #FFF
 	
@@ -450,7 +450,7 @@ export default {
 			background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%, rgba(0,0,0,0.6) 100%)
 
 			.message-option	
-				background: lighten($green, 15)
+				background: color-mix(in srgb, $green 85%, white 15%)
 				color: #FFF
 				border-radius: 8px
 				padding: 5px 8px
@@ -460,7 +460,7 @@ export default {
 				border: 1px solid $green
 
 				&:hover
-					background: lighten($green, 5)
+					background: color-mix(in srgb, $green 95%, white 5%)
 
 		.send-message
 			display: flex 
@@ -486,10 +486,10 @@ export default {
 				align-items: center 
 				height: 36px
 				color: #FFF
-				border: 1px solid darken($green, 10)
+				border: 1px solid color-mix(in srgb, $green 90%, black 10%)
 				cursor: pointer
 				&:hover
-					background: lighten($green, 5)
+					background: color-mix(in srgb, $green 95%, white 5%)
 
 				.spinner-border
 					width: 20px

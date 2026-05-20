@@ -3,7 +3,7 @@
 		<div class="cont-search">
 			<div 
 			class="icon">
-				<i class="icon-search"></i>
+				<i class="bi bi-search"></i>
 			</div>
 			<b-form-input	
 			v-model="query"
@@ -15,7 +15,7 @@
 			@click="cancelar"
 			class="icon icon-right">
 				Cancelar
-				<!-- <i class="icon-cancel"></i> -->
+				<!-- <i class="bi bi-x-lg"></i> -->
 			</div>
 		</div>
 		<div 
@@ -209,7 +209,7 @@ export default {
 			background: rgba(0,0,0,0)
 
 		&::-webkit-scrollbar-thumb 
-			background-color: lighten($blue, 20)
+			background-color: color-mix(in srgb, $blue 80%, white 20%)
 			border-radius: 10px
 			border: 2px solid #ffffff
 

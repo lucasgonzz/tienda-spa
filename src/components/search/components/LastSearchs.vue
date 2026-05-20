@@ -13,7 +13,7 @@
 		<div
 		class="text-with-icon"
 		v-else>
-			<i class="icon-search"></i>
+			<i class="bi bi-search"></i>
 			Ingresa lo que quieras buscar
 		</div>
 	</div>

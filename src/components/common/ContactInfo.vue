@@ -1,12 +1,13 @@
 <template>
 	<b-row
 	v-if="items.length"
-	class="contact-info">
+	class="contact-info justify-content-center">
 		<b-col
 		cols="12"
 		md="10"
 		lg="8"
-		xl="6">
+		xl="6"
+		class="contact-info__inner mx-auto text-center">
 			<div 
 			class="title">
 				Encontranos en
@@ -93,11 +94,17 @@ export default {
 </script>
 <style lang="sass">
 .contact-info
-	background: #CFCFCF 
+	background: #CFCFCF
+	justify-content: center
+	.contact-info__inner
+		display: flex
+		flex-direction: column
+		align-items: center
 	.title 
 		font-size: 25px
 		margin: 25px 0 -15px
 		text-align: center
+		width: 100%
 	.cont-contact-items
 		background: #F7F7F7
 		display: flex

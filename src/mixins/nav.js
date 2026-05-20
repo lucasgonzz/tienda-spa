@@ -27,12 +27,29 @@ export default {
 			this.$cookies.set('redirect_to', 'Home')
 			this.$router.push({name: 'Login'})
 		},
+		/**
+		 * Clases de ícono (Bootstrap Icons) según la ruta activa: variante “rellena” si la página coincide, outline si no.
+		 *
+		 * @param {string} page_name Nombre de ruta Vue (p. ej. 'Cart', 'Home').
+		 * @param {string} icon Clave interna (p. ej. 'shopping-cart', 'home').
+		 * @returns {string} Clases `bi bi-...` para usar en `<i>`.
+		 */
 		getIconActive(page_name, icon) {
-			icon = 'icon-' + icon
-			if (this.active(page_name) != '') {
-				return icon
+			const filled_vs_outline = {
+				'home': ['bi-house-fill', 'bi-house'],
+				'heart': ['bi-heart-fill', 'bi-heart'],
+				'bag': ['bi-bag-fill', 'bi-bag'],
+				'comment': ['bi-chat-dots-fill', 'bi-chat-dots'],
+				'user': ['bi-person-fill', 'bi-person'],
+				'shopping-cart': ['bi-cart3-fill', 'bi-cart3'],
+				'send': ['bi-send-fill', 'bi-send'],
 			}
-			return icon + '-o'
+			const pair = filled_vs_outline[icon]
+			if (!pair) {
+				return 'bi bi-question-circle'
+			}
+			const idx = this.active(page_name) !== '' ? 0 : 1
+			return 'bi ' + pair[idx]
 		},
 		active(page_name) {
 			return page_name == this.current_page ? 'active-link' : ''

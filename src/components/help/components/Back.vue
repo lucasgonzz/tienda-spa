@@ -5,7 +5,7 @@
 	v-if="selected_option != ''"
 	@click="back">
 		Volver
-		<!-- <i class="icon-back"></i> Volver -->
+		<!-- <i class="bi bi-arrow-left"></i> Volver -->
 	</b-button>
 </template>
 <script>

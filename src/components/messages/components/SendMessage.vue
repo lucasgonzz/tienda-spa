@@ -7,7 +7,7 @@
 		placeholder="Escribe un mensaje"></b-form-input>
 		<b-button
 		@click="sendMessage"
-		variant="success"
+		variant="primary"
 		class="m-l-10">
 			<btn-loader
 			:loader="loading"
@@ -60,10 +60,18 @@ export default {
 }
 </script>
 <style lang="sass">
+/*
+ * El tema de la tienda mapea .btn-primary al color secundario del comercio (--secondary-color).
+ * El input refuerza el mismo acento en el estado :focus.
+ * Indentación con espacios: sass indentado no acepta tabuladores.
+ */
 .send-message
-	width: 100%
-	height: 60px
-	display: flex
-	align-items: center
-	padding: 0 .7em
+  width: 100%
+  height: 60px
+  display: flex
+  align-items: center
+  padding: 0 .7em
+  .form-control:focus
+    border-color: var(--secondary-color)
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--secondary-color) 25%, transparent)
 </style>

@@ -8,7 +8,7 @@
 		v-if="is_cart_view"
 		@click.stop="removeArticle"
 		class="btn-remove-article">
-			<i class="icon-cancel"></i>
+			<i class="bi bi-x-lg"></i>
 		</div>
 
 		<div 

@@ -13,7 +13,9 @@ export default {
 	},
 	mutations: {
 		setMessages(state, value) {
-			state.messages = value
+			if (typeof value != 'undefined') {
+				state.messages = value
+			}
 		},
 		setMessagesNotRead(state) {
 			state.messages_not_read = 0

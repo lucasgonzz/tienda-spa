@@ -9,21 +9,21 @@
 		<p 
 		v-if="payment_method.discount"
 		class="discount">
-			<i class="icon-right"></i>
+			<i class="bi bi-chevron-right"></i>
 			Descuento del 
 			{{ payment_method.discount }}%
 		</p>
 		<p 
 		v-if="payment_method.surchage"
 		class="discount">
-			<i class="icon-right"></i>
+			<i class="bi bi-chevron-right"></i>
 			Recargo del 
 			{{ payment_method.surchage }}%
 		</p>
 		<p 
 		v-if="payment_method.description"
 		class="description">
-			<i class="icon-right"></i>
+			<i class="bi bi-chevron-right"></i>
 			{{ payment_method.description }}
 		</p>
 	</div>

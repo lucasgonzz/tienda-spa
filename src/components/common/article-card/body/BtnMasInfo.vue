@@ -24,14 +24,14 @@
 			@click.stop="add_to_cart"
 			:disabled="article.precio_pausado ? true : false"
 			variant="outline-primary">
-				<i class="icon-cart"></i>
+				<i class="bi bi-cart-plus"></i>
 			</b-button>
 			<b-button
 			v-else
 			class="btn-add-to-cart"
 			@click.stop="remove_cart(article)"
 			variant="danger">
-				<i class="icon-cart"></i>
+				<i class="bi bi-cart-plus"></i>
 			</b-button>
  		</template>
 

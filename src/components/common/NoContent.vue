@@ -1,6 +1,8 @@
 <template>
 	<div>
-		<p class="icon-cancel not-results"></p>
+		<p class="not-results">
+			<i class="bi bi-inbox no-content__icon"></i>
+		</p>
 		<p
 		class="not-results">
 			{{ text }}
@@ -14,6 +16,6 @@ export default {
 }
 </script>
 <style lang="sass">
-.icon-cancel
+.no-content__icon
 	font-size: 3em
 </style>

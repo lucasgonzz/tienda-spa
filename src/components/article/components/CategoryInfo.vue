@@ -9,7 +9,7 @@
 			<div 
 			@click="home"
 			class="item">
-				<i class="icon-home p-r-5"></i>
+				<i class="bi bi-house-door p-r-5"></i>
 				Volver al inicio
 			</div>
 			<div 

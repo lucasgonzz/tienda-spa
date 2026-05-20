@@ -9,7 +9,7 @@
 					<div
 					class="shadow-1 b-w b-r-1 p-15">
 						<h4 class="text-with-icon text-success">
-							<i class="icon-eye"></i>
+							<i class="bi bi-hourglass-split"></i>
 							Tu pago esta pendiente
 						</h4>
 						<p class="text-success">

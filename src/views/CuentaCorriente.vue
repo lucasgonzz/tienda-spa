@@ -44,7 +44,7 @@
 					size="sm"
 					variant="outline-primary"
 					@click="printEstadoCuenta">
-						<i class="icon-printer"></i>
+						<i class="bi bi-printer"></i>
 						Imprimir
 					</b-button>
 				</div>

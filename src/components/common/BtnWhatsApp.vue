@@ -5,7 +5,7 @@
     :href="'https://api.whatsapp.com/send?phone='+commerce.phone"
 	:class="scroll_bottom ? 'btn-whats-app-active' : ''"
 	class="btn-whats-app s">
-		<i class="icon-whatsapp"></i>
+		<i class="bi bi-whatsapp"></i>
 	</a>
 </template>
 <script>

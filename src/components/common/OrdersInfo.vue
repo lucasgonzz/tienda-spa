@@ -6,12 +6,12 @@
 	class="card-orders-info shadow-2 c-p">
 		<div 
 		class="card-orders-info-body">
-			<span 
+			<i 
 			v-show="order.status != 'canceled'"
-			class="icon-check icon text-success"></span>
-			<span 
+			class="bi bi-check-circle-fill icon text-success"></i>
+			<i 
 			v-show="order.status == 'canceled'"
-			class="icon-cancel icon text-danger"></span>
+			class="bi bi-x-circle-fill icon text-danger"></i>
 			<p
 			v-show="order.status == 'canceled'">
 				Lo sentimos pero no podemos cumplir con tu pedido

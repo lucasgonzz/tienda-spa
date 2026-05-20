@@ -42,7 +42,7 @@
 					<p
 					class="text-with-icon m-b-15"
 					v-if="!articles.length">
-						<span class="icon-cancel"></span>
+						<span class="bi bi-x-lg"></span>
 						No hay articulos similares
 					</p>
 				</div>

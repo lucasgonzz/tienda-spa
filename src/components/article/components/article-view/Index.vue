@@ -54,7 +54,7 @@ export default {
 	}
 }
 </script>
-<style scpoed lang="sass">
+<style scoped lang="sass">
 .row 
 	justify-content: center
 	margin-top: 1em

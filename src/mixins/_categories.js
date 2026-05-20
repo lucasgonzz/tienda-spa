@@ -13,6 +13,26 @@ export default {
 			// 	this.$router.push({name: 'Home'})
 			// }
 			this.$store.commit('auth/setMobileSidebarVisibility', false)
+			this.$store.commit('auth/set_categories_sidebar_visibility', false)
+			this.scrollTo('articles-list')
+		},
+		/**
+		 * Filtra artículos por marca y navega a Home con ruta /inicio/marca/:sub_category.
+		 * @param {object} brand
+		 */
+		setSelectedBrand(brand) {
+			this.$bvModal.hide('add-to-cart-modal')
+			this.$store.commit('categories/setSelectedBrand', brand)
+			this.$store.commit('categories/setIsFromSearch', false)
+			this.$store.dispatch('categories/getArticles')
+			this.$router.push({
+				name: 'Home',
+				params: {
+					category: 'marca',
+					sub_category: this.routeString(brand.name),
+				},
+			})
+			this.$store.commit('auth/setMobileSidebarVisibility', false)
 			this.scrollTo('articles-list')
 		},
 		setSubCategory(category, sub_category) {
@@ -27,7 +47,8 @@ export default {
 
 			// esto es para que se esconda en nav de mobile 
 			this.$store.commit('auth/setMobileSidebarVisibility', false)
-			
+			this.$store.commit('auth/set_categories_sidebar_visibility', false)
+
 			this.scrollTo('articles-list')
 		}
 	}

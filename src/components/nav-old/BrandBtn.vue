@@ -8,7 +8,7 @@
 		class="m-0 p-r-15 d-lg-none p-r">
 			<span 
 			v-b-toggle.nav-sidebar
-			class="icon-bars p-r-5"></span> 
+			class="bi bi-list p-r-5"></span> 
             <b-badge
             v-show="cupons_not_read > 0"
             class="badge"
@@ -50,7 +50,7 @@ export default {
 <style lang="sass">
 @import '@/sass/_custom.scss'
 .back-button-title
-	.icon-bars
+	.bi-list
 		@if ($theme == dark) 
 			color: #fff
 		@else if ($theme == ligth) 
@@ -64,7 +64,7 @@ export default {
 			align-items: center
 	.back-button-title
 		// width: 200px
-	.icon-back
+	.bi-arrow-left
 		padding-top: 1em
 	.img-brand-mobile
 		width: 70px

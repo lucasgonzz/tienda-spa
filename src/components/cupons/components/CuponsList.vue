@@ -15,7 +15,7 @@
 		<div
 		v-else
 		class="text-with-icon">
-			<i class="icon-cupon"></i>
+			<i class="bi bi-ticket-perforated"></i>
 			No tienes ningun cupon
 		</div>
 	</div>

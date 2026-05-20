@@ -11,7 +11,7 @@
 				@click="setSearch(last_search)"
 				v-for="last_search in last_searchs"
 				:key="last_search.id">
-					<i class="icon-clock m-r-10"></i>
+					<i class="bi bi-clock-history m-r-10"></i>
 					{{ last_search.body }}
 				</b-list-group-item>
 			</b-list-group>

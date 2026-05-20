@@ -22,8 +22,8 @@
 			<carousel
 			loop
 			:navigationEnabled="!is_mobile"
-			navigationNextLabel="<i class='icon-right'></i>"
-			navigationPrevLabel="<i class='icon-left'></i>"
+			navigationNextLabel="<i class='bi bi-chevron-right'></i>"
+			navigationPrevLabel="<i class='bi bi-chevron-left'></i>"
 			:spacePadding="space_padding"
 			:paginationPadding="5"
 			:paginationActiveColor="variant_color"
@@ -212,7 +212,7 @@ export default {
 			background: rgba(0,0,0,0)
 
 		&::-webkit-scrollbar-thumb 
-			background-color: lighten($green, 20)
+			background-color: color-mix(in srgb, $green 80%, white 20%)
 			border-radius: 10px
 			border: 2px solid #ffffff
 

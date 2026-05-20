@@ -19,18 +19,18 @@
 				</template>
 			<b-dropdown-item 
 			@click="toOrders">
-				<i class="icon-bag"></i>
+				<i class="bi bi-bag"></i>
 				Mis pedidos
 			</b-dropdown-item>
 			<b-dropdown-item
 			v-if="user.comercio_city_client_id"
 			@click="toCuentaCorriente">
-				<i class="icon-user"></i>
+				<i class="bi bi-person"></i>
 				Mi cuenta corriente
 			</b-dropdown-item>
 			<b-dropdown-item 
 			@click="logout">
-					<i class="icon-logout icon-black"></i>
+					<i class="bi bi-box-arrow-right icon-black"></i>
 					Salir
 				</b-dropdown-item>
 			</b-dropdown>

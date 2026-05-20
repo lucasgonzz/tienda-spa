@@ -23,6 +23,16 @@
 		</div>	
 
 		<div 
+		class="item">
+			<router-link 
+			:to="{name: 'Catalogo'}">
+				<span class="item-text">
+					Catalogo	
+				</span>
+			</router-link>
+		</div>
+
+		<div 
 		v-if="commerce_has_extencion('vinoteca')"
 		@click="to_promociones_vinotecas"
 		class="item">
@@ -160,10 +170,18 @@ export default {
 		position: relative
 		color: $color_text 
 		font-weight: bold  
-			// .item-text
-		// &:hover 
+		/* Aplica el color de texto hover configurado para cada item del nav. */
+		&:hover
+			color: $hover_color_text
+			.item-text
+				color: $hover_color_text
+			a
+				color: $hover_color_text
 		@media screen and (max-width: 992px)
 			padding: 15px 0
 		a 
 			color: $color_text
+		/* Mantiene consistencia de color hover en links del nav. */
+		&:hover
+			color: $hover_color_text
 </style>

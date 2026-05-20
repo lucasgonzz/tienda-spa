@@ -9,7 +9,7 @@
 			class="shadow">
 				<p
 				class="text-with-icon">
-					<i class="icon-phone-o text-success"></i>
+					<i class="bi bi-telephone text-success"></i>
 					Recibiras una llamada dentro de los proximos 5 minutos
 				</p>
 			</b-card>

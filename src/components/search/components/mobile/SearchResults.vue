@@ -7,7 +7,7 @@
 		@click="setArticle(article)"
 		v-for="article in articles_searcheds"
 		:key="article.id">
-			<i class="icon-search m-r-10"></i>
+			<i class="bi bi-search m-r-10"></i>
 			{{ article.name }}
 		</b-list-group-item>
 	</b-list-group>

@@ -17,7 +17,7 @@
 			@click="search_buyer"
 			class="m-l-10"
 			variant="primary">
-				<i class="icon-search"></i>
+				<i class="bi bi-search"></i>
 			</b-button>
 		</div>
 

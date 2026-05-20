@@ -3,10 +3,10 @@
 	class="shadow-1 cupon-card b-w b-r-1">
 		<i 
 		@click="remove"
-		class="btn-remove icon-cancel c-p"></i>
+		class="btn-remove bi bi-x-lg c-p"></i>
 		<div class="cupon-body">
 			<div class="img-container">
-				<i class="icon-cupon"></i>
+				<i class="bi bi-ticket-perforated"></i>
 			</div>
 			<div class="cupon-data">
 				<p

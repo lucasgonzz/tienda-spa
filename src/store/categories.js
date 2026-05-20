@@ -17,8 +17,10 @@ export default {
 		selected_sub_category: null,
 		selected_bodega: null,
 		selected_cepa: null,
+		selected_brand: null,
 		is_from_search: false,
 
+		brands: [],
 		sub_categories_to_show: [],
 		order_by: 'fecha-mayor-menor',
 
@@ -29,6 +31,7 @@ export default {
 		loading_categories: false,
 		loading_sub_categories: false,
 		loading_articles: false,
+		loading_brands: false,
 	},
 	mutations: {
 		setCategories(state, categories) {
@@ -81,6 +84,7 @@ export default {
 			state.articles = state.articles.concat(value)
 		},
 		setSelectedCategory(state, category) {
+			state.selected_brand = null
 			state.selected_category = category
 		},
 		setIndexAsSelectedCategory(state) {
@@ -88,13 +92,32 @@ export default {
 			state.selected_sub_category = {id: 0, name: 'Ultimos Ingresados'}
 		},
 		setSelectedSubCategory(state, value) {
+			state.selected_brand = null
 			state.selected_sub_category = value
 		},
 		setSelectedBodega(state, value) {
+			state.selected_brand = null
 			state.selected_bodega = value
 		},
 		setSelectedCepa(state, value) {
+			state.selected_brand = null
 			state.selected_cepa = value
+		},
+		/**
+		 * Marca activa en el catálogo; si se pasa un objeto limpia categoría, sub, bodega y cepa.
+		 * Si es null solo limpia la marca (p. ej. al ir al índice o a búsqueda).
+		 */
+		setSelectedBrand(state, brand) {
+			state.selected_brand = brand
+			if (brand) {
+				state.selected_category = null
+				state.selected_sub_category = null
+				state.selected_bodega = null
+				state.selected_cepa = null
+			}
+		},
+		setBrands(state, brands) {
+			state.brands = brands
 		},
 		setIsFromSearch(state, value) {
 			state.is_from_search = value 
@@ -117,6 +140,9 @@ export default {
 		setLoadingArticles(state, value) {
 			state.loading_articles = value
 		},
+		setLoadingBrands(state, value) {
+			state.loading_brands = value
+		},
 	},
 	actions: {
 		getCategories({ commit }) {
@@ -131,6 +157,18 @@ export default {
 				commit('setLoadingCategories', false)
 				console.log(err)
 			})
+		},
+		getBrands({ commit }) {
+			commit('setLoadingBrands', true)
+			return axios.get('/api/brands/' + process.env.VUE_APP_COMMERCE_ID)
+				.then(res => {
+					commit('setLoadingBrands', false)
+					commit('setBrands', res.data.brands)
+				})
+				.catch(err => {
+					commit('setLoadingBrands', false)
+					console.log(err)
+				})
 		},
 		getSubCategories({ commit, state }) {
 			commit('setLoadingSubCategories', true)
@@ -151,6 +189,23 @@ export default {
 		getArticles({ commit, state }) {
 			commit('setPage', 1)
 			commit('setLoadingArticles', true)
+			if (state.selected_brand) {
+				return axios.get(
+					'api/articles/from-brand/'
+					+ state.selected_brand.id + '/' + state.order_by + '/' + process.env.VUE_APP_COMMERCE_ID
+					+ '?page=1'
+				)
+					.then(res => {
+						commit('setLoadingArticles', false)
+						let articles = res.data.articles.data
+						commit('setArticles', articles)
+						commit('setOrder')
+					})
+					.catch(err => {
+						commit('setLoadingArticles', false)
+						console.log(err)
+					})
+			}
 			let category_id = 0
 			if (state.selected_category) {
 				category_id = state.selected_category.id

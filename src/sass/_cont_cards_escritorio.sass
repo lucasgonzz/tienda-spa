@@ -39,4 +39,12 @@
 		@media screen and (min-width: 992px)
 			width: 10%
 
+// Lista del carrito: desde 992px máximo 4 tarjetas por fila (23% = misma base que tarjetas-escritorio-4).
+// Sobrescribe cantidad_tarjetas_en_escritorio solo aquí (.cont-models.cart-list-cont-models gana por especificidad).
+.cont-models.cart-list-cont-models
+	@media screen and (min-width: 992px)
+		> .model,
+		> a
+			width: 23%
+
 

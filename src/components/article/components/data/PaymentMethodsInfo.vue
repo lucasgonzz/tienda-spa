@@ -5,7 +5,7 @@
 		<div 
 		v-for="payment_method in payment_methods_to_show"
 		class="payment-method-info shadow-1">
-			<i class="icon-check"></i>
+			<i class="bi bi-check-circle-fill"></i>
 			<p>
 				Con {{ payment_method.name }}: <strong>{{ priceWith(payment_method) }}</strong> {{ info(payment_method) }}
 			</p>

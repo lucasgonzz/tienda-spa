@@ -11,7 +11,7 @@
 				<!-- <b-button 
 				@click="back"
 				class="apretable text-black">
-					<i class="icon-back"></i>
+					<i class="bi bi-arrow-left"></i>
 				</b-button> -->	
 				<b-form-input
 				v-model="query"

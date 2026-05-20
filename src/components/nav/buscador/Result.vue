@@ -14,7 +14,7 @@ class="result">
 			</p>
 		</div>
 	</div>
-	<i class="icon-right"></i>
+	<i class="bi bi-chevron-right"></i>
 </div>
 </template>
 <script>
@@ -41,9 +41,9 @@ export default {
 	padding: 10px
 	width: 100%
 	cursor: pointer
-	border-bottom: 1px solid darken($green, 10) 
+	border-bottom: 1px solid color-mix(in srgb, $green 90%, black 10%) 
 	&:hover
-		background: darken($green, 10)
+		background: color-mix(in srgb, $green 90%, black 10%)
 	.data 
 		display: flex
 		flex-direction: row 

@@ -12,7 +12,7 @@ id="articles-list">
 		<novedades></novedades>
 
 		<p 
-		v-if="selected_category || selected_sub_category || selected_bodega || selected_cepa"
+		v-if="selected_category || selected_sub_category || selected_bodega || selected_cepa || selected_brand"
 		class="title">
 			<span
 			v-if="selected_category">
@@ -29,6 +29,10 @@ id="articles-list">
 			<span
 			v-else-if="selected_cepa">
 				{{ selected_cepa.name }}
+			</span>
+			<span
+			v-else-if="selected_brand">
+				{{ selected_brand.name }}
 			</span>
 		</p>
 		<p
@@ -66,7 +70,7 @@ id="articles-list">
 		<p 
 		v-else
 		class="text-with-icon m-t-100 m-b-100">
-			<i class="icon-search"></i>
+			<i class="bi bi-search"></i>
 			No se encontraron resultados
 		</p>
 		
@@ -162,6 +166,9 @@ export default {
 		selected_cepa() {
 			return this.$store.state.categories.selected_cepa
 		},
+		selected_brand() {
+			return this.$store.state.categories.selected_brand
+		},
 		is_from_search() {
 			return this.$store.state.categories.is_from_search
 		},
@@ -178,7 +185,7 @@ export default {
 			return {}
 		},
 		is_from_categories() {
-			return this.selected_category || this.selected_sub_category
+			return this.selected_category || this.selected_sub_category || this.selected_brand
 		},
 		auto_scroll_home_speed() {
 			const value = Number(this.online_configuration.auto_scroll_home)
@@ -300,7 +307,9 @@ export default {
 			if (this.online_configuration.scroll_infinito_en_home || (this.page < 3 || this.is_from_search || this.is_from_categories) && this.articles.length >= 12) {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
-				if (this.selected_category) {
+				if (this.selected_brand) {
+					url += 'from-brand/'+this.selected_brand.id+'/'+this.order_by
+				} else if (this.selected_category) {
 					url += 'from-category/'+this.selected_category.id+'/0/0/0/'+this.order_by
 				} else if (this.selected_sub_category) {
 					url += 'from-category/0/'+this.selected_sub_category.id+'/0/0/'+this.order_by

@@ -16,7 +16,7 @@
 			class="sub-category apretable">
 				<i 
 				v-if="isSelectedSubCategory(sub_category)"
-				class="icon-right"></i>
+				class="bi bi-chevron-right"></i>
 				{{ sub_category.name | first_upper }}
 			</p>
 		</div>

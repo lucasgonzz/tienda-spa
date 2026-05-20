@@ -9,7 +9,7 @@
 				v-if="!waiting_call">
 					<p
 					class="text-with-icon">
-						<i class="icon-phone-o"></i>
+						<i class="bi bi-telephone"></i>
 						Te vamos a llamar dentro de los proximos 5 minutos
 					</p>
 					<b-form-group>
@@ -29,7 +29,7 @@
 				v-else>
 					<p
 					class="text-with-icon">
-						<i class="icon-phone-o"></i>
+						<i class="bi bi-telephone"></i>
 						Recibimos tu petición
 					</p>
 					<p>

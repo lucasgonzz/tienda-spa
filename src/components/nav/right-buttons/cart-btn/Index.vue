@@ -5,7 +5,7 @@
 		<!-- <i 
 		:class="getIconActive('Cart', 'shopping-cart')"></i> -->
 		<!-- <img src="@/assets/cart.png" alt=""> -->
-		<i class="icon-shopping-cart"></i>
+		<i class="bi bi-cart3"></i>
 		<b-badge 
 		v-show="cant_cart_items > 0"
 		variant="danger"
@@ -27,9 +27,9 @@ export default {
 	computed: {
 		iconClass() {
 			if (this.vicibility) {
-				return 'icon-shopping-cart'
+				return 'bi bi-cart3-fill'
 			}
-			return 'icon-shopping-cart-o'
+			return 'bi bi-cart3'
 		}
 	},
 }

@@ -37,7 +37,7 @@
 					<b-dropdown-item 
 					:class="active('Cupons')"
 					@click="cupons">
-						<i class="icon-cupon icon-black"></i>
+						<i class="bi bi-ticket-perforated icon-black"></i>
                         <b-badge
                         v-show="cupons_not_read > 0"
                         class="badge"
@@ -50,47 +50,47 @@
 					<b-dropdown-item 
 					:class="active('Questions')"
 					@click="questions">
-						<i class="icon-comment icon-black"></i>
+						<i class="bi bi-chat-dots icon-black"></i>
 						Preguntas
 					</b-dropdown-item>
 					<b-dropdown-item 
 					:class="active('Favorites')"
 					@click="favorites">
-						<i class="icon-heart icon-black"></i>
+						<i class="bi bi-heart icon-black"></i>
 						Favoritos
 					</b-dropdown-item>
 					<b-dropdown-item 
 					:class="active('Orders')"
 					@click="orders">
-						<i class="icon-bag-o icon-black"></i>
+						<i class="bi bi-bag icon-black"></i>
 						Compras
 					</b-dropdown-item>
 	                <b-dropdown-item 
 	                v-b-modal="'workdays'">
-	                    <i class="icon-clock"></i>
+	                    <i class="bi bi-clock"></i>
 	                    Horarios
 	                </b-dropdown-item>
 	                <b-dropdown-item 
 	                :to="{name: 'Location'}"
 	                :class="active('Location')">
-	                    <i class="icon-location"></i>
+	                    <i class="bi bi-geo-alt"></i>
 	                    Nuestro local
 	                </b-dropdown-item>
 					<b-dropdown-item 
 					:class="active('Configuration')"
 					:to="{name: 'Configuration'}">
-						<i class="icon-config icon-black"></i>
+						<i class="bi bi-gear icon-black"></i>
 						Configuracion
 					</b-dropdown-item>
 					<b-dropdown-item 
 					v-if="!is_verified"
 					:to="{name: 'Register', params: {view: 'codigo-de-verificacion'}}">
-						<i class="icon-right"></i>
+						<i class="bi bi-chevron-right"></i>
 						Verificar cuenta
 					</b-dropdown-item>
 					<b-dropdown-item 
 					@click="logout">
-						<i class="icon-logout icon-black"></i>
+						<i class="bi bi-box-arrow-right icon-black"></i>
 						Salir
 					</b-dropdown-item>
 				</b-nav-item-dropdown>

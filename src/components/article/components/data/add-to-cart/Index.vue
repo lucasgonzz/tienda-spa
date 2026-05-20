@@ -28,20 +28,24 @@
 				
 				<div
 				v-else>
-					<b-button-group>
+					<b-button-group
+					class="add-to-cart__btn-group">
 						
 						<b-button
-						@click="update_article_cart()"
+						v-b-tooltip.hover="actualizar_carrito_tooltip_config"
+						@click="update_article_cart"
 						variant="success"
+						:class="{ 'add-to-cart__btn-actualizar--disabled': actualizar_carrito_disabled }"
+						:aria-disabled="actualizar_carrito_disabled ? 'true' : 'false'"
 						block>
 							Actualizar
 						</b-button>
 						<b-button
 						class="m-0"
 						@click="remove_cart(article)"
-						variant="outline-danger"
-						block>
-							<i class="icon-cart"></i>
+						variant="outline-primary"
+						>
+							<i class="bi bi-cart-x" aria-hidden="true"></i>
 						</b-button>
 					</b-button-group>
 				</div>
@@ -69,6 +73,21 @@ export default {
 		BtnLoader,
 	},
 	computed: {
+		/**
+		 * Indica si el botón "Actualizar" debe estar deshabilitado (sin cantidad válida).
+		 */
+		actualizar_carrito_disabled() {
+			return this.amount === '' || Number(this.amount) === 0
+		},
+		/**
+		 * Configuración del tooltip al pasar el mouse: solo activo cuando el botón está deshabilitado.
+		 */
+		actualizar_carrito_tooltip_config() {
+			return {
+				title: 'Indicá una nueva cantidad para poder actualizar el carrito.',
+				disabled: !this.actualizar_carrito_disabled,
+			}
+		},
 		amount() {
 			return this.$store.state.articles.amount
 		},
@@ -99,7 +118,14 @@ export default {
 			}
 			this.saveCart()
 		},
+		/**
+		 * Persiste la nueva cantidad del artículo en el carrito (API). No hace nada si la cantidad no es válida.
+		 */
 		update_article_cart() {
+			// Sin `disabled` nativo: el tooltip puede recibir hover; aquí se evita el PUT inválido.
+			if (this.actualizar_carrito_disabled) {
+				return
+			}
 			console.log(this.article)
 			console.log(this.article.is_promocion_vinoteca)
 			let is_promocion_vinoteca = typeof this.article.is_promocion_vinoteca != 'undefined' ? true : false
@@ -254,4 +280,12 @@ export default {
 		button	 
 			width: 70%
 			margin-left: 10px
+
+	.add-to-cart__btn-group
+		width: 100%
+
+	.add-to-cart__btn-actualizar--disabled
+		opacity: 0.65
+		cursor: not-allowed
+		box-shadow: none
 </style>

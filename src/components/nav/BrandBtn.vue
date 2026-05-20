@@ -2,7 +2,7 @@
 	<b-navbar-brand>
 		<span 	
 		v-b-toggle.nav-sidebar
-		class="icon-bars p-r-5 d-lg-none"></span> 
+		class="bi bi-list p-r-5 d-lg-none"></span> 
 		<img 
 		@click="home"
 		class="img-brand-mobile apretable c-p"
@@ -26,7 +26,7 @@ export default {
 </script>
 <style lang="sass">
 @import '@/sass/_custom.scss'
-.icon-bars
+.bi-list
 	color: $color_text
 .navbar-brand
 	padding: 0

@@ -77,6 +77,9 @@ Vue.use(VueToast, {
 import { BootstrapVue } from 'bootstrap-vue'
 Vue.use(BootstrapVue)
 
+// Iconos vectoriales (clases .bi) para vistas como Contacto (Instagram, Facebook, etc.)
+import 'bootstrap-icons/font/bootstrap-icons.css'
+
 // import VueClazyLoad from 'vue-clazy-load'
 // Vue.use(VueClazyLoad)
 

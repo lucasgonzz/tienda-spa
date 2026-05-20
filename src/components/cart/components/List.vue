@@ -2,18 +2,19 @@
 	<div>
 		<div
 		v-if="cant_cart_items == 0"
-		class="text-with-icon text-black">
-			<i class="icon-shopping-cart"></i>
-			Tu carrito esta vacio
+		class="cart-list-empty text-with-icon text-black">
+			<i class="bi bi-cart3 cart-list-empty__icon"></i>
+			<span class="cart-list-empty__text">Tu carrito está vacío</span>
 		</div>
 		<div
 		v-else>
 			<p 
+			v-if="!hide_title"
 			class="title">
-				<i class="icon-shopping-cart"></i>
+				<i class="bi bi-cart3"></i>
 				Mi carrito	
 			</p>
-			<div class="cont-models">
+			<div class="cont-models cart-list-cont-models">
 				<article-card
 				v-for="article in articles"
 				:key="article.key"
@@ -36,6 +37,15 @@ import cart from '@/mixins/cart'
 export default {
 	name: 'CartList',
 	mixins: [cart],
+	props: {
+		/**
+		 * Oculta el encabezado "Mi carrito" cuando la vista padre ya muestra un título (p. ej. Cart.vue).
+		 */
+		hide_title: {
+			type: Boolean,
+			default: false,
+		},
+	},
 	components: {
 		ArticleCard,
 		BtnLoader,

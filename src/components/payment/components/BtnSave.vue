@@ -4,7 +4,7 @@
 		<!-- <p
 		v-if="cart_payment_method && cart_payment_method.type && cart_payment_method.type.name == 'MercadoPago'"
 		class="text-with-icon text-black b-w s">
-			<i class="icon-exclamation"></i>
+			<i class="bi bi-exclamation-triangle-fill"></i>
 			Luego de que MercadoPago procese tu pago, no olvides <strong>regresar al sitio</strong>, presionando el botón "Volver al sitio", para que actualicemos la información de tu pago y enviemos tu pedido.
 		</p> -->
 
@@ -26,7 +26,7 @@
 		size="lg"
 		@click="ready"
 		class="btn-pay">
-			<i class="icon-lock-1"></i>
+			<i class="bi bi-lock-fill"></i>
 			Finalizar Compra
 		</b-button>
 	</b-form-group>

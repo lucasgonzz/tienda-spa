@@ -147,7 +147,7 @@ export default {
 	@media screen and (min-width: 998px)
 		width: 50%
 
-[class^='icon-']
+.bi
 	color: rgba(255,255,255,.8)
 	font-size: 1.4em
 	margin-left: 0

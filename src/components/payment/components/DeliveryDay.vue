@@ -1,5 +1,6 @@
 <template>
 	<div
+	v-if="delivery_days.length"
 	class="background">
 		<h5>
 			Seleccione el dia de entrega para su pedido

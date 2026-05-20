@@ -9,8 +9,8 @@
 				class="m-b-10"
 				autoplay
 				:navigationEnabled="!is_mobile"
-				navigationNextLabel="<i class='icon-right'></i>"
-				navigationPrevLabel="<i class='icon-left'></i>"
+				navigationNextLabel="<i class='bi bi-chevron-right'></i>"
+				navigationPrevLabel="<i class='bi bi-chevron-left'></i>"
 				:paginationActiveColor="variant_color"
 				paginationColor="#A9A9A9"
 				:paginationPadding="5"

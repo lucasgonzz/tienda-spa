@@ -26,7 +26,7 @@
 		<div
 		v-else
 		class="text-with-icon">
-			<i class="icon-heart"></i>
+			<i class="bi bi-heart-fill"></i>
 			No tienes ningun favorito
 		</div>
 	</div>

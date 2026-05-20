@@ -5,7 +5,7 @@
 		<div 
 		@click.stop="close"
 		class="btn-cancel c-p">
-			<i class="icon-cancel"></i>
+			<i class="bi bi-x-lg"></i>
 		</div>
 		<last-article
 		v-if="added_item"

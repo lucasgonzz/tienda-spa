@@ -3,14 +3,14 @@
 	v-if="loading"
 	class="container-logo">
 		<img 
-		src="@/assets/icon.png" alt="">
+        :src="commerce.online_configuration && commerce.online_configuration.logo_url ? commerce.online_configuration.logo_url : commerce.image_url">
         
         <b-spinner 
         v-if="!there_is_update"
-        variant="success"></b-spinner>
+        variant="primary"></b-spinner>
 		<b-progress 
 		v-else
-		variant="success" :value="progress" :max="100" show-progress animated></b-progress>
+		variant="primary" :value="progress" :max="100" show-progress animated></b-progress>
 
         <p>
         	{{ message }}

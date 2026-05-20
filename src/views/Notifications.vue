@@ -12,7 +12,7 @@
 						Notificaciones
 					</h1> -->
 					<p class="no-content title-color">
-						<i class="icon-notification-o"></i>
+						<i class="bi bi-bell"></i>
 						No tienes notificaciones
 					</p>
 				</div>

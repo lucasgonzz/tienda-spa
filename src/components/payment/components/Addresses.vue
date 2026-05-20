@@ -81,7 +81,7 @@ export default {
 .address
 	margin-bottom: 1em
 	padding: 1em 
-	background: lighten($green, 20)
+	background: color-mix(in srgb, $green 80%, white 20%)
 	.street 
 		font-weight: bold
 		margin-bottom: .5em

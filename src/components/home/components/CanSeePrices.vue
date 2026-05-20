@@ -6,7 +6,7 @@
 	dismissible 
 	variant="success">
 		<div class="text-with-icon">
-			<i class="icon-user-black-add"></i>
+			<i class="bi bi-person-plus"></i>
 			Inicia sesion para poder ver nuestros precios
 		</div>
 	</b-card>

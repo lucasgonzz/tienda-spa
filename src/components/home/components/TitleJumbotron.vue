@@ -11,8 +11,8 @@ class="m-t-0 m-b-0 row-title-jumbotron">
 				v-if="titles.length"
 				centerMode
 				autoplay
-				navigationNextLabel="<i class='icon-right'></i>"
-				navigationPrevLabel="<i class='icon-left'></i>"
+				navigationNextLabel="<i class='bi bi-chevron-right'></i>"
+				navigationPrevLabel="<i class='bi bi-chevron-left'></i>"
 				paginationPosition="bottom"
 				:paginationActiveColor="variant_color"
 				paginationColor="#A9A9A9"
@@ -50,7 +50,7 @@ class="m-t-0 m-b-0 row-title-jumbotron">
 									:src="ancho_pantalla < 700 ? title.crop_image_url : title.image_url">
 							        <b-spinner
 									slot="preloader"
-							        variant="link"></b-spinner>
+							        variant="primary"></b-spinner>
 									<div slot="error">Imagen no encontrada</div>
 								</vue-load-image>
 							</div>

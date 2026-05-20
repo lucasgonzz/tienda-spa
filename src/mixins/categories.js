@@ -33,6 +33,15 @@ export default {
 		selected_cepa() {
 			return this.$store.state.categories.selected_cepa
 		},
+		brands() {
+			return this.$store.state.categories.brands
+		},
+		selected_brand() {
+			return this.$store.state.categories.selected_brand
+		},
+		loading_brands() {
+			return this.$store.state.categories.loading_brands
+		},
 		is_from_search() {
 			return this.$store.state.categories.is_from_search
 		},

@@ -10,7 +10,7 @@
 		</span>
 		<span
 		class="d-lg-none">
-			<i class="icon-send"></i>
+			<i class="bi bi-send-fill"></i>
 		</span>
 		<b-badge
 		class="m-l-5"

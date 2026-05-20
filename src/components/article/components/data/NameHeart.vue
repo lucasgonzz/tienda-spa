@@ -22,9 +22,9 @@ export default {
 	methods: {
 		classHeart() {
 			if (this.article_to_show.is_favorite) {
-				return 'icon-heart text-danger'
+				return 'bi bi-heart-fill text-danger'
 			}
-			return 'icon-heart-o text-danger'
+			return 'bi bi-heart text-danger'
 		},
 		favorite() {
 			if (this.checkAuth()) {
@@ -67,7 +67,7 @@ export default {
 		margin-top: 5px
 		font-size: 1em
 		text-decoration: underline
-.icon-heart, .icon-heart-o 
+.bi-heart, .bi-heart-fill 
 	font-size: 1.7em
 	cursor: pointer
 	transition: all .1s

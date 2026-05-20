@@ -2,6 +2,15 @@
 
 $category_color_text: #333;
 
+:root {
+	--primary-color: #c5111d;
+	--secondary-color: #fe7802;
+	--text-color: #F2F2F2;
+	--hover-text-color: #FFF;
+	/* Stack tipográfico retail; el primer nombre carga desde Google Fonts en index.html */
+	--font-family-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
 // vantres
 // $green:    #0c49a2;
 // $blue: #333;
@@ -20,10 +29,10 @@ $category_color_text: #333;
 
 
 // Hb distribuciones
-$green:    #c5111d;
-$blue: #fe7802;
-$color_text: #F2F2F2;
-$hover_color_text: #FFF;
+// $green: #c5111d;
+// $blue: #fe7802;
+// $color_text: #F2F2F2;
+// $hover_color_text: #FFF;
 
 
 
@@ -121,3 +130,77 @@ $theme: ligth;
 
 @import 'node_modules/bootstrap/scss/bootstrap.scss';
 @import 'node_modules/bootstrap-vue/src/index.scss';
+
+/* Reasigna los colores a CSS variables para estilos dinámicos de la tienda. */
+$green: var(--primary-color);
+$blue: var(--secondary-color);
+$color_text: var(--text-color);
+$hover_color_text: var(--hover-text-color);
+
+/* 
+ * Sincroniza las clases visuales de Bootstrap con el color secundario dinámico.
+ * Se define después de importar Bootstrap para pisar los colores compilados.
+ */
+.text-primary,
+a.text-primary:hover,
+a.text-primary:focus {
+	color: var(--secondary-color) !important;
+}
+
+.bg-primary,
+.badge-primary {
+	background-color: var(--secondary-color) !important;
+}
+
+.border-primary {
+	border-color: var(--secondary-color) !important;
+}
+
+.btn-primary {
+	color: #fff !important;
+	background-color: var(--secondary-color) !important;
+	border-color: var(--secondary-color) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+	color: #fff !important;
+	background-color: color-mix(in srgb, var(--secondary-color) 90%, black 10%) !important;
+	border-color: color-mix(in srgb, var(--secondary-color) 90%, black 10%) !important;
+}
+
+.btn-outline-primary {
+	color: var(--secondary-color) !important;
+	border-color: var(--secondary-color) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+	color: #fff !important;
+	background-color: var(--secondary-color) !important;
+	border-color: var(--secondary-color) !important;
+}
+
+.btn-outline-primary.disabled,
+.btn-outline-primary:disabled {
+	color: color-mix(in srgb, var(--secondary-color) 45%, white 55%) !important;
+	background-color: transparent !important;
+	border-color: color-mix(in srgb, var(--secondary-color) 45%, white 55%) !important;
+}
+
+.alert-primary {
+	color: color-mix(in srgb, var(--secondary-color) 35%, black 65%) !important;
+	background-color: color-mix(in srgb, var(--secondary-color) 20%, white 80%) !important;
+	border-color: color-mix(in srgb, var(--secondary-color) 30%, white 70%) !important;
+}
+
+/*
+ * Fuerza que los loaders de imagen (vue-load-image + b-spinner)
+ * usen el color secundario configurable del comercio.
+ */
+.vue-load-image .spinner-border,
+.vue-load-image .spinner-grow {
+	color: var(--secondary-color) !important;
+}

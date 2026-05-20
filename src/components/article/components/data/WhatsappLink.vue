@@ -4,7 +4,7 @@
     target="_blank"
     :href="'https://api.whatsapp.com/send?phone='+commerce.phone">
     	<strong>
-			<i class="icon-whatsapp"></i>
+			<i class="bi bi-whatsapp"></i>
 			Cualquier duda consulta al instante
     	</strong>
 	</a>

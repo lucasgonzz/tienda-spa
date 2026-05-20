@@ -11,7 +11,7 @@
 			<p 
 			v-if="!questions.length"
 			class="text-with-icon">
-				<i class="icon-comment"></i>
+				<i class="bi bi-chat-dots"></i>
 				No has hecho preguntas
 			</p>
 			<div

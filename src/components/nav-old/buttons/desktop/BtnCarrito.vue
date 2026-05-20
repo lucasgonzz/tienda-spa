@@ -24,9 +24,9 @@ export default {
 		},
 		iconClass() {
 			if (this.vicibility) {
-				return 'icon-shopping-cart'
+				return 'bi bi-cart3-fill'
 			}
-			return 'icon-shopping-cart-o'
+			return 'bi bi-cart3'
 		}
 	}
 }

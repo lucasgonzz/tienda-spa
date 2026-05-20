@@ -12,7 +12,7 @@
                 </b-nav-item>
                 <b-nav-item 
                 @click="install()">
-                    <i class="icon-download"></i>
+                    <i class="bi bi-download"></i>
                     Instalar App
                 </b-nav-item>
                 <div
@@ -38,7 +38,7 @@
                     <!-- <b-nav-item 
                     @click="home()"
                     :class="active('Cupons')">
-                        <i class="icon-cupon"></i>
+                        <i class="bi bi-ticket-perforated"></i>
                         Cupones
                     </b-nav-item> -->
                     <b-nav-item 
@@ -51,26 +51,26 @@
                 <b-nav-item 
                 v-if="workdays.length"
                 v-b-modal="'workdays'">
-                    <i class="icon-clock"></i>
+                    <i class="bi bi-clock"></i>
                     Horarios
                 </b-nav-item>
                 <b-nav-item 
                 v-if="commerce.addresses && commerce.addresses.length"
                 :to="{name: 'Location'}"
                 :class="active('Location')">
-                    <i class="icon-location"></i>
+                    <i class="bi bi-geo-alt"></i>
                     Nuestro local
                 </b-nav-item>
                 <b-nav-item 
                 :to="{name: 'Help'}"
                 :class="active('Help')">
-                    <i class="icon-headphone"></i>
+                    <i class="bi bi-headphones"></i>
                     Ayuda
                 </b-nav-item>
                 <b-nav-item 
                 v-b-modal="'informacion-legal'"
                 :class="active('TerminosCondiciones')">
-                    <i class="icon-info-o"></i>
+                    <i class="bi bi-info-circle"></i>
                     Informacion legal
                 </b-nav-item>
             </div>

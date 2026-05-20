@@ -34,7 +34,7 @@
 				<p 
 				v-else
 				class="text-with-icon">
-					<i class="icon-bag-o"></i>
+					<i class="bi bi-bag"></i>
 					No tienes ninguna compra
 				</p>
 			</div>
