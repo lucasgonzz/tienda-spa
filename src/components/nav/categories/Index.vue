@@ -111,6 +111,8 @@ export default {
 		categories_sidebar_visibility(new_val) {
 			if (new_val) {
 				this.disableScroll()
+			} else {
+				this.enableScroll()
 			}
 		},
 	},

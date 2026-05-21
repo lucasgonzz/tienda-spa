@@ -2,9 +2,7 @@
 <b-row
 v-if="selected_category || selected_sub_category">
 	<b-col
-	cols="12"
-	lg="10"
-	xl="8">
+	cols="12">
 		<div
 		class="cont-order-by-btn-filter">
 			<div

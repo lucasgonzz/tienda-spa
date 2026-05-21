@@ -52,6 +52,8 @@ export default {
 	    cepas_sidebar_visibility(new_val) {
 	        if (new_val) {
 	            this.disableScroll()
+	        } else {
+	            this.enableScroll()
 	        }
 	    }
 	},

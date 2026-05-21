@@ -21,6 +21,11 @@
 		<footer-nav></footer-nav>
 		
 		<mobile></mobile>
+
+		<!-- Sidebars fuera del footer y del menú móvil para evitar display:none y anidamiento al scrollear -->
+		<nav-categories></nav-categories>
+		<nav-bodegas></nav-bodegas>
+		<nav-cepas></nav-cepas>
 	</div>
 </template>
 <script>
@@ -49,7 +54,10 @@ export default {
 		InfoCompraSegura: () => import('@/components/nav/InfoCompraSegura'),
 		FooterNav: () => import('@/components/nav/footer/Index'),
 		Buscador: () => import('@/components/nav/buscador/Index'),			
-		Mobile: () => import('@/components/nav/Mobile'),			
+		Mobile: () => import('@/components/nav/Mobile'),
+		NavCategories: () => import('@/components/nav/categories/Index'),
+		NavBodegas: () => import('@/components/nav/bodegas/Index'),
+		NavCepas: () => import('@/components/nav/cepas/Index'),
 	},
 	computed: {
         show_nav() {

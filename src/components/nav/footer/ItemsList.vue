@@ -12,14 +12,11 @@
 		class="item">
 			<div
 			@click="showCategories"
-			v-b-toggle.cont-categories
 			class="cont-item">
 				<span class="item-text">
 					Productos	
 				</span>
 			</div>
-			<categories
-			:show="show"></categories>
 		</div>	
 
 		<div 
@@ -46,13 +43,11 @@
 		class="item">
 			<div
 			@click="show_bodegas"
-			v-b-toggle.cont-bodegas
 			class="cont-item">
 				<span class="item-text">
 					Bodegas
 				</span>
 			</div>
-			<bodegas></bodegas>
 		</div>	
 
 		<div
@@ -60,13 +55,11 @@
 		class="item">
 			<div
 			@click="show_cepas"
-			v-b-toggle.cont-cepas
 			class="cont-item">
 				<span class="item-text">
 					Cepas
 				</span>
 			</div>
-			<cepas></cepas>
 		</div>	
 
 
@@ -119,28 +112,43 @@ import nav from '@/mixins/nav'
 import auth from '@/mixins/auth'
 export default {
 	mixins: [nav, auth],
-	components: {
-		Categories: () => import('@/components/nav/categories/Index'),
-		Bodegas: () => import('@/components/nav/bodegas/Index'),
-		Cepas: () => import('@/components/nav/cepas/Index'),
-	},
-	data() {
-		return {
-			show: false,
-		}
-	},
 	methods: {
+		/**
+		 * Abre o cierra el sidebar de categorías vía store (sin v-b-toggle).
+		 * Cierra otros paneles y el menú móvil al abrir.
+		 */
 		showCategories() {
 			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
 			this.$store.commit('auth/set_cepas_sidebar_visibility', false)
+			let will_open = !this.$store.state.auth.categories_sidebar_visibility
+			if (will_open) {
+				this.$store.commit('auth/setMobileSidebarVisibility', false)
+			}
+			this.$store.commit('auth/set_categories_sidebar_visibility', will_open)
 		},
+		/**
+		 * Abre o cierra el sidebar de bodegas vía store.
+		 */
 		show_bodegas() {
 			this.$store.commit('auth/set_categories_sidebar_visibility', false)
 			this.$store.commit('auth/set_cepas_sidebar_visibility', false)
+			let will_open = !this.$store.state.auth.bodegas_sidebar_visibility
+			if (will_open) {
+				this.$store.commit('auth/setMobileSidebarVisibility', false)
+			}
+			this.$store.commit('auth/set_bodegas_sidebar_visibility', will_open)
 		},
+		/**
+		 * Abre o cierra el sidebar de cepas vía store.
+		 */
 		show_cepas() {
 			this.$store.commit('auth/set_categories_sidebar_visibility', false)
 			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
+			let will_open = !this.$store.state.auth.cepas_sidebar_visibility
+			if (will_open) {
+				this.$store.commit('auth/setMobileSidebarVisibility', false)
+			}
+			this.$store.commit('auth/set_cepas_sidebar_visibility', will_open)
 		},
 		to_promociones_vinotecas() {
 			this.$router.push({name: 'PromocionesVinoteca'})
