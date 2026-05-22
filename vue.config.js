@@ -82,8 +82,8 @@ module.exports = {
         // name: "IndicaCoffeeGrow",
 
         // Fenix
-        // themeColor: "#1897ce",
-        // name: "Fenix",
+        themeColor: "#1897ce",
+        name: "Fenix",
 
         // Matias
         // themeColor: "#C0260A",
@@ -97,8 +97,8 @@ module.exports = {
         // name: "Golonorte",
 
         // Truvari
-        themeColor: "#EBEBEB",
-        name: "TruvariBebidas",
+        // themeColor: "#EBEBEB",
+        // name: "TruvariBebidas",
 
         // Pets
         // themeColor: "#C0260A",

@@ -234,8 +234,10 @@ export default {
                 )
                 || this.$route.name == 'PromocionesVinoteca'
             ) {
+                console.log('Llamando a los articulos')
                 return this.$store.dispatch('categories/getIndex')
             }
+            console.log('No se llamo a los articulos')
             return null
         },
         getCategory() {

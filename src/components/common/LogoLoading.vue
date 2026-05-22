@@ -3,6 +3,7 @@
 	v-if="loading"
 	class="container-logo">
 		<img 
+		v-if="commerce"
         :src="commerce.online_configuration && commerce.online_configuration.logo_url ? commerce.online_configuration.logo_url : commerce.image_url">
         
         <b-spinner 
