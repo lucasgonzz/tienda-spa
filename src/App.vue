@@ -199,28 +199,47 @@ export default {
             let is_valid_hex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color_string)
             return is_valid_hex ? color_string : fallback_color
         },
-        async callMethods() {
+        /**
+         * Carga inicial tras obtener el comercio: sesión, catálogo y artículos de home.
+         * getIndex no depende de categorías/marcas/bodegas/cepas; antes se encadenaba con await
+         * y en producción retrasaba la home ~50s.
+         *
+         * @returns {Promise<void>}
+         */
+        callMethods() {
             console.log('callMethods')
 
-            await this.$store.dispatch('auth/me')
+            /* Sesión en segundo plano; callAuthMethods reacciona al watcher de authenticated. */
+            this.$store.dispatch('auth/me')
 
             if (!this.data_loaded) {
 
                 this.data_loaded = true
-                
-                // await this.$store.dispatch('titles/getTitles')
+
                 this.$store.dispatch('titles/getTitles')
-                
-                await this.$store.dispatch('categories/getCategories')
-                await this.$store.dispatch('categories/getBrands')
-                await this.$store.dispatch('bodegas/getModels')
-                await this.$store.dispatch('cepas/getModels')
-                
+
+                /*
+                 | Últimos ingresados / promos vinoteca: pedir artículos de inmediato
+                 | (no esperar metadatos del menú lateral).
+                 */
                 this.getIndex()
-                this.getCategory()
 
-
-                // await this.$store.dispatch('platelets/getModels')
+                /*
+                 | Metadatos del catálogo en paralelo; getCategory los necesita para rutas
+                 | con categoría, bodega, cepa o marca en la URL.
+                 */
+                Promise.all([
+                    this.$store.dispatch('categories/getCategories'),
+                    this.$store.dispatch('categories/getBrands'),
+                    this.$store.dispatch('bodegas/getModels'),
+                    this.$store.dispatch('cepas/getModels'),
+                ])
+                .then(() => {
+                    this.getCategory()
+                })
+                .catch(err => {
+                    console.log(err)
+                })
 
                 this.$store.dispatch('payment_methods/getModels')
                 this.$store.dispatch('delivery_zones/getModels')

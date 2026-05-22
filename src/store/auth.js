@@ -105,8 +105,14 @@ export default {
 				console.log(err)
 			})
 		},
+		/**
+		 * Restaura la sesión Sanctum: cookie CSRF y luego consulta /api/user.
+		 * Debe devolver la promesa para que dispatch('auth/me') pueda encadenarse con .then().
+		 *
+		 * @returns {Promise<void>}
+		 */
 		me({ commit }) {
-			axios.get('/sanctum/csrf-cookie')
+			return axios.get('/sanctum/csrf-cookie')
 			.then(() => {
 				return axios.get('/api/user')
 				.then(res => {
@@ -118,11 +124,11 @@ export default {
 					commit('setUser', null)
 				})
 			})
-			// .catch(err => {
-			// 	commit('setLoadingLogin', false)
-			// 	commit('setAuthenticated', false)
-			// 	console.log(err)
-			// })
+			.catch(err => {
+				commit('setAuthenticated', false)
+				commit('setUser', null)
+				console.log(err)
+			})
 		},
 	}
 }
