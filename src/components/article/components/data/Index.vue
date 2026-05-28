@@ -27,6 +27,9 @@
 
 		<add-to-cart
 		:article="article_to_show"></add-to-cart>
+
+		<compartir
+		:article="article_to_show"></compartir>
 		
 		<whatsapp-link></whatsapp-link>
 	</div>
@@ -40,6 +43,7 @@ import Price from '@/components/article/components/data/Price'
 import Condition from '@/components/article/components/data/Condition'
 // import Notes from '@/components/article/components/data/Notes'
 import AddToCart from '@/components/article/components/data/add-to-cart/Index'
+import Compartir from '@/components/article/components/data/Compartir'
 import WhatsappLink from '@/components/article/components/data/WhatsappLink'
 
 import BtnLoader from '@/components/common/BtnLoader'
@@ -54,6 +58,7 @@ export default {
 		Condition,
 		// Notes,
 		AddToCart,
+		Compartir,
 		WhatsappLink,
 
 		BtnLoader,
