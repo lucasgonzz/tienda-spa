@@ -64,8 +64,4 @@ export default {
 	padding: 0 0 1em
 .cont-promociones-vinoteca
 	position: relative
-
-.promociones-vinoteca-list
-	.vhl-item
-		margin: 0 0 70px !important
 </style>

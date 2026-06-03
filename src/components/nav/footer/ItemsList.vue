@@ -20,6 +20,7 @@
 		</div>	
 
 		<div 
+		v-if="commerce.online_configuration.mostrar_catalogo"
 		class="item">
 			<router-link 
 			:to="{name: 'Catalogo'}">

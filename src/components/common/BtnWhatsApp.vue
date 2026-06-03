@@ -43,14 +43,26 @@ export default {
 	display: flex
 	justify-content: center
 	align-items: center
+	text-align: center
+	line-height: 1
 	transition: all .3s
 	z-index: 1000
-	i 
+	// Centra el icono dentro del círculo (anula offset global de .bi:before)
+	i
+		display: flex
+		justify-content: center
+		align-items: center
+		width: 100%
+		height: 100%
 		font-size: 25px
 		color: #FFF
+		line-height: 1
 		&::before
+			position: static
+			top: 0
 			margin: 0
 			padding: 0
+			line-height: 1
 .btn-whats-app-active
 	@media screen and (max-width: 992px)
 		transform: translateX(calc(100vw - 75px))

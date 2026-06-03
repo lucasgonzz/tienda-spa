@@ -347,6 +347,13 @@ export default {
 }
 </script>
 <style lang="sass">
+// Espaciado entre secciones de carrusel en home (Promociones, Destacados, Ofertas, Novedades)
+#articles-list
+	.featured-list
+		margin-bottom: 12px
+		.vhl-item
+			margin: 0 0 20px !important
+
 .paddings
 	padding: 0 0 1em
 .cont-featured

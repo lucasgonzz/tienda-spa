@@ -78,8 +78,4 @@ export default {
 	padding: 0 0 1em
 .cont-featured
 	position: relative
-
-.featured-list
-	.vhl-item
-		margin: 0 0 70px !important
 </style>
