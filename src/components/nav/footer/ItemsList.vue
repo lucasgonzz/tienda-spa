@@ -20,7 +20,7 @@
 		</div>	
 
 		<div 
-		v-if="commerce.online_configuration.mostrar_catalogo"
+		v-if="Number(commerce.online_configuration.mostrar_catalogo) == 1"
 		class="item">
 			<router-link 
 			:to="{name: 'Catalogo'}">
