@@ -65,11 +65,19 @@ export default {
         deferred_prompt() {
             return this.$store.state.install_btn.deferred_prompt
         },
+        /**
+         * Indica si la tienda debe mostrarse pausada según online_configuration.
+         * El API devuelve flags booleanos como string ("0" / "1"); "0" es truthy en JS.
+         *
+         * @returns {boolean}
+         */
         tienda_pausada() {
+            /* Bypass de desarrollo: ignora la pausa si existe la variable de entorno. */
             if (typeof process.env.VUE_APP_NO_PAUSAR_TIENDA_ONLINE != 'undefined') {
                 return false
             }
-            return this.commerce.online_configuration.pausar_tienda_online 
+            /* Solo pausar cuando el flag viene activo (1, "1" o true). */
+            return Number(this.commerce.online_configuration.pausar_tienda_online) == 1
         },
         _class() {
             let _class = 'plantilla-'+this.commerce.online_configuration.online_template.slug 
