@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="authenticated">
+	v-if="authenticated || puede_comprar_sin_login">
 		
 		<div
 		v-if="article && !article.precio_pausado && articlePriceEfectivo(article) && hasStock(article)" 
