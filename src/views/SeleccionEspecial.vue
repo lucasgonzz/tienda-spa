@@ -1,5 +1,8 @@
 <template>
 <div class="view">
+	<!-- Modal global de agregar al carrito (requerido por article-card / BtnMasInfo) -->
+	<add-to-cart-modal></add-to-cart-modal>
+
 	<b-row>
 		<b-col>
 			<h2
@@ -22,6 +25,7 @@
 export default {
 	components: {
 		ArticleCard: () => import('@/components/common/article-card/Index'),
+		AddToCartModal: () => import('@/components/common/add-to-cart-modal/Index'),
 	},
 	computed: {
 		title() {
