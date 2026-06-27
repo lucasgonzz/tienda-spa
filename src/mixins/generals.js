@@ -371,7 +371,19 @@ export default {
 			// 	return formated ? this.price(price) : price
 			// }
 		},
+		/**
+		 * Determina si el usuario puede ver precios.
+		 *
+		 * Si la tienda no requiere registro para comprar (register_to_buy = 0),
+		 * los precios son visibles para todos sin importar online_price_type.
+		 *
+		 * @returns {boolean}
+		 */
 		puede_ver_precios() {
+			/* Sin registro requerido: precios siempre visibles independientemente de online_price_type. */
+			if (!Number(this.commerce.online_configuration.register_to_buy)) {
+				return true
+			}
 			if (this.commerce.online_configuration.online_price_type.slug == 'only_registered' && !this.authenticated) {
 				// console.log('No se muestran percio porque esta en only_registered')
 				return false
