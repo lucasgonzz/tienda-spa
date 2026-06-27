@@ -1,12 +1,10 @@
 <template>
-	<b-button
-	block
-	variant="outline-success"
+	<span
 	class="compartir-btn m-b-15"
 	@click="compartir_por_whatsapp">
 		<i class="bi bi-whatsapp"></i>
 		Compartir
-	</b-button>
+	</span>
 </template>
 <script>
 export default {
@@ -57,7 +55,8 @@ export default {
 			/* Texto que verá el usuario al elegir el contacto en WhatsApp. */
 			let article_url = this.get_article_public_url()
 			let article_name = this.article.name ? this.article.name : 'este producto'
-			let message = 'Mirá este producto: ' + article_name + '\n' + article_url
+			let message = 'Mirá este producto: ' + article_name + '
+' + article_url
 			let encoded_message = encodeURIComponent(message)
 			let whatsapp_url = 'https://wa.me/?text=' + encoded_message
 			/* Misma estrategia que Thanks.vue: nueva pestaña o redirección si el popup falla. */
@@ -70,9 +69,14 @@ export default {
 }
 </script>
 <style scoped lang="sass">
-@import '@/sass/_custom'
 .compartir-btn
-	font-weight: 600
-	.bi-whatsapp
-		margin-right: 6px
-</style>
+	display: inline-flex
+	align-items: center
+	gap: 6px
+	cursor: pointer
+	color: #111111
+	font-size: 14px
+	font-weight: 500
+	user-select: none
+	&:hover
+		color: #333333
