@@ -3,7 +3,7 @@
 	class="cont-buttons m-t-10">
 		
 		<b-button
-		:class="authenticated ? 'btn-mas-info' : 'w-100'"
+		:class="(authenticated || puede_comprar_sin_login) ? 'btn-mas-info' : 'w-100'"
 		@click="toArticle(article)"
 		variant="primary">
 			<span
@@ -17,7 +17,7 @@
 		</b-button>
  		
  		<template
- 		v-if="authenticated">
+ 		v-if="authenticated || puede_comprar_sin_login">
 			<b-button
 			v-if="!is_item_in_cart(article)"
 			class="btn-add-to-cart"
