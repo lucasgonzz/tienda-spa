@@ -143,6 +143,15 @@ export default {
 		article_to_show() {
 			return this.$store.state.articles.article_to_show
 		},
+		/**
+		 * Indica si los usuarios pueden comprar sin necesidad de registrarse.
+		 * Cuando register_to_buy = 0, se muestran los controles de carrito a todos.
+		 *
+		 * @returns {boolean}
+		 */
+		puede_comprar_sin_login() {
+			return !Number(this.commerce.online_configuration.register_to_buy)
+		},
 		cart_articles() {
 			return this.$store.state.cart.cart.articles
 		},
