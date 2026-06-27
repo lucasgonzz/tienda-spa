@@ -55,8 +55,7 @@ export default {
 			/* Texto que verá el usuario al elegir el contacto en WhatsApp. */
 			let article_url = this.get_article_public_url()
 			let article_name = this.article.name ? this.article.name : 'este producto'
-			let message = 'Mirá este producto: ' + article_name + '
-' + article_url
+			let message = 'Mirá este producto: ' + article_name + '\n' + article_url
 			let encoded_message = encodeURIComponent(message)
 			let whatsapp_url = 'https://wa.me/?text=' + encoded_message
 			/* Misma estrategia que Thanks.vue: nueva pestaña o redirección si el popup falla. */
@@ -80,3 +79,4 @@ export default {
 	user-select: none
 	&:hover
 		color: #333333
+</style>
