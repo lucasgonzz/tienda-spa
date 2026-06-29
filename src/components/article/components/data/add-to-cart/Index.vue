@@ -202,7 +202,18 @@ export default {
 						console.log(err)
 						this.$toast.error('Error al guardar carrito')
 					})
-				} 
+
+				} else {
+					// Guest checkout: carrito local sin persistir en API hasta el paso de pago.
+					this.$bvModal.hide('add-to-cart-modal')
+					this.$store.commit('cart/set_added_item', this.article)
+					this.show_carrito_guardado()
+					setTimeout(() => {
+						this.hide_carrito_guardado()
+					}, 2000)
+					this.$store.commit('articles/setAmount', '')
+					this.$store.commit('articles/setNotes', '')
+				}
 			}
 		},
 		show_carrito_guardado() {
