@@ -30,10 +30,20 @@ export default {
 		saving: false,
 
 		added_item: null,
+		/** Visibilidad del popup flotante al agregar un ítem al carrito */
+		added_item_popup_visible: false,
 	},
 	mutations: {
 		set_added_item(state, value) {
 			state.added_item = value
+		},
+		/**
+		 * Muestra u oculta la tarjeta flotante del ítem agregado en la barra de navegación.
+		 * @param {object} state
+		 * @param {boolean} value
+		 */
+		set_added_item_popup_visible(state, value) {
+			state.added_item_popup_visible = value
 		},
 		setBuyer(state, value) {
 			state.buyer = value 

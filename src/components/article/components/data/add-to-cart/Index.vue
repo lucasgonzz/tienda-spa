@@ -196,10 +196,7 @@ export default {
 						if (buy_now) {
 							this.$router.push({name: 'Payment'})
 						} else {
-							this.show_carrito_guardado()
-							setTimeout(() => {
-								this.hide_carrito_guardado()
-							}, 2000)
+							this.$store.commit('cart/set_added_item_popup_visible', true)
 						}
 
 
@@ -217,20 +214,11 @@ export default {
 					// Guest checkout: carrito local sin persistir en API hasta el paso de pago.
 					this.$bvModal.hide('add-to-cart-modal')
 					this.$store.commit('cart/set_added_item', this.article)
-					this.show_carrito_guardado()
-					setTimeout(() => {
-						this.hide_carrito_guardado()
-					}, 2000)
+					this.$store.commit('cart/set_added_item_popup_visible', true)
 					this.$store.commit('articles/setAmount', '')
 					this.$store.commit('articles/setNotes', '')
 				}
 			}
-		},
-		show_carrito_guardado() {
-			document.getElementById('added-article-info').classList.add('added-article-info-active')
-		},
-		hide_carrito_guardado() {
-			document.getElementById('added-article-info').classList.remove('added-article-info-active')
 		},
 		addToCartCookie() {
 			localStorage.cart = JSON.stringify(this.cart) 

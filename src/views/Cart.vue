@@ -61,7 +61,8 @@
 				<b-col
 				v-if="cant_cart_items > 0"
 				cols="12 d-none d-lg-block"
-				lg="4">
+				lg="4"
+				class="cart-page__summary-col">
 					<div class="cart-page__card cart-page__card--summary">
 						<p
 						class="cart-page__section-label">
@@ -172,12 +173,17 @@ export default {
   min-height: 200px;
 }
 
-.cart-page__card--summary {
-  position: relative;
+.cart-page__summary-col {
+  @media (min-width: 992px) {
+    align-self: flex-start;
+  }
+}
 
+.cart-page__card--summary {
   @media (min-width: 992px) {
     position: sticky;
-    top: 100px;
+    top: 110px;
+    z-index: 2;
   }
 }
 
@@ -217,22 +223,4 @@ export default {
   font-weight: 600;
 }
 
-/* Botones del pie del carrito dentro del resumen. */
-.cart-page ::v-deep .btn-pay {
-  font-weight: 600;
-  border-radius: 10px;
-  padding-top: 0.65rem;
-  padding-bottom: 0.65rem;
-}
-
-.cart-page ::v-deep .total {
-  font-size: 1.35rem !important;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 1rem;
-}
-
-.cart-page ::v-deep .total strong {
-  font-weight: 700;
-}
 </style>

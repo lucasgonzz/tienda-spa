@@ -140,15 +140,20 @@
 						Enviando WhatsApp en <strong>{{ seconds_left }}</strong> segundos…
 					</b-button>
 
-					<b-button
+					<div
 					v-else
-					:to="{ name: 'Home' }"
-					block
-					size="lg"
-					variant="primary"
-					class="thanks-page__btn-home">
-						Volver al inicio
-					</b-button>
+					class="thanks-page__actions-home">
+						<b-button
+						:to="{ name: 'Home' }"
+						size="lg"
+						variant="primary"
+						class="thanks-page__btn-home">
+							<i
+							class="bi bi-house-door thanks-page__btn-icon"
+							aria-hidden="true"></i>
+							Volver al inicio
+						</b-button>
+					</div>
 				</div>
 			</b-col>
 		</b-row>
@@ -605,6 +610,13 @@ export default {
   gap: 0.65rem;
 }
 
+/* Contenedor del CTA principal: centrado respecto al resumen del pedido */
+.thanks-page__actions-home {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.35rem;
+}
+
 .thanks-page__btn-icon {
   margin-right: 0.35rem;
 }
@@ -629,7 +641,31 @@ export default {
 }
 
 .thanks-page__btn-home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: auto;
+  min-width: 11.5rem;
+  padding: 0.65rem 1.85rem;
   font-weight: 600;
-  border-radius: 10px;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  border-radius: 999px;
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover,
+  &:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  }
 }
 </style>
