@@ -59,17 +59,58 @@ export default {
 			}
 		},
 		ready() {
-			if (this.check()) {
+			// Flujo guest: identificar comprador antes de crear el pedido
+			if (!this.authenticated && this.puede_comprar_sin_login) {
+				const buyer = this.$store.state.cart.buyer
+
+				if (!buyer.name || buyer.name.trim() === '') {
+					this.$toast.error('Ingrese su nombre y apellido')
+					return
+				}
+				if (!buyer.email || buyer.email.trim() === '') {
+					this.$toast.error('Ingrese su correo electronico')
+					return
+				}
+				if (!buyer.phone || buyer.phone.trim() === '') {
+					this.$toast.error('Ingrese su numero de telefono')
+					return
+				}
+				if (this.cart.deliver == null) {
+					this.$toast.error('Seleccione metodo de entrega')
+					return
+				}
+				if (!this.cart_payment_method && this.payment_methods.length) {
+					this.$toast.error('Seleccione un metodo de pago')
+					return
+				}
+
 				this.$store.commit('auth/setLoading', true)
 				this.$store.commit('auth/setMessage', 'Enviando pedido')
-				this.$store.dispatch('cart/save')
-				.then(() => {
+
+				this.$api.post('buyer', { ...buyer, commerce_id: this.commerce.id })
+				.then(res => {
+					this.$store.commit('auth/setUser', res.data.model)
 					this.makeOrder()
 				})
 				.catch(err => {
 					this.$store.commit('auth/setLoading', false)
-
+					this.$store.commit('auth/setMessage', '')
+					this.$toast.error('Hubo un error al identificar el comprador')
 				})
+
+			} else {
+				// Flujo autenticado: comportamiento original sin cambios
+				if (this.check()) {
+					this.$store.commit('auth/setLoading', true)
+					this.$store.commit('auth/setMessage', 'Enviando pedido')
+					this.$store.dispatch('cart/save')
+					.then(() => {
+						this.makeOrder()
+					})
+					.catch(err => {
+						this.$store.commit('auth/setLoading', false)
+					})
+				}
 			}
 		},
 		check() {
@@ -82,16 +123,12 @@ export default {
 				return false
 			}
 			if (
-				this.cart.deliver 
+				this.cart.deliver
+				&& this.user
 				&& (
-					(
-						this.user.comercio_city_client
-						&& this.user.comercio_city_client.address == ''
-					)
-					&& (
-						this.user.address == ''
-					)
-				) 
+					(this.user.comercio_city_client && this.user.comercio_city_client.address == '')
+					&& (this.user.address == '')
+				)
 			) {
 				this.$toast.error('Indique una direccion para la entrega del pedido')
 				return false
