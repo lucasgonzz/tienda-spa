@@ -233,6 +233,13 @@ export default {
 							if (cart_id) {
 								this.$api.delete('carts/' + cart_id).catch(() => {})
 							}
+
+							// Guest checkout: destruir sesion del buyer para que la proxima visita sea anonima
+							if (this.puede_comprar_sin_login) {
+								this.$store.commit('auth/setAuthenticated', false)
+								this.$store.commit('auth/setUser', null)
+								this.$api.post('buyer/logout').catch(function() {})
+							}
 						}
 					})
 					.catch(err => {
