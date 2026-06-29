@@ -1,12 +1,11 @@
 <template>
-	<a 
-	class="link-whatsapp w-100"
-    target="_blank"
-    :href="'https://api.whatsapp.com/send?phone='+commerce.phone">
-    	<strong>
-			<i class="bi bi-whatsapp"></i>
-			Cualquier duda consulta al instante
-    	</strong>
+	<a
+	class="article-action-link"
+	target="_blank"
+	rel="noopener noreferrer"
+	:href="'https://api.whatsapp.com/send?phone=' + commerce.phone">
+		<i class="bi bi-whatsapp" aria-hidden="true"></i>
+		<span>Cualquier duda consulta al instante</span>
 	</a>
 </template>
 <script>
@@ -15,11 +14,5 @@ export default {
 }
 </script>
 <style scoped lang="sass">
-@import '@/sass/_custom'
-.link-whatsapp
-	text-align: left !important
-	display: block
-	color: #3FBB6D	
-	&:hover 
-		font-weight: bold
+@import '@/sass/_article_action_link'
 </style>

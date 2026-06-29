@@ -70,13 +70,23 @@ export default {
 		order() {
 			return this.$store.state.orders.order
 		},
+		/**
+		 * Total del carrito: valor del servidor si existe; si no, suma local por pivot (guest checkout).
+		 */
 		total() {
-			return this.$store.state.cart.cart.total
-			// let total = 0
-			// this.articles.forEach(article => {
-			// 	total += article.pivot.price * Number(article.pivot.amount)
-			// })
-			// return total
+			let cart_total = this.$store.state.cart.cart.total
+			if (cart_total != null && cart_total !== undefined) {
+				return cart_total
+			}
+			// Calcular localmente para guest (cart no persistido aun)
+			let total = 0
+			let articles = this.$store.state.cart.cart.articles || []
+			articles.forEach(function(article) {
+				if (article.pivot && article.pivot.price != null && article.pivot.price !== undefined) {
+					total += Number(article.pivot.price) * Number(article.pivot.amount)
+				}
+			})
+			return total
 		},
 		total_with_payment_method_discount() {
 			if (this.cart_payment_method && this.cart_payment_method.discount) {

@@ -19,11 +19,22 @@
 				v-if="!is_item_in_cart(article)"
 				@click="agregar_al_carrito"
 				:disabled="amount == '' || amount == 0"
-				variant="outline-primary">
-					<btn-loader
-					text="Agregar"
-					icon="cart"
-					:loader="saving"></btn-loader>
+				variant="outline-primary"
+				class="add-to-cart__btn-add"
+				v-b-tooltip.hover="{ title: 'Agregar al carrito', boundary: 'viewport' }"
+				aria-label="Agregar al carrito">
+					<span
+					v-if="saving"
+					class="spinner-border spinner-border-sm"
+					role="status"
+					aria-hidden="true"></span>
+					<span
+					v-else
+					class="add-to-cart__btn-add-icons"
+					aria-hidden="true">
+						<i class="bi bi-cart"></i>
+						<i class="bi bi-plus-lg add-to-cart__btn-add-plus"></i>
+					</span>
 				</b-button>
 				
 				<div
@@ -58,7 +69,6 @@
 	</div>
 </template>
 <script>
-import BtnLoader from '@/components/common/BtnLoader'
 import articles from '@/mixins/articles'
 export default {
 	name: 'AddToCart',
@@ -70,7 +80,6 @@ export default {
 		Amount: () => import('@/components/article/components/data/add-to-cart/Amount'),
 		AgotadoInfo: () => import('@/components/article/components/data/add-to-cart/AgotadoInfo'),
 		Notes: () => import('@/components/article/components/data/add-to-cart/Notes'),
-		BtnLoader,
 	},
 	computed: {
 		/**
@@ -168,7 +177,8 @@ export default {
 				this.article.pivot = {
 					amount: amount,
 					notes: this.notes,
-					variant_id: this.selected_article_variant ? this.selected_article_variant.id : null
+					variant_id: this.selected_article_variant ? this.selected_article_variant.id : null,
+					price: this.articlePriceEfectivo(this.article, false)
 				}
 				this.$store.commit('cart/addItem', this.article)
 				if (this.authenticated) {
@@ -282,18 +292,53 @@ export default {
 
 	.cont-input-btn-add
 		width: 100%
-		display: flex 
+		display: flex
 		flex-direction: row
-		justify-content: space-between
-		input  
-			width: 25% !important
+		align-items: stretch
+		gap: 0.5rem
 
-		button	 
-			width: 70%
-			margin-left: 10px
+		::v-deep .article-amount
+			flex: 1
+			min-width: 0
 
-	.add-to-cart__btn-group
-		width: 100%
+		::v-deep .article-amount input
+			width: 100% !important
+			height: 100%
+
+		.add-to-cart__btn-add
+			flex-shrink: 0
+			width: auto !important
+			margin-left: 0
+			padding: 0 0.7rem
+			display: inline-flex
+			align-items: center
+			justify-content: center
+			align-self: stretch
+
+		.add-to-cart__btn-add-icons
+			position: relative
+			display: inline-flex
+			align-items: center
+			justify-content: center
+			width: 1.35rem
+			height: 1.35rem
+			font-size: 1.15rem
+			line-height: 1
+
+		.add-to-cart__btn-add-plus
+			position: absolute
+			right: -0.35rem
+			bottom: -0.2rem
+			font-size: 0.62rem
+			font-weight: 700
+			line-height: 1
+			padding: 0.05rem
+			border-radius: 50%
+			background: #fff
+
+		.add-to-cart__btn-group
+			flex: 1
+			min-width: 0
 
 	.add-to-cart__btn-actualizar--disabled
 		opacity: 0.65

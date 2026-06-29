@@ -1,0 +1,45 @@
+/* Botones secundarios de la ficha de artículo (compartir / WhatsApp). */
+.article-action-link
+	display: flex
+	align-items: center
+	justify-content: flex-start
+	gap: 0.55rem
+	width: 100%
+	margin: 0
+	padding: 0.65rem 0.85rem
+	border-radius: 8px
+	border: 1px solid color-mix(in srgb, var(--secondary-color) 22%, #ddd)
+	background: color-mix(in srgb, var(--secondary-color) 5%, #fff)
+	color: #334155
+	font-family: var(--font-family-sans, sans-serif)
+	font-size: 0.9rem
+	font-weight: 500
+	line-height: 1.35
+	text-align: left
+	text-decoration: none
+	cursor: pointer
+	user-select: none
+	-webkit-appearance: none
+	appearance: none
+	box-sizing: border-box
+	transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease
+
+	.bi
+		font-size: 1.15rem
+		color: var(--secondary-color)
+		flex-shrink: 0
+
+	span
+		text-align: left
+
+	&:hover,
+	&:focus
+		background: color-mix(in srgb, var(--secondary-color) 12%, #fff)
+		border-color: color-mix(in srgb, var(--secondary-color) 38%, #ddd)
+		color: var(--primary-color)
+		text-decoration: none
+		outline: none
+
+	&:focus-visible
+		outline: 2px solid var(--secondary-color)
+		outline-offset: 2px

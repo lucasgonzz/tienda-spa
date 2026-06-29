@@ -1,132 +1,22 @@
+/*
+ * Color de texto en ítems de sidebar; valor aplicado en runtime desde online_configuration.
+ */
+$category_color_text: var(--category-color-text);
 
-
-$category_color_text: #333;
-
+/*
+ * Variables CSS de tema del comercio.
+ * Los valores se aplican al cargar commerce.online_configuration desde el API
+ * (ver helpers/online_configuration_theme.js).
+ */
 :root {
-	--primary-color: #c5111d;
-	--secondary-color: #fe7802;
-	--text-color: #F2F2F2;
-	--hover-text-color: #FFF;
-	/* Stack tipográfico retail; el primer nombre carga desde Google Fonts en index.html */
-	--font-family-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-// vantres
-// $green:    #0c49a2;
-// $blue: #333;
-// $color_text: #FFF;
-// $hover_color_text: #FFF;
-// $category_color_text: #333;
-
-
-
-// ferretotal
-// $green:    #C7C7C7;
-// $blue: #b80014;
-// $color_text: #333;
-// $hover_color_text: #333;
-
-
-
-// Hb distribuciones
-// $green: #c5111d;
-// $blue: #fe7802;
-// $color_text: #F2F2F2;
-// $hover_color_text: #FFF;
-
-
-
-// truvari
-// $green:    #EBEBEB;
-// $blue: #333;
-// $color_text: #333;
-// $hover_color_text: #333;
-
-
-// Golonorte
-// $green:    #00237C;
-// $blue: #00237C;
-// $color_text: #FFF;
-// $hover_color_text: #FFF;
-
-
-// Pinocho
-// $green:    #f9b234;
-// $color_text: #333;
-// $hover_color_text: #333;
-
-// Fisuhh
-// $green:    #B68EFF;
-
-// Calzados Marrox
-// $green:    #C8C8C8;
-// $blue: #AC1E5A;
-// $color_text: #333;
-// $hover_color_text: #333;
-
-// Inidca
-// $green:    #209fc8;
-
-// Cali
-// $green:    #D8CDB8;
-// $blue: #D8CDB8;
-// $color_text: #333;
-// $hover_color_text: #333;
-
-
-
-// Boxes
-// $green:    #3A7AD2;
-// $blue: #21559D;
-// $color_text: #fff;
-// $hover_color_text: #fff;
-
-
-// Pets
-// $green:    #C0260A;
-// $blue: #333;
-// $color_text: #fff;
-// $hover_color_text: #fff;
-
-
-// Matias
-// $green:    #C0260A;
-// $blue: #333;
-// $color_text: #fff;
-// $hover_color_text: #fff;
-
-
-// Fenix
-// $green:    #1897ce;
-// $blue: #feb300;
-// $color_text: #fff;
-// $hover_color_text: #fff;
-
-// Refrigeracion colman
-// $green:    #4987ba;
-// $color_text: rgba(255,255,255,.9);
-// $hover_color_text: rgba(255,255,255,.9);
-
-// NebulaStore
-// $green:    #364f99;
-
-// Kas aberturas 
-// $green:    #f9b234;
-// $color_text: #333;
-// $hover_color_text: #333;
-
-// $theme: dark;
+/*
+ * Tema visual compilado (dark / ligth).
+ * Nota: sigue siendo una variable SASS de compilación; no proviene del API.
+ */
 $theme: ligth;
-
-// $color_text: #333;
-// $color_text: rgba(255,255,255,.9);
-
-// $hover_color_text: #333;
-// $hover_color_text: rgba(255,255,255,.9);
-
-// $blue: #007bff;
-// $blue: #28a745;
-// $blue: #6c757d;
 
 @import 'node_modules/bootstrap/scss/bootstrap.scss';
 @import 'node_modules/bootstrap-vue/src/index.scss';

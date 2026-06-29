@@ -1,10 +1,11 @@
 <template>
-	<span
-	class="compartir-btn m-b-15"
+	<button
+	type="button"
+	class="article-action-link"
 	@click="compartir_por_whatsapp">
-		<i class="bi bi-whatsapp"></i>
-		Compartir
-	</span>
+		<i class="bi bi-whatsapp" aria-hidden="true"></i>
+		<span>Compartir</span>
+	</button>
 </template>
 <script>
 export default {
@@ -68,15 +69,5 @@ export default {
 }
 </script>
 <style scoped lang="sass">
-.compartir-btn
-	display: inline-flex
-	align-items: center
-	gap: 6px
-	cursor: pointer
-	color: #111111
-	font-size: 14px
-	font-weight: 500
-	user-select: none
-	&:hover
-		color: #333333
+@import '@/sass/_article_action_link'
 </style>

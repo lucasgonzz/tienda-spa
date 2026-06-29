@@ -137,12 +137,15 @@ export default {
             }, 20000)
         },
         get_commerce() {
+            /* Si main.js ya cargó el comercio, solo continúa el flujo inicial. */
+            if (this.commerce) {
+                this.callMethods()
+                return
+            }
 
             this.$store.commit('auth/setLoading', true)
             this.$store.dispatch('commerce/getCommerce')
             .then(() => {
-                /* Aplica los colores configurados del comercio en variables CSS globales. */
-                this.set_online_configuration_colors()
                 this.$store.commit('auth/setLoading', false)
                 this.callMethods()
             })
@@ -160,52 +163,6 @@ export default {
             window.addEventListener("appinstalled", () => {
                 this.$store.commit('install_btn/setDeferredPrompt', null)
             });
-        },
-        /**
-         * Aplica la paleta de colores de online_configuration a nivel global.
-         *
-         * @returns {void}
-         */
-        set_online_configuration_colors() {
-            /* Obtiene la configuración online para evitar repetir accesos anidados. */
-            let online_configuration = this.commerce && this.commerce.online_configuration
-            if (!online_configuration) {
-                return
-            }
-
-            /* Define los valores por defecto para mantener compatibilidad hacia atrás. */
-            let default_colors = {
-                primary_color: '#c5111d',
-                secondary_color: '#fe7802',
-                text_color: '#F2F2F2',
-                hover_text_color: '#FFF',
-            }
-
-            /* Normaliza y valida cada color para evitar valores inválidos en CSS. */
-            let primary_color = this.normalize_hex_color(online_configuration.primary_color, default_colors.primary_color)
-            let secondary_color = this.normalize_hex_color(online_configuration.secondary_color, default_colors.secondary_color)
-            let text_color = this.normalize_hex_color(online_configuration.text_color, default_colors.text_color)
-            let hover_text_color = this.normalize_hex_color(online_configuration.hover_text_color, default_colors.hover_text_color)
-
-            /* Publica los colores como variables CSS consumidas por SASS/components. */
-            document.documentElement.style.setProperty('--primary-color', primary_color)
-            document.documentElement.style.setProperty('--secondary-color', secondary_color)
-            document.documentElement.style.setProperty('--text-color', text_color)
-            document.documentElement.style.setProperty('--hover-text-color', hover_text_color)
-        },
-        /**
-         * Devuelve un color hexadecimal válido o un fallback.
-         *
-         * @param {string|null|undefined} color_value
-         * @param {string} fallback_color
-         * @returns {string}
-         */
-        normalize_hex_color(color_value, fallback_color) {
-            /* Limpia espacios para validar correctamente entradas del formulario. */
-            let color_string = typeof color_value == 'string' ? color_value.trim() : ''
-            /* Acepta formato #RGB o #RRGGBB para mantener flexibilidad en la configuración. */
-            let is_valid_hex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color_string)
-            return is_valid_hex ? color_string : fallback_color
         },
         /**
          * Carga inicial tras obtener el comercio: sesión, catálogo y artículos de home.

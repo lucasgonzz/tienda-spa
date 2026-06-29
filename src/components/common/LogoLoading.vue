@@ -1,62 +1,205 @@
 <template>
-	<div
-	v-if="loading"
-	class="container-logo">
-		<img 
-		v-if="commerce"
-        :src="commerce.online_configuration && commerce.online_configuration.logo_url ? commerce.online_configuration.logo_url : commerce.image_url">
-        
-        <b-spinner 
-        v-if="!there_is_update"
-        variant="primary"></b-spinner>
-		<b-progress 
-		v-else
-		variant="primary" :value="progress" :max="100" show-progress animated></b-progress>
+	<!-- Transición de entrada/salida del overlay global de carga -->
+	<transition name="logo-loading-fade">
+		<div
+			v-if="loading"
+			class="logo-loading-overlay"
+			role="status"
+			aria-live="polite"
+			aria-busy="true"
+		>
+			<!-- Panel central: indicador + mensaje opcional -->
+			<div class="logo-loading-panel">
+				<!-- Barra de progreso durante actualización de la PWA -->
+				<div
+					v-if="there_is_update"
+					class="logo-loading-progress"
+				>
+					<div class="logo-loading-progress-track">
+						<div
+							class="logo-loading-progress-bar"
+							:style="{ width: progress + '%' }"
+						></div>
+					</div>
+					<span class="logo-loading-progress-value">{{ progress }}%</span>
+				</div>
 
-        <p>
-        	{{ message }}
-        </p>
-	</div> 
+				<!-- Spinner circular para operaciones habituales de la API -->
+				<div
+					v-else
+					class="logo-loading-spinner"
+					aria-hidden="true"
+				>
+					<span class="logo-loading-spinner-ring"></span>
+					<span class="logo-loading-spinner-ring logo-loading-spinner-ring--delayed"></span>
+				</div>
+
+				<!-- Texto descriptivo enviado desde el store (auth/message) -->
+				<p
+					v-if="message != ''"
+					class="logo-loading-message"
+				>{{ message }}</p>
+			</div>
+		</div>
+	</transition>
 </template>
+
 <script>
 import update_app from '@/mixins/update_app'
+
+/**
+ * Overlay global de carga: lee auth.loading y auth.message del store.
+ * Durante actualización de la app (mixin update_app) muestra barra de progreso.
+ */
 export default {
+	name: 'LogoLoading',
 	mixins: [update_app],
 	computed: {
+		/**
+		 * Indica si debe mostrarse el overlay (estado global de carga).
+		 * @returns {boolean}
+		 */
 		loading() {
 			return this.$store.state.auth.loading
 		},
+		/**
+		 * Mensaje descriptivo de la operación en curso.
+		 * @returns {string}
+		 */
 		message() {
 			return this.$store.state.auth.message
-		},
+		}
 	}
 }
 </script>
+
 <style scoped lang="sass">
 @import '@/sass/_custom'
-.container-logo
-	@if ($theme == dark) 
-		background: rgba(0, 0, 0, 9)
-	@else if ($theme == ligth) 
-		background: #FFF
+
+// Duración de animaciones del overlay y del spinner
+$logo_loading_duration: 0.35s
+$logo_loading_spinner_size: 52px
+
+// Entrada y salida del overlay completo
+.logo-loading-fade-enter-active,
+.logo-loading-fade-leave-active
+	transition: opacity $logo_loading_duration ease
+
+.logo-loading-fade-enter,
+.logo-loading-fade-leave-to
+	opacity: 0
+
+// Capa fija que cubre toda la vista con desenfoque del contenido detrás
+.logo-loading-overlay
 	position: fixed
-	width: 100vw
-	height: 100vh
-	z-index: 1000
+	inset: 0
+	z-index: 10000
+	display: flex
+	align-items: center
+	justify-content: center
+	padding: 1.5rem
+	background: rgba(255, 255, 255, 0.72)
+	backdrop-filter: blur(10px)
+	-webkit-backdrop-filter: blur(10px)
+	@if ($theme == dark)
+		background: rgba(30, 30, 30, 0.78)
+
+// Tarjeta flotante con sombra suave y borde sutil (color secundario del comercio)
+.logo-loading-panel
 	display: flex
 	flex-direction: column
-	justify-content: center
 	align-items: center
-	img 
-		width: 90px
-		margin-bottom: 8px
-	.spinner-border 
-		width: 25px
-		height: 25px
-	.progress 
-		width: 200px
-	p 
-		margin-top: 10px
-		font-weight: bold
-		color: $color_text
+	gap: 1.25rem
+	min-width: 220px
+	max-width: min(92vw, 360px)
+	padding: 2rem 2.25rem 1.85rem
+	border-radius: 16px
+	background: #fff
+	box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06)
+	border: 1px solid color-mix(in srgb, var(--secondary-color) 8%, transparent 92%)
+	@if ($theme == dark)
+		background: #2a2a2a
+		border-color: rgba(255, 255, 255, 0.06)
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35)
+
+// Contenedor del doble anillo animado
+.logo-loading-spinner
+	position: relative
+	width: $logo_loading_spinner_size
+	height: $logo_loading_spinner_size
+
+// Anillos concéntricos con giro alternado (color secundario dinámico del comercio)
+.logo-loading-spinner-ring
+	position: absolute
+	inset: 0
+	border-radius: 50%
+	border: 3px solid transparent
+	border-top-color: var(--secondary-color)
+	animation: logo-loading-spin 0.9s cubic-bezier(0.5, 0.15, 0.35, 0.85) infinite
+
+.logo-loading-spinner-ring--delayed
+	inset: 6px
+	border-top-color: color-mix(in srgb, var(--secondary-color) 35%, transparent 65%)
+	animation-duration: 1.2s
+	animation-direction: reverse
+
+@keyframes logo-loading-spin
+	to
+		transform: rotate(360deg)
+
+// Bloque de barra de progreso (actualización PWA)
+.logo-loading-progress
+	width: 100%
+	display: flex
+	flex-direction: column
+	align-items: stretch
+	gap: 0.5rem
+
+.logo-loading-progress-track
+	height: 6px
+	border-radius: 999px
+	background: color-mix(in srgb, var(--secondary-color) 12%, transparent 88%)
+	overflow: hidden
+
+.logo-loading-progress-bar
+	height: 100%
+	border-radius: 999px
+	background: linear-gradient(90deg, color-mix(in srgb, var(--secondary-color) 94%, black 6%), var(--secondary-color) 55%, color-mix(in srgb, var(--secondary-color) 92%, white 8%))
+	transition: width 0.45s ease
+	position: relative
+	&::after
+		content: ''
+		position: absolute
+		inset: 0
+		background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent)
+		animation: logo-loading-shimmer 1.4s ease-in-out infinite
+
+@keyframes logo-loading-shimmer
+	0%
+		transform: translateX(-100%)
+	100%
+		transform: translateX(100%)
+
+.logo-loading-progress-value
+	font-family: var(--font-family-sans)
+	font-size: 0.8rem
+	font-weight: 500
+	letter-spacing: 0.04em
+	color: color-mix(in srgb, var(--secondary-color) 85%, transparent 15%)
+	text-align: right
+	@if ($theme == dark)
+		color: color-mix(in srgb, var(--secondary-color) 88%, white 12%)
+
+// Mensaje de la operación (store auth/message)
+.logo-loading-message
+	margin: 0
+	font-family: var(--font-family-sans)
+	font-size: 0.95rem
+	font-weight: 400
+	line-height: 1.45
+	letter-spacing: 0.01em
+	color: #334155
+	text-align: center
+	@if ($theme == dark)
+		color: #e2e8f0
 </style>

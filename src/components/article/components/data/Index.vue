@@ -28,10 +28,12 @@
 		<add-to-cart
 		:article="article_to_show"></add-to-cart>
 
-		<compartir
-		:article="article_to_show"></compartir>
-		
-		<whatsapp-link></whatsapp-link>
+		<div class="article-data__actions">
+			<compartir
+			:article="article_to_show"></compartir>
+
+			<whatsapp-link></whatsapp-link>
+		</div>
 	</div>
 </b-skeleton-wrapper>
 </template>
@@ -76,5 +78,16 @@ export default {
 	border-radius: 10px
 	border: 2px solid #DDDDDD
 	padding: 25px
+	/* Anula text-align: center de #app en la tarjeta del producto. */
+	text-align: left
+
+/* Acciones secundarias del artículo (compartir y WhatsApp). */
+.article-data__actions
+	margin-top: 0.75rem
+	display: flex
+	flex-direction: column
+	align-items: stretch
+	gap: 0.5rem
+	width: 100%
 </style>
 

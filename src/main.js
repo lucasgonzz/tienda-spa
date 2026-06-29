@@ -124,8 +124,20 @@ Vue.mixin(generals)
 
 Vue.config.productionTip = false
 
-new Vue({
-	router,
-	store,
-	render: h => h(App)
-}).$mount('#app')
+/*
+|--------------------------------------------------------------------------
+| Bootstrap de la app: carga el comercio antes del primer render para aplicar
+| colores y variables de online_configuration sin valores hardcodeados en SASS.
+|--------------------------------------------------------------------------
+*/
+store.dispatch('commerce/getCommerce')
+.catch(err => {
+	console.log(err)
+})
+.finally(() => {
+	new Vue({
+		router,
+		store,
+		render: h => h(App)
+	}).$mount('#app')
+})
