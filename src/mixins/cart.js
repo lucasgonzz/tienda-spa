@@ -14,6 +14,38 @@ export default {
 			}
 			return cant_items
 		},
+		/**
+		 * Cantidad de líneas distintas en el carrito (artículos + promos vinoteca).
+		 * @returns {number}
+		 */
+		cart_unique_products_count() {
+			let cart = this.$store.state.cart.cart
+			if (!cart) {
+				return 0
+			}
+			let count = 0
+			if (cart.articles) {
+				count += cart.articles.length
+			}
+			if (cart.promociones_vinoteca) {
+				count += cart.promociones_vinoteca.length
+			}
+			return count
+		},
+		/**
+		 * Etiqueta singular/plural para productos distintos del resumen.
+		 * @returns {string}
+		 */
+		cart_products_label() {
+			return this.cart_unique_products_count === 1 ? 'producto' : 'productos'
+		},
+		/**
+		 * Etiqueta singular/plural para unidades totales del resumen.
+		 * @returns {string}
+		 */
+		cart_units_label() {
+			return this.cant_cart_items === 1 ? 'unidad' : 'unidades'
+		},
 		loading_last_cart() {
 			return this.$store.state.cart.loading_last_cart
 		},
@@ -189,14 +221,19 @@ export default {
 						this.$store.commit('auth/setLoading', false)
 						this.$store.commit('auth/setMessage', '')
 						if (!from_mercadopago) {
+							const cart_id = this.cart.id
 							this.$store.commit('cart/setCart', null)
 							this.$store.commit('cart/set_buyer_id', null)
 							this.$store.commit('cart/set_selected_buyer', null)
 
-							localStorage.cart = JSON.stringify(this.cart) 
+							localStorage.cart = JSON.stringify(this.cart)
 							this.$store.dispatch('orders/getCurrentOrder')
 							this.$router.push({name: 'Thanks'})
-						} 
+
+							if (cart_id) {
+								this.$api.delete('carts/' + cart_id).catch(() => {})
+							}
+						}
 					})
 					.catch(err => {
 						this.$store.commit('auth/setLoading', false)
