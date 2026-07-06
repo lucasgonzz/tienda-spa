@@ -121,13 +121,41 @@ export default {
 			if (item.status == 'nota_credito') return 'Imprimir nota de crédito'
 			return 'Imprimir'
 		},
-		openPdf(item) {
+		/**
+		 * Abre el PDF del movimiento: pagos y notas de crédito directo; ventas con token seguro.
+		 * Para ventas abre la pestaña de inmediato (gesto del usuario) y redirige al recibir el token.
+		 *
+		 * @param {Object} item Movimiento de cuenta corriente
+		 */
+		async openPdf(item) {
 			const base = this.empresaUrl()
 			if (!base) return
+
 			if (item.status == 'pago_from_client' || item.status == 'nota_credito') {
 				window.open(`${base}/current-acount/pdf/${item.id}`)
-			} else if (item.sale_id) {
-				window.open(`${base}/sale/pdf/${item.sale_id}/1/0/0`)
+				return
+			}
+
+			if (item.sale_id) {
+				// Pestaña en blanco síncrona para que el navegador no bloquee el popup tras el await.
+				const win = window.open('', '_blank')
+				try {
+					const token = await this.$store.dispatch('current_acount/getSalePdfToken', item.sale_id)
+					if (!token) {
+						if (win) win.close()
+						this.$toast.error('No se pudo generar el PDF')
+						return
+					}
+					const url = `${base}/sale/pdf/${item.sale_id}?origin=tienda&token=${encodeURIComponent(token)}`
+					if (win) {
+						win.location = url
+					} else {
+						window.open(url)
+					}
+				} catch (e) {
+					if (win) win.close()
+					this.$toast.error('No se pudo generar el PDF')
+				}
 			}
 		},
 	}

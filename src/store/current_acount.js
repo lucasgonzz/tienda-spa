@@ -57,5 +57,17 @@ export default {
 				console.log(err)
 			})
 		},
+		/**
+		 * Solicita a tienda-api un token de un solo uso para imprimir el PDF de una venta
+		 * de la cuenta corriente del buyer autenticado.
+		 *
+		 * @param {Object} context Contexto Vuex del módulo current_acount
+		 * @param {number} sale_id ID de la venta cuyo PDF se va a abrir
+		 * @returns {Promise<string>} Token de acceso temporal
+		 */
+		getSalePdfToken(context, sale_id) {
+			return axios.get(`/api/current-acount/sale-pdf-token/${sale_id}`)
+				.then(res => res.data.token)
+		},
 	}
 }
