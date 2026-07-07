@@ -12,7 +12,7 @@
 				<whats-app-info></whats-app-info>
 
 				<buyer
-				v-if="!commerce.online_configuration.register_to_buy"></buyer>	
+				v-if="!commerce.online_configuration.register_to_buy && !authenticated"></buyer>	
 				<deliver
 				v-else></deliver>
 

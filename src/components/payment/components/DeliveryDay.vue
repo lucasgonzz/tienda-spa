@@ -23,7 +23,8 @@ export default {
 	computed: {
 		fecha_entrega: {
 			get() {
-				let fecha_entrega = this.$store.state.cart.fecha_entrega
+				// Valor persistido dentro del carrito en el store
+				let fecha_entrega = this.$store.state.cart.cart.fecha_entrega
 				if (!fecha_entrega) {
 					return 0
 				}

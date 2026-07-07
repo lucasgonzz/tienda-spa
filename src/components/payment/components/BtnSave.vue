@@ -61,28 +61,15 @@ export default {
 		ready() {
 			// Flujo guest: identificar comprador antes de crear el pedido
 			if (!this.authenticated && this.puede_comprar_sin_login) {
-				const buyer = this.$store.state.cart.buyer
+				// Errores de validación acumulados del checkout invitado
+				const checkout_errors = this.collect_guest_checkout_errors()
+				if (checkout_errors.length) {
+					this.show_checkout_validation_errors(checkout_errors)
+					return
+				}
 
-				if (!buyer.name || buyer.name.trim() === '') {
-					this.$toast.error('Ingrese su nombre y apellido')
-					return
-				}
-				if (!buyer.email || buyer.email.trim() === '') {
-					this.$toast.error('Ingrese su correo electronico')
-					return
-				}
-				if (!buyer.phone || buyer.phone.trim() === '') {
-					this.$toast.error('Ingrese su numero de telefono')
-					return
-				}
-				if (this.cart.deliver == null) {
-					this.$toast.error('Seleccione metodo de entrega')
-					return
-				}
-				if (!this.cart_payment_method && this.payment_methods.length) {
-					this.$toast.error('Seleccione un metodo de pago')
-					return
-				}
+				// Datos del comprador invitado a enviar al endpoint de identificación
+				const buyer = this.$store.state.cart.buyer
 
 				this.$store.commit('auth/setLoading', true)
 				this.$store.commit('auth/setMessage', 'Enviando pedido')
@@ -100,27 +87,86 @@ export default {
 
 			} else {
 				// Flujo autenticado: comportamiento original sin cambios
-				if (this.check()) {
-					this.$store.commit('auth/setLoading', true)
-					this.$store.commit('auth/setMessage', 'Enviando pedido')
-					this.$store.dispatch('cart/save')
-					.then(() => {
-						this.makeOrder()
-					})
-					.catch(err => {
-						this.$store.commit('auth/setLoading', false)
-					})
+				const checkout_errors = this.collect_authenticated_checkout_errors()
+				if (checkout_errors.length) {
+					this.show_checkout_validation_errors(checkout_errors)
+					return
 				}
+				this.$store.commit('auth/setLoading', true)
+				this.$store.commit('auth/setMessage', 'Enviando pedido')
+				this.$store.dispatch('cart/save')
+				.then(() => {
+					this.makeOrder()
+				})
+				.catch(err => {
+					this.$store.commit('auth/setLoading', false)
+				})
 			}
 		},
-		check() {
+		/**
+		 * Indica si un valor de formulario está vacío o solo contiene espacios.
+		 *
+		 * @param {string} value
+		 * @returns {boolean}
+		 */
+		is_blank_field(value) {
+			return !value || String(value).trim() === ''
+		},
+		/**
+		 * Arma la lista de campos faltantes del checkout invitado.
+		 *
+		 * @returns {string[]}
+		 */
+		collect_guest_checkout_errors() {
+			const errors = []
+			const buyer = this.$store.state.cart.buyer
+
+			if (this.is_blank_field(buyer.name)) {
+				errors.push('Nombre y apellido')
+			}
+			if (this.is_blank_field(buyer.phone)) {
+				errors.push('Telefono')
+			}
+			if (this.is_blank_field(buyer.email)) {
+				errors.push('Correo electronico')
+			}
+			if (this.is_blank_field(buyer.ciudad)) {
+				errors.push('Ciudad')
+			}
+			if (
+				this.commerce.online_configuration.pedir_barrio_al_registrarse
+				&& this.is_blank_field(buyer.barrio)
+			) {
+				errors.push('Barrio')
+			}
+			if (this.is_blank_field(buyer.address)) {
+				errors.push('Direccion')
+			}
 			if (this.cart.deliver == null) {
-				this.$toast.error('Seleccione metodo de entrega')
-				return false
+				errors.push('Metodo de entrega')
 			}
 			if (!this.cart_payment_method && this.payment_methods.length) {
-				this.$toast.error('Seleccione un metodo de pago')
-				return false
+				errors.push('Metodo de pago')
+			}
+			if (this.must_select_delivery_day() && !this.has_selected_delivery_day()) {
+				errors.push('Dia de entrega')
+			}
+
+			return errors
+		},
+		/**
+		 * Arma la lista de datos faltantes del checkout autenticado.
+		 *
+		 * @returns {string[]}
+		 */
+		collect_authenticated_checkout_errors() {
+			const errors = []
+
+			if (this.cart.deliver == null) {
+				errors.push('Metodo de entrega')
+			}
+			if (!this.cart_payment_method && this.payment_methods.length) {
+				errors.push('Metodo de pago')
 			}
 			if (
 				this.cart.deliver
@@ -130,15 +176,58 @@ export default {
 					&& (this.user.address == '')
 				)
 			) {
-				this.$toast.error('Indique una direccion para la entrega del pedido')
-				return false
+				errors.push('Direccion de entrega')
 			}
 			if (this.cart.deliver && this.delivery_zones.length && !this.cart_delivery_zone) {
-				this.$toast.error('Seleccione el precio de envio')
-				return false
+				errors.push('Precio de envio')
 			}
 			if (this.user.seller_id && !this.buyer_id) {
-				this.$toast.error('Seleccione el CLIENTE para el pedido')
+				errors.push('Cliente del pedido')
+			}
+			if (this.must_select_delivery_day() && !this.has_selected_delivery_day()) {
+				errors.push('Dia de entrega')
+			}
+
+			return errors
+		},
+		/**
+		 * Indica si la tienda exige elegir un día de entrega.
+		 *
+		 * @returns {boolean}
+		 */
+		must_select_delivery_day() {
+			return this.$store.state.delivery_day.models.length > 0
+		},
+		/**
+		 * Indica si el comprador ya seleccionó un día de entrega válido.
+		 *
+		 * @returns {boolean}
+		 */
+		has_selected_delivery_day() {
+			const fecha_entrega = this.$store.state.cart.cart.fecha_entrega
+			return fecha_entrega && Number(fecha_entrega) !== 0
+		},
+		/**
+		 * Muestra al usuario todos los campos faltantes en una sola notificación.
+		 *
+		 * @param {string[]} errors
+		 */
+		show_checkout_validation_errors(errors) {
+			if (!errors.length) {
+				return
+			}
+
+			if (errors.length === 1) {
+				this.$toast.error('Completá el campo: ' + errors[0])
+				return
+			}
+
+			this.$toast.error('Completá los siguientes campos: ' + errors.join(', '))
+		},
+		check() {
+			const checkout_errors = this.collect_authenticated_checkout_errors()
+			if (checkout_errors.length) {
+				this.show_checkout_validation_errors(checkout_errors)
 				return false
 			}
 			return true
