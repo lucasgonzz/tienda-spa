@@ -236,6 +236,7 @@ export default {
 				.catch(err => {
 					commit('setSaving', false)
 					console.log(err)
+					throw err
 				})
 			} else {
 				commit('setSaving', true)
@@ -248,6 +249,7 @@ export default {
 				.catch(err => {
 					commit('setSaving', false)
 					console.log(err)
+					throw err
 				})
 			}
 		},
