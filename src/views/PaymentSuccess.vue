@@ -25,7 +25,19 @@
 						<b-progress variant="success" :value="progress" :max="100" show-progress animated></b-progress>
 						<div
 						class="m-t-15"
-						v-if="cart_updated">
+						v-if="save_error">
+							<p class="text-danger">
+								<strong>
+									Recibimos tu pago, pero hubo un problema al confirmar tu pedido.
+								</strong>
+							</p>
+							<p class="text-danger">
+								Por favor contactanos y contanos lo sucedido antes de cerrar esta ventana.
+							</p>
+						</div>
+						<div
+						class="m-t-15"
+						v-else-if="cart_updated">
 							<p>
 								<strong>
 									Información actualizada correctamente
