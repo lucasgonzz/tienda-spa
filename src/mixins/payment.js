@@ -8,6 +8,8 @@ export default {
             redirect_time: 7,
             interval: null,
     		cart_updated: false,
+    		/** true si el guardado del carrito con los datos de pago fallo */
+    		save_error: false,
     	}
     },
     computed: {
@@ -24,9 +26,18 @@ export default {
     		this.$store.commit('cart/setPaymentId', this.$route.query.payment_id)
     		this.$store.commit('cart/setPaymentStatus', this.$route.query.status)
     		this.$store.dispatch('cart/save')
-        	this.cart_updated = true 
-            this.$store.commit('cart/setCart', null)
-            this.redirect()
+    		.then(() => {
+            	this.cart_updated = true 
+                this.$store.commit('cart/setCart', null)
+                this.redirect()
+    		})
+    		.catch(err => {
+    			console.log(err)
+    			// No limpiamos el carrito ni redirigimos: el pago se recibio pero
+    			// el pedido no quedo guardado correctamente. Mostramos error en vez
+    			// de la pantalla de "gracias por tu compra".
+    			this.save_error = true
+    		})
     	},
     	isCartInProccess() {
             return this.cart.id
