@@ -90,6 +90,14 @@ export default {
 		 */
 		limpiar() {
 			if (confirm('¿Seguro que quiere limpiar el carrito?')) {
+				if (!this.cart.id) {
+					// Carrito de invitado (sin login): nunca se persistio en el
+					// servidor -- recien se guarda en el paso de pago. No hay nada
+					// que borrar via API, solo limpiamos el estado local.
+					this.$store.commit('cart/setCart', null)
+					this.$toast.success('Carrito eliminado')
+					return
+				}
 				this.$store.commit('auth/setMessage', 'Cargando')
 				this.$store.commit('auth/setLoading', true)
 				this.$api.delete('carts/' + this.cart.id)
