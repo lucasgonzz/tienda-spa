@@ -34,25 +34,39 @@ export default {
 	},
 	methods: {
 		save() {
-			if (this.check() && !this.loading)
-			this.loading = true 
+			// Si ya hay una peticion en curso, no se hace nada (evita doble click)
+			if (this.loading) return
+			// Si el email no pasa las validaciones de check(), no se postea nada
+			if (!this.check()) return
+			this.loading = true
 			this.$api.post('advises', {
 				article_id: this.article_to_show.id,
-				email: this.email
+				// Se normaliza el email antes de enviarlo (sin espacios y en minusculas)
+				email: this.email.trim().toLowerCase()
 			})
 			.then(res => {
-				this.loading = false 
+				this.loading = false
 				this.$toast.success('Te avisaremos cuando este disponible')
+				// Se limpia el email para que no quede el valor viejo al reabrir el modal
+				this.email = ''
 				this.$bvModal.hide('advise')
 			})
 			.catch(err => {
-				this.loading = false 
+				this.loading = false
 				console.log(err)
+				// Se avisa al usuario que algo fallo, antes quedaba en silencio
+				this.$toast.error('No pudimos guardar tu aviso, intentá de nuevo')
 			})
 		},
+		// Valida que el email no este vacio y que tenga un formato valido
 		check() {
-			if (this.email == '') {
+			if (this.email.trim() == '') {
 				this.$toast.warning('Ingrese su correo')
+				return false
+			}
+			// Regex simple para validar formato de correo electronico
+			if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email.trim())) {
+				this.$toast.warning('Ingrese un correo válido')
 				return false
 			}
 			return true

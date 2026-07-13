@@ -38,6 +38,8 @@ export default {
 	},
 	methods: {
 		addAdvise() {
+			// Si ya hay una peticion en curso, no se hace nada (evita doble click)
+			if (this.loading) return
 			if (!this.authenticated) {
 				this.$bvModal.show('advise')
 			} else {
