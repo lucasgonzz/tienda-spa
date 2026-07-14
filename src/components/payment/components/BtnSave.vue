@@ -76,6 +76,12 @@ export default {
 
 				this.$api.post('buyer', { ...buyer, commerce_id: this.commerce.id })
 				.then(res => {
+					// El modelo que devuelve POST buyer viene con la direccion ya actualizada
+					// (el backend la persiste al reconocer el email, prompt 400). Aun asi, la
+					// direccion del pedido se manda explicita desde order_address (prompt 402):
+					// es lo que el comprador VIO en pantalla, y esa es la unica fuente de verdad.
+					// Este bug ya se pago una vez -- un pedido guardado con la direccion vieja de
+					// un cliente del ERP mientras el comprador miraba en pantalla la nueva.
 					this.$store.commit('auth/setUser', res.data.model)
 					this.makeOrder()
 				})
