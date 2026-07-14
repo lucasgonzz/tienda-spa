@@ -139,7 +139,9 @@ export default {
 			) {
 				errors.push('Barrio')
 			}
-			if (this.is_blank_field(buyer.address)) {
+			// La direccion solo es obligatoria si el comprador eligio envio a domicilio
+			// (deliver == 1). Con retiro por local (deliver == 0) no hace falta.
+			if (this.cart.deliver == 1 && this.is_blank_field(buyer.address)) {
 				errors.push('Direccion')
 			}
 			if (this.cart.deliver == null) {
