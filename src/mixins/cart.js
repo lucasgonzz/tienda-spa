@@ -218,29 +218,36 @@ export default {
 						fecha_entrega 	: this.fecha_entrega,
 					})
 					.then(() => {
-						this.$store.commit('auth/setLoading', false)
-						this.$store.commit('auth/setMessage', '')
-						if (!from_mercadopago) {
-							const cart_id = this.cart.id
-							this.$store.commit('cart/setCart', null)
-							this.$store.commit('cart/set_buyer_id', null)
-							this.$store.commit('cart/set_selected_buyer', null)
-
-							localStorage.cart = JSON.stringify(this.cart)
-							this.$store.dispatch('orders/getCurrentOrder')
-							this.$router.push({name: 'Thanks'})
-
-							if (cart_id) {
-								this.$api.delete('carts/' + cart_id).catch(() => {})
-							}
-
-							// Guest checkout: destruir sesion del buyer para que la proxima visita sea anonima
-							if (this.puede_comprar_sin_login) {
-								this.$store.commit('auth/setAuthenticated', false)
-								this.$store.commit('auth/setUser', null)
-								this.$api.post('buyer/logout').catch(function() {})
-							}
+						if (from_mercadopago) {
+							this.$store.commit('auth/setLoading', false)
+							this.$store.commit('auth/setMessage', '')
+							return
 						}
+
+						// Se guarda el id ANTES de limpiar el carrito del store: despues this.cart es null.
+						const cart_id = this.cart.id
+
+						this.$store.commit('cart/setCart', null)
+						this.$store.commit('cart/set_buyer_id', null)
+						this.$store.commit('cart/set_selected_buyer', null)
+						localStorage.cart = null
+
+						// Secuencia obligatoria. El orden ES el fix: OrderController@current resuelve el
+						// comprador leyendo del guard 'buyer', asi que si la sesion se invalida antes,
+						// el pedido no se puede recuperar nunca mas y la pagina de gracias queda vacia.
+						// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion -> 4) navegar.
+						this.$store.dispatch('orders/getCurrentOrder')
+						.then(() => {
+							return this.deleteCartAfterOrder(cart_id)
+						})
+						.then(() => {
+							return this.logoutGuestAfterOrder()
+						})
+						.then(() => {
+							this.$store.commit('auth/setLoading', false)
+							this.$store.commit('auth/setMessage', '')
+							this.$router.push({name: 'Thanks'})
+						})
 					})
 					.catch(err => {
 						this.$store.commit('auth/setLoading', false)
@@ -251,7 +258,43 @@ export default {
 			} 
 		},
 		canMakeOrder() {
-			return true 
+			return true
+		},
+		/**
+		 * Borra el carrito del pedido ya confirmado. Necesita la sesion viva, asi que corre
+		 * ANTES del logout del invitado. Nunca rechaza: un fallo aca no debe impedir que el
+		 * comprador llegue a la pagina de gracias.
+		 *
+		 * @param {number|null} cart_id id del carrito que origino el pedido
+		 * @returns {Promise}
+		 */
+		deleteCartAfterOrder(cart_id) {
+			if (!cart_id) {
+				return Promise.resolve()
+			}
+			return this.$api.delete('carts/' + cart_id)
+			.catch(() => {})
+		},
+		/**
+		 * Destruye la sesion del comprador invitado, para que la proxima visita al sitio sea
+		 * anonima. Solo aplica si el comercio permite comprar sin registrarse. Nunca rechaza.
+		 *
+		 * Los commits al store van DESPUES de que el logout resolvio: si se limpia
+		 * `authenticated` antes, cualquier interceptor de $api que dependa de ese flag puede
+		 * comportarse distinto durante el request.
+		 *
+		 * @returns {Promise}
+		 */
+		logoutGuestAfterOrder() {
+			if (!this.puede_comprar_sin_login) {
+				return Promise.resolve()
+			}
+			return this.$api.post('buyer/logout')
+			.catch(() => {})
+			.then(() => {
+				this.$store.commit('auth/setAuthenticated', false)
+				this.$store.commit('auth/setUser', null)
+			})
 		},
 	}
 }

@@ -1,8 +1,8 @@
 <template>
-	<a 
-	v-if="commerce.phone && route_name == 'Home'"
+	<a
+	v-if="commerce_whatsapp_phone && route_name == 'Home'"
     target="_blank"
-    :href="'https://api.whatsapp.com/send?phone='+commerce.phone"
+    :href="'https://api.whatsapp.com/send?phone=' + commerce_whatsapp_phone"
 	:class="scroll_bottom ? 'btn-whats-app-active' : ''"
 	class="btn-whats-app s">
 		<i class="bi bi-whatsapp"></i>

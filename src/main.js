@@ -121,6 +121,8 @@ import dates from './mixins/dates'
 Vue.mixin(dates)
 import generals from './mixins/generals'
 Vue.mixin(generals)
+import whatsapp from './mixins/whatsapp'
+Vue.mixin(whatsapp)
 
 Vue.config.productionTip = false
 
