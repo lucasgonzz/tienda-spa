@@ -51,6 +51,17 @@ export default {
 		setBuyer(state, value) {
 			state.buyer = value 
 		},
+		/**
+		 * Setea un campo puntual del comprador invitado sin reemplazar el objeto entero.
+		 * Se usa en el prefill del checkout (Buyer.vue): completa solo direccion/ciudad/
+		 * barrio sin pisar el resto de lo que el comprador ya tipeo.
+		 *
+		 * @param {object} state
+		 * @param {object} payload { field, value }
+		 */
+		set_buyer_field(state, payload) {
+			Vue.set(state.buyer, payload.field, payload.value)
+		},
 		set_buyer_id(state, value) {
 			state.buyer_id = value 
 		},
