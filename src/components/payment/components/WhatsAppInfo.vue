@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="commerce.online_configuration.enviar_whatsapp_al_terminar_pedido"
+	v-if="commerce && commerce.online_configuration && commerce.online_configuration.enviar_whatsapp_al_terminar_pedido"
 	class="whats-app-info">
 		<p>
 			<strong>Importante:</strong> Luego de finalizar tu pedido, te vamos a pedir que nos envies un WhatsApp con el resumen del mismo.

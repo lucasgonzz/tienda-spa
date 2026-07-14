@@ -132,16 +132,28 @@
 					</b-button>
 
 					<b-button
-					v-if="enviar_whatsapp && seconds_left > 0"
+					v-if="whatsapp_ready"
 					block
 					size="lg"
-					class="thanks-page__btn-whatsapp">
-						<i class="bi bi-whatsapp"></i>
-						Enviando WhatsApp en <strong>{{ seconds_left }}</strong> segundos…
+					class="thanks-page__btn-whatsapp"
+					@click="open_whatsapp">
+						<i class="bi bi-whatsapp thanks-page__btn-icon"></i>
+						<span v-if="!countdown_done">
+							Enviando WhatsApp en <strong>{{ seconds_left }}</strong> segundos…
+						</span>
+						<span v-else>
+							Enviar el pedido por WhatsApp
+						</span>
 					</b-button>
 
+					<p
+					v-if="whatsapp_ready && countdown_done"
+					class="thanks-page__whatsapp-hint">
+						Si no se abrió WhatsApp, tocá el botón.
+					</p>
+
 					<div
-					v-else
+					v-if="countdown_done"
 					class="thanks-page__actions-home">
 						<b-button
 						:to="{ name: 'Home' }"
@@ -264,32 +276,50 @@ export default {
 				this.commerce.online_configuration.enviar_whatsapp_al_terminar_pedido
 			)
 		},
+		/**
+		 * Si se puede ofrecer el envio por WhatsApp: flag del comercio + telefono normalizable + pedido cargado.
+		 * @returns {boolean}
+		 */
+		whatsapp_ready() {
+			return !!(this.enviar_whatsapp && this.commerce_whatsapp_phone && this.order)
+		},
 	},
 	data() {
 		return {
-			/** Segundos restantes antes de abrir WhatsApp */
+			/** Segundos restantes antes de intentar abrir WhatsApp automaticamente */
 			seconds_left: 5,
 			/** Referencia al intervalo del countdown */
 			interval_id: null,
 			/** URL wa.me generada con el detalle del pedido */
 			whatsapp_link: '',
+			/** El countdown ya termino (o nunca arranco) */
+			countdown_done: false,
+			/** Se esta recuperando el pedido del backend */
+			loading_order: false,
 		}
 	},
 	created() {
 		this.setTitle('Gracias por tu compra')
 		this.$scrollToTop()
 
-		if (this.enviar_whatsapp) {
-			this.interval_id = setInterval(() => {
-				this.seconds_left -= 1
-
-				if (this.seconds_left === 0) {
-					clearInterval(this.interval_id)
-					this.set_whatsapp_link()
-					this.try_open_link()
-				}
-			}, 1000)
+		if (this.order) {
+			this.start_whatsapp_flow()
+			return
 		}
+
+		// El pedido no esta en el store (el comprador recargo la pagina, por ejemplo).
+		// Se intenta recuperar una sola vez antes de decidir que mostrar.
+		this.loading_order = true
+
+		this.$store.dispatch('orders/getCurrentOrder')
+		.then(() => {
+			this.loading_order = false
+			this.start_whatsapp_flow()
+		})
+		.catch(() => {
+			this.loading_order = false
+			this.start_whatsapp_flow()
+		})
 	},
 	beforeDestroy() {
 		if (this.interval_id) {
@@ -314,10 +344,35 @@ export default {
 			return amount * unit
 		},
 		/**
+		 * Arranca el countdown de apertura automatica, pero solo si hay algo real que abrir.
+		 * Si falta el flag, el telefono o el pedido, deja la pantalla en su estado final
+		 * (sin countdown y sin boton de WhatsApp).
+		 */
+		start_whatsapp_flow() {
+			if (!this.whatsapp_ready) {
+				this.countdown_done = true
+				return
+			}
+
+			this.set_whatsapp_link()
+
+			this.interval_id = setInterval(() => {
+				this.seconds_left -= 1
+
+				if (this.seconds_left <= 0) {
+					clearInterval(this.interval_id)
+					this.interval_id = null
+					this.countdown_done = true
+					this.try_open_link()
+				}
+			}, 1000)
+		},
+		/**
 		 * Arma el mensaje y el enlace de WhatsApp según el pedido actual.
 		 */
 		set_whatsapp_link() {
-			if (!this.order || !this.commerce || !this.commerce.phone) {
+			if (!this.order || !this.commerce_whatsapp_phone) {
+				this.whatsapp_link = ''
 				return
 			}
 
@@ -393,25 +448,52 @@ export default {
 				message += '\n \n *Observaciones:* ' + this.order.description
 			}
 
+			// iOS trunca o rompe links de wa.me muy largos. Si el pedido es grande, se manda el
+			// encabezado y el total, y se remite al numero de pedido para el detalle completo.
+			const MAX_MESSAGE_LENGTH = 1500
+
+			if (message.length > MAX_MESSAGE_LENGTH) {
+				let total_items = articles_list.length + promos_list.length
+
+				message = '*Pedido N° ' + this.order.num + '*\n\n'
+				message += '*Cliente: ' + buyer_name + '*\n\n'
+				message += 'Pedido de ' + total_items + ' productos.\n\n'
+				message += '*Total:* ' + this.price(this.order.total) + '\n\n'
+				message += 'El detalle completo esta en el pedido N° ' + this.order.num + '.'
+			}
+
 			const encoded_message = encodeURIComponent(message)
 
-			let link = 'https://wa.me/' + this.commerce.phone + '?text=' + encoded_message
+			let link = 'https://wa.me/' + this.commerce_whatsapp_phone + '?text=' + encoded_message
 			this.whatsapp_link = link
 		},
 		/**
-		 * Intenta abrir WhatsApp en nueva pestaña; si el navegador bloquea popups, ofrece redirección.
+		 * Intenta abrir WhatsApp. Si el link no esta listo, no hace nada: jamas abrir una
+		 * pestaña vacia (window.open('') abre about:blank y devuelve un objeto truthy).
 		 */
 		try_open_link() {
-			const win = window.open(this.whatsapp_link, '_blank')
-			if (!win || win.closed || typeof win.closed === 'undefined') {
-				if (
-					confirm(
-						'No se pudo abrir WhatsApp automáticamente. ¿Querés ir a WhatsApp para finalizar el pedido?',
-					)
-				) {
-					window.location.href = this.whatsapp_link
-				}
+			if (!this.whatsapp_link) {
+				return
 			}
+			window.open(this.whatsapp_link, '_blank')
+		},
+		/**
+		 * Handler del boton: abre WhatsApp por gesto del usuario, asi que el navegador nunca lo
+		 * bloquea. Corta el countdown si todavia estaba corriendo.
+		 */
+		open_whatsapp() {
+			if (this.interval_id) {
+				clearInterval(this.interval_id)
+				this.interval_id = null
+			}
+
+			this.countdown_done = true
+
+			if (!this.whatsapp_link) {
+				this.set_whatsapp_link()
+			}
+
+			this.try_open_link()
 		},
 	},
 }
@@ -638,6 +720,13 @@ export default {
     background: #1ebe5d !important;
     color: #fff !important;
   }
+}
+
+.thanks-page__whatsapp-hint {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #777;
+  margin: -0.15rem 0 0.35rem;
 }
 
 .thanks-page__btn-home {
