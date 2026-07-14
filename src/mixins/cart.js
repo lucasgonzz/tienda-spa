@@ -167,6 +167,59 @@ export default {
 		fecha_entrega() {
 			return this.$store.state.cart.fecha_entrega
 		},
+		/**
+		 * Direccion que el comprador tiene a la vista en el checkout y que acepta al
+		 * confirmar. Es la unica fuente de verdad de la direccion del pedido: se manda
+		 * explicita al backend (OrderController@get_address le da prioridad sobre
+		 * cualquier direccion guardada del Buyer o del Client del ERP).
+		 *
+		 * Orden de resolucion, siguiendo lo que cada flujo muestra en pantalla:
+		 *   1. Vendedor con cliente seleccionado -> el input de Addresses.vue, que edita
+		 *      selected_buyer.comercio_city_client.address.
+		 *   2. Comprador invitado -> el input "Direccion" de Buyer.vue (store cart.buyer.address).
+		 *   3. Comprador logueado -> el input de Addresses.vue (user.address o
+		 *      user.comercio_city_client.address).
+		 *
+		 * @returns {string|null}
+		 */
+		order_address() {
+			// 1) Vendedor con un cliente seleccionado: gana siempre, porque cart.buyer
+			// puede tener datos de una sesion anterior del mismo browser.
+			if (this.selected_buyer && this.selected_buyer.comercio_city_client && this.selected_buyer.comercio_city_client.address) {
+				let direccion = String(this.selected_buyer.comercio_city_client.address).trim()
+				if (direccion) {
+					return direccion
+				}
+			}
+
+			// 2) Comprador invitado: lo que escribio en el input de Buyer.vue
+			if (this.$store.state.cart.buyer && this.$store.state.cart.buyer.address) {
+				let direccion = String(this.$store.state.cart.buyer.address).trim()
+				if (direccion) {
+					return direccion
+				}
+			}
+
+			// 3) Comprador logueado: direccion propia o la del cliente del ERP asociado
+			if (this.user) {
+				if (this.user.address) {
+					let direccion = String(this.user.address).trim()
+					if (direccion) {
+						return direccion
+					}
+				}
+				if (this.user.comercio_city_client && this.user.comercio_city_client.address) {
+					let direccion = String(this.user.comercio_city_client.address).trim()
+					if (direccion) {
+						return direccion
+					}
+				}
+			}
+
+			// Sin direccion (ej. retiro por local): valor valido, el pedido no lleva
+			// direccion de envio.
+			return null
+		},
 	},
 	methods: {
 		setBtnMpVisible(set_visible) {
@@ -216,6 +269,10 @@ export default {
 						buyer 			: this.user,
 						selected_buyer 	: this.selected_buyer,
 						fecha_entrega 	: this.fecha_entrega,
+						// Direccion explicita: la que el comprador VIO en el formulario y acepto al
+						// confirmar. OrderController@get_address le da prioridad sobre cualquier
+						// direccion guardada en buyer/selected_buyer (ver prompt 402).
+						address         : this.order_address,
 					})
 					.then(() => {
 						if (from_mercadopago) {
