@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="delivery_days.length"
+	v-if="deliver === 1 && delivery_days.length"
 	class="background">
 		<h5>
 			Seleccione el dia de entrega para su pedido
@@ -21,6 +21,10 @@ export default {
 		// this.get_delivery_days()
 	},	
 	computed: {
+		// Metodo de entrega elegido en Deliver.vue: 1 = envio a domicilio, 0 = retiro por local
+		deliver() {
+			return this.$store.state.cart.cart.deliver
+		},
 		fecha_entrega: {
 			get() {
 				// Valor persistido dentro del carrito en el store
