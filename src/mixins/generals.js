@@ -28,20 +28,11 @@ export default {
 		is_local() {
 			return process.env.VUE_APP_API_URL == 'http://tienda.local:8000'
 		},
-		app_name() {
-			return 'fiushh'
-		},
 		from_cloudinary() {
 			return this.commerce.from_cloudinary
 		},
 		is_verified() {
 			return this.authenticated && !this.user.verification_code
-		},
-		logo_src() {
-			return `@/assets/${this.app_name}/logo.png`
-		},
-		spinner_src() {
-			return `@/assets/${this.app_name}/spinner.gif`
 		},
 		/**
 		 * Color de acento usado como color activo en la paginación de los swipers.

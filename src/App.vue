@@ -72,10 +72,11 @@ export default {
          * @returns {boolean}
          */
         tienda_pausada() {
-            /* Bypass de desarrollo: ignora la pausa si existe la variable de entorno. */
-            if (typeof process.env.VUE_APP_NO_PAUSAR_TIENDA_ONLINE != 'undefined') {
+            /* Fallback defensivo: si todavía no cargó el comercio o su online_configuration, no pausar. */
+            if (!this.commerce || !this.commerce.online_configuration) {
                 return false
             }
+            /* La pausa la controla siempre el flag pausar_tienda_online del online_configuration. */
             /* Solo pausar cuando el flag viene activo (1, "1" o true). */
             return Number(this.commerce.online_configuration.pausar_tienda_online) == 1
         },
