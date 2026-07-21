@@ -12,11 +12,6 @@
 					Contacto
 				</h1>
 				<p
-				v-if="commerce.online_configuration.mensaje_contacto"
-				class="contacto-page__lead">
-					{{ commerce.online_configuration.mensaje_contacto }}
-				</p>
-				<p
 				v-if="commerce.email"
 				class="contacto-page__mail-line">
 					<a
@@ -26,6 +21,22 @@
 						{{ commerce.email }}
 					</a>
 				</p>
+			</b-col>
+		</b-row>
+
+		<!-- Mensaje de contacto formateado (HTML enriquecido cargado por el dueño del comercio), mismo criterio visual que Quienes somos -->
+		<b-row
+		v-if="commerce.online_configuration.mensaje_contacto"
+		class="contacto-page__mensaje justify-content-center">
+			<b-col
+			cols="12"
+			lg="10"
+			xl="9">
+				<article class="contacto-page__card contacto-page__card--mensaje">
+					<div
+					class="contacto-page__prose"
+					v-html="commerce.online_configuration.mensaje_contacto"></div>
+				</article>
 			</b-col>
 		</b-row>
 
@@ -303,17 +314,6 @@ export default {
   margin-bottom: 0.75rem
   color: #1a1a1a
 
-.contacto-page__lead
-  font-size: 1.05rem
-  line-height: 1.55
-  color: #444
-  max-width: 40rem
-  margin-left: auto
-  margin-right: auto
-  @media (min-width: 992px)
-    margin-left: 0
-    margin-right: 0
-
 .contacto-page__mail-line
   margin-top: 1rem
   margin-bottom: 0
@@ -359,6 +359,63 @@ export default {
   border-radius: 10px
   padding-top: 0.65rem
   padding-bottom: 0.65rem
+
+.contacto-page__mensaje
+  margin-bottom: 1.75rem
+
+.contacto-page__card--mensaje
+  border-top: 3px solid var(--secondary-color)
+
+// Contenido enriquecido desde el backend (HTML), mismo criterio que .quienes-somos-page__prose
+.contacto-page__prose
+  font-size: 1rem
+  line-height: 1.65
+  color: #333
+  p
+    margin-bottom: 1rem
+    &:last-child
+      margin-bottom: 0
+  h2, h3, h4
+    font-weight: 700
+    color: #1a1a1a
+    margin-top: 1.35rem
+    margin-bottom: 0.65rem
+    line-height: 1.3
+    &:first-child
+      margin-top: 0
+  h2
+    font-size: 1.35rem
+  h3
+    font-size: 1.15rem
+  h4
+    font-size: 1.05rem
+  ul, ol
+    margin: 0 0 1rem
+    padding-left: 1.35rem
+  li
+    margin-bottom: 0.35rem
+  a
+    color: var(--secondary-color)
+    font-weight: 600
+    text-decoration: none
+    &:hover
+      text-decoration: underline
+      color: var(--primary-color)
+  strong
+    font-weight: 700
+    color: #222
+  img
+    max-width: 100%
+    height: auto
+    border-radius: 10px
+    margin: 0.75rem 0
+  blockquote
+    margin: 1rem 0
+    padding: 0.75rem 1rem
+    border-left: 4px solid var(--secondary-color)
+    background: rgba(0, 0, 0, 0.03)
+    color: #444
+    font-style: normal
 
 .contacto-page__card--whatsapp
   border-top: 3px solid #25D366
