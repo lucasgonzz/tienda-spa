@@ -1,5 +1,8 @@
 import VueScreenSize from 'vue-screen-size'
 import moment from 'moment'
+// Reutilizamos el normalizador y el default de color del helper de tema,
+// para tener una sola fuente de verdad del color de acento (online_configuration.primary_color)
+import { normalize_hex_color, default_theme_colors } from '@/helpers/online_configuration_theme'
 export default {
 	mixins: [VueScreenSize.VueScreenSizeMixin],
 	filters: {
@@ -40,12 +43,17 @@ export default {
 		spinner_src() {
 			return `@/assets/${this.app_name}/spinner.gif`
 		},
+		/**
+		 * Color de acento usado como color activo en la paginación de los swipers.
+		 * Sale del primary_color del online_configuration del comercio (misma fuente
+		 * que ya usa el resto del tema), en vez de una env var de build por cliente.
+		 * Si el comercio todavía no cargó, cae al mismo default que usa el tema.
+		 */
 		variant_color() {
-			return process.env.VUE_APP_VARIANT_COLOR
-			// Pinocho
-			// return '#f9b234' 
-			// Fiushh
-			// return '#B68EFF'
+			if (this.commerce && this.commerce.online_configuration && this.commerce.online_configuration.primary_color) {
+				return normalize_hex_color(this.commerce.online_configuration.primary_color, default_theme_colors.primary_color)
+			}
+			return default_theme_colors.primary_color
 		},
 		variant_color_dark() {
 			return '#5E25C2'

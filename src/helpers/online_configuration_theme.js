@@ -2,7 +2,7 @@
  * Valores por defecto alineados con la migración de colores en online_configurations.
  * Se usan solo cuando el API no envía un color válido.
  */
-const default_theme_colors = {
+export const default_theme_colors = {
 	primary_color: '#c5111d',
 	secondary_color: '#fe7802',
 	text_color: '#F2F2F2',
