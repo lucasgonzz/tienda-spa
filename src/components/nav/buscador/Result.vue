@@ -2,7 +2,8 @@
 <div
 @click="_toArticle"
 @mouseenter="$emit('hover')"
-class="nav-search-result">
+class="nav-search-result"
+:class="activo ? 'is-active' : ''">
 	<!-- Miniatura: si no hay imagen se muestra un placeholder con icono en vez de un <img> roto -->
 	<div class="nav-search-result__thumb">
 		<img
@@ -41,6 +42,11 @@ export default {
 	mixins: [articles],
 	props: {
 		model: Object,
+		// Indica si esta fila esta resaltada por navegacion con teclado (flechas) o mouse (hover).
+		activo: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	computed: {
 		/* Solo hay un unico precio de operacion cuando el comercio NO usa precios por rango de cantidad. */
