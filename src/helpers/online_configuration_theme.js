@@ -8,6 +8,7 @@ export const default_theme_colors = {
 	text_color: '#F2F2F2',
 	hover_text_color: '#FFF',
 	category_color_text: '#333',
+	background_color: '#FFFFFF',
 }
 
 /**
@@ -66,6 +67,7 @@ export function apply_online_configuration_theme(online_configuration) {
 	let text_color = normalize_hex_color(online_configuration.text_color, default_theme_colors.text_color)
 	let hover_text_color = normalize_hex_color(online_configuration.hover_text_color, default_theme_colors.hover_text_color)
 	let category_color_text = normalize_hex_color(online_configuration.category_color_text, default_theme_colors.category_color_text)
+	let background_color = normalize_hex_color(online_configuration.background_color, default_theme_colors.background_color)
 	let font_family_sans = resolve_font_family_sans(online_configuration)
 
 	/* Publica los colores como variables CSS consumidas por SASS y componentes. */
@@ -74,5 +76,6 @@ export function apply_online_configuration_theme(online_configuration) {
 	document.documentElement.style.setProperty('--text-color', text_color)
 	document.documentElement.style.setProperty('--hover-text-color', hover_text_color)
 	document.documentElement.style.setProperty('--category-color-text', category_color_text)
+	document.documentElement.style.setProperty('--background-color', background_color)
 	document.documentElement.style.setProperty('--font-family-sans', font_family_sans)
 }

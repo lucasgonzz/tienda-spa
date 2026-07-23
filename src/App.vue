@@ -329,20 +329,14 @@ export default {
 </script>
 <style lang="sass">
 @import '@/sass/app.sass'
-#app 
+#app
     font-family: var(--font-family-sans)
     -webkit-font-smoothing: antialiased
-    -moz-osx-font-smoothing: grayscale 
+    -moz-osx-font-smoothing: grayscale
     text-align: center
-    height: 100vh
+    min-height: 100vh
+    background: var(--background-color)
 
-.plantilla-clasico
-    background: #FFF
-
-
-
-.plantilla-moderno
-    background: #EBEBEB
 
 // .container-principal 
 
