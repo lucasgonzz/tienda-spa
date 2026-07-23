@@ -18,17 +18,24 @@
 				<!-- <i class="bi bi-x-lg"></i> -->
 			</div>
 		</div>
-		<div 
-		class="results">
-			<div 
-			v-if="loading"
-			class="cont-center-sm">
-			    <b-spinner></b-spinner>
+		<!-- Caja de resultados: se renderiza solo si hay loading o resultados -->
+		<div
+		v-if="loading || results.length"
+		class="nav-search-results">
+			<!-- Contenedor scrolleable que incluye spinner y resultados -->
+			<div class="nav-search-results__scroll" ref="caja_resultados">
+				<div
+				v-if="loading"
+				class="cont-center-sm">
+				    <b-spinner></b-spinner>
+				</div>
+				<result
+				@clearResults="clearResults"
+				v-for="result in results"
+				:key="result.id"
+				:model="result"></result>
 			</div>
-			<result
-			@clearResults="clearResults"
-			v-for="result in results"
-			:model="result"></result>	
+			<!-- Pie fijo: botón "Ver todos los resultados" fuera del scroll -->
 			<more-results-btn
 			@clearResults="clearResults"
 			:results="results"></more-results-btn>
@@ -187,35 +194,47 @@ export default {
 			padding: 18px
 		@media screen and (min-width: 992px)
 			padding: 22px
-	.results
-		box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px
-		border-radius: 0 0 7px 7px
-		display: flex
-		flex-direction: column
+	.nav-search-results
 		position: absolute
-		top: 100%
+		top: calc(100% + 8px)
 		left: 0
 		width: 100%
-		background: $green
 		z-index: 300
-		max-height: 60vh
-		overflow-y: scroll
+		background: #FFF
+		border: 1px solid rgba(0, 0, 0, .08)
+		border-radius: 14px
+		box-shadow: 0 8px 28px rgba(0, 0, 0, .12)
+		overflow: hidden
+		padding: 6px
+		display: flex
+		flex-direction: column
 
-		&::-webkit-scrollbar 
-			width: 9px
-			height: 9px
+		/* Contenedor scrolleable: incluye spinner y resultados */
+		.nav-search-results__scroll
+			max-height: 60vh
+			overflow-y: auto
 
-		&::-webkit-scrollbar-track 
-			background: rgba(0,0,0,0)
+			/* Scrollbar neutro: track transparente, thumb gris sutil */
+			&::-webkit-scrollbar
+				width: 8px
+				height: 8px
 
-		&::-webkit-scrollbar-thumb 
-			background-color: color-mix(in srgb, $blue 80%, white 20%)
-			border-radius: 10px
-			border: 2px solid #ffffff
+			&::-webkit-scrollbar-track
+				background: transparent
 
-		.text-with-icon
-			color: #000
+			&::-webkit-scrollbar-thumb
+				background-color: rgba(0, 0, 0, .18)
+				border-radius: 10px
+				border: 2px solid #FFF
 
-		.spinner-border
-			color: $color_text
+			/* Spinner visible con color secundario, espaciado */
+			.cont-center-sm
+				padding: 24px 0
+
+			.spinner-border
+				color: var(--secondary-color)
+
+	/* Estado resaltado para navegación con flechas (Prompt 03) */
+	.nav-search-result.is-active
+		background: #f5f5f7
 </style>
