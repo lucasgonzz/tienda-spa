@@ -39,78 +39,11 @@ module.exports = {
             skipWaiting: true
         },
 
+        // Estos valores son un fallback: en produccion admin-api los reescribe por cliente antes
+        // de compilar, en EcommerceInstallationService::patch_spa_vue_config() (grupo 208).
+        themeColor: "#c5111d",
+        name: "Tienda",
 
-        // hb
-        // themeColor: "#c5111d",
-        // name: "Hb",
-
-
-
-        // vantres
-        // themeColor: "#0c49a2",
-        // name: "Vantres",
-
-
-
-        // Ferretotal
-        // themeColor: "#C7C7C7",
-        // name: "Ferretotal",
-
-
-        // CalzadosMarrox
-        // themeColor: "#190D5F",
-        // name: "CalzadosMarrox",
-
-        // Pinocho
-        // themeColor: "#f9b234",
-        // name: "Pinocho",
-
-        // RefrigeracionColman
-        // themeColor: "#4987ba",
-        // name: "RefrigeracionColman",
-
-        // NebulaStore
-        // themeColor: "#B68EFF",
-        // name: "NebulaStore",
-
-        // KasAberturas
-        // themeColor: "#f9b234",
-        // name: "KasAberturas",
-
-        // Indica
-        // themeColor: "#209fc8",
-        // name: "IndicaCoffeeGrow",
-
-        // Fenix
-        themeColor: "#1897ce",
-        name: "Fenix",
-
-        // Matias
-        // themeColor: "#C0260A",
-        // name: "Galvan Mayorista",
-
-        // Golonorte
-        // themeColorConorte",
-
-        // Golonorte
-        // themeColor: "#00237C",
-        // name: "Golonorte",
-
-        // Truvari
-        // themeColor: "#EBEBEB",
-        // name: "TruvariBebidas",
-
-        // Pets
-        // themeColor: "#C0260A",
-        // name: "Pets",
-
-        // Cali
-        // themeColor: "#D8CDB8",
-        // name: "CaliAccesorios",
-        
-
-
-        
         backgroundColor: "#FFF",
         msTileColor: "#FFF",
         manifestOptions: {
