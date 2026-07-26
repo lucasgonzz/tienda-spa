@@ -29,6 +29,31 @@ module.exports = {
             }
             return options
         })
+
+        // Repositorio publico (grupo 220): public/firebase-messaging-sw.js es un service
+        // worker estatico, no pasa por el bundle de Vue ni por html-webpack-plugin (como si
+        // le pasa a index.html, que ya soporta interpolar VUE_APP_* directamente). Para
+        // poder sacar la apiKey de Firebase del codigo fuente igual, se lo excluye del
+        // copiado generico de /public que hace Vue CLI y se lo vuelve a copiar aparte con
+        // un transform que reemplaza el placeholder __VUE_APP_FIREBASE_API_KEY__ por el
+        // valor real tomado de la variable de entorno del build.
+        config.plugin('copy').tap(copyArgs => {
+            copyArgs[0][0].ignore = (copyArgs[0][0].ignore || []).concat({
+                glob: 'firebase-messaging-sw.js',
+                matchBase: false
+            })
+
+            copyArgs[0].push({
+                from: 'public/firebase-messaging-sw.js',
+                to: 'firebase-messaging-sw.js',
+                transform(content) {
+                    return content.toString()
+                        .replace(/__VUE_APP_FIREBASE_API_KEY__/g, process.env.VUE_APP_FIREBASE_API_KEY || '')
+                }
+            })
+
+            return copyArgs
+        })
     },
     devServer: {
         host: 'tienda.local',

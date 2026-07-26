@@ -1,8 +1,17 @@
 importScripts("https://www.gstatic.com/firebasejs/7.8.2/firebase-app.js");
 importScripts("https://www.gstatic.com/firebasejs/7.8.2/firebase-messaging.js");
 
-// FIREBASE KIOSCO VERDE
-// var apiKey = 'AIzaSyB--yFdom7wzHTDY_9T1ufruKMhlTb94-I'
+// Repositorio publico. La apiKey de Firebase esta pensada para ser publica (viaja igual en
+// el bundle de cualquier app Firebase): la proteccion real son las reglas de seguridad de
+// Firebase y la restriccion por app/dominio en la consola de Firebase, no ocultar el
+// valor. Se saca del codigo fuente igual, para poder rotarla sin tocar codigo y no dejarla
+// pisada en el historial de git. Este archivo es un service worker estatico servido desde
+// /public (no pasa por el bundle de Vue): el placeholder __VUE_APP_FIREBASE_API_KEY__ se
+// reemplaza en tiempo de build por vue.config.js con el valor de la variable de entorno
+// VUE_APP_FIREBASE_API_KEY (ver .env.example).
+
+// FIREBASE KIOSCO VERDE (comercio historico, comentado/inactivo)
+// var apiKey = '[secreto removido - repositorio publico]'
 // var authDomain = 'kiosco-verde.firebaseapp.com'
 // var projectId = 'kiosco-verde'
 // var messagingSenderId = '249690269593'
@@ -12,7 +21,7 @@ importScripts("https://www.gstatic.com/firebasejs/7.8.2/firebase-messaging.js");
 // var logo_url = 'https://kioscoverde.com/img/logo.739ff85d.png'
 
 // FIREBASE FIUSHH
-var apiKey = 'AIzaSyCYVGxiL5gdsmhRiPbuKnMwaJ8fO7G7YZM'
+var apiKey = '__VUE_APP_FIREBASE_API_KEY__'
 var authDomain = 'fiushh.firebaseapp.com'
 var projectId = 'fiushh'
 var messagingSenderId = '454337397326'

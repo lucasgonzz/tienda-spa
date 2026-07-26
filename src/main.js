@@ -5,32 +5,46 @@ import VueSocialauth from 'vue-social-auth'
 import axios from 'axios'
 
 Vue.use(VueAxios, axios)
+/*
+ * Configuracion de vue-social-auth (login social).
+ *
+ * Repositorio publico: la mitad secreta del par de credenciales OAuth (lo que Google/
+ * Facebook llaman "client secret") NUNCA puede vivir en este archivo (ni siquiera en
+ * variables de entorno del build, porque VUE_APP_* termina igual dentro del bundle que se
+ * descarga cada visitante). Se saco por completo, incluidos los bloques comentados de
+ * otros comercios: un secreto comentado sigue publicado en el historial de git igual que
+ * uno activo.
+ *
+ * Ademas, vue-social-auth (version instalada: 1.4.3) nunca leyo ni uso ese valor desde el
+ * navegador: la libreria solo junta clientId + redirectUri + code del popup de OAuth y
+ * resuelve con eso (responseType 'code' por default). El intercambio real de code por
+ * token ya lo hace tienda-api en POST /sociallogin/{provider}/{commerce_id}
+ * (AuthController@social, via Laravel Socialite), usando ese secreto guardado del lado del
+ * servidor (.env para Facebook, tabla online_configurations por comercio para Google). Por
+ * eso sacar ese valor de aca no cambia el comportamiento del login: nunca cumplio ninguna
+ * funcion en el frontend.
+ */
 Vue.use(VueSocialauth, {
 	providers: {
 		facebook: {
 			clientId: '369275451245680',
-			client_secret: '79a33ac58e4f628b3437463b13d2084a',
 			redirectUri: 'https://kioscoverde.com/auth/facebook/callback' // Your client app URL
 		},
 		google: {
-			
+
 			// ComercioCity
 			clientId: '986563485547-vt27uakkeqiachchbjp0f0h45lfuifaf.apps.googleusercontent.com',
-			client_secret: 'dUdYJBzFgI164aQqxzqNujju',
 
 			// NebulaStore
 			// clientId: '948578513354-b7t5mv02b8aegju603ui740rroj75rsi.apps.googleusercontent.com',
-			// client_secret: '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',
 
 			// Pinocho
 			// clientId: '155655053035-t8gcff3733ahefb4a5n6dr0qia21o2qv.apps.googleusercontent.com',
-			// client_secret: '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',
 
 			// Kas aberturas
 			// clientId: '496981463433-ivm5vbh49idfkrhvvgjkrrd531vcri84.apps.googleusercontent.com',
-			// client_secret: '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',
 
-			
+
 		},
 	}
 })
