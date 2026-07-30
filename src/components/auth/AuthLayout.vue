@@ -170,6 +170,21 @@ $auth_layout_mobile_breakpoint: 900px
 	display: flex
 	min-height: 100vh
 	font-family: var(--font-family-sans)
+	// Los paneles de auth (izquierdo y derecho) son siempre casi blancos, sin importar el color
+	// primario del comercio (7% de mezcla con blanco, o blanco puro). Por eso el texto NO puede
+	// depender de las variables de tema (--text-color esta pensado para superficies coloreadas,
+	// como el navbar), sino de un color fijo con buen contraste sobre fondo claro/casi blanco.
+	// Se declaran aca en la raiz para que las herede todo el subarbol, incluido el slot
+	// (formularios de login/registro/recuperar clave), sin tener que importar sass en cada uno.
+	--auth-text-strong: #1f2937
+	--auth-text-muted: #4b5563
+	@if ($theme == dark)
+		--auth-text-strong: #f2f2f2
+		--auth-text-muted: #b8bcc4
+	// Contrarresta "#app { text-align: center }" (heredado del boilerplate de Vue CLI en App.vue,
+	// no tocar esa regla porque la usa toda la tienda). Sin esto, todo el texto de auth queda
+	// centrado por herencia. Lo que si va centrado (cabecera mobile) se re-centra mas abajo.
+	text-align: left
 	@media screen and (max-width: $auth_layout_mobile_breakpoint)
 		flex-direction: column
 
@@ -237,17 +252,14 @@ $auth_layout_mobile_breakpoint: 900px
 .auth-layout__mobile-title
 	font-size: 1.375rem
 	font-weight: 700
-	color: var(--text-color)
+	color: var(--auth-text-strong)
 	margin: 0 0 0.45rem
 	letter-spacing: -0.02em
-	@if ($theme == dark)
-		color: #f2f2f2
 
 .auth-layout__mobile-subtitle
 	font-size: 0.875rem
 	font-weight: 400
-	color: var(--text-color)
-	opacity: 0.65
+	color: var(--auth-text-muted)
 	line-height: 1.5
 	margin: 0
 
@@ -328,10 +340,8 @@ $auth_layout_mobile_breakpoint: 900px
 .auth-layout__brand-name
 	font-size: 1.0625rem
 	font-weight: 600
-	color: var(--text-color)
+	color: var(--auth-text-strong)
 	letter-spacing: -0.02em
-	@if ($theme == dark)
-		color: #f2f2f2
 
 .auth-layout__hero
 	flex: 1
@@ -347,18 +357,14 @@ $auth_layout_mobile_breakpoint: 900px
 	font-size: 2.5rem
 	font-weight: 800
 	line-height: 1.15
-	color: var(--text-color)
+	color: var(--auth-text-strong)
 	margin: 0 0 1.1rem
 	letter-spacing: -0.03em
-	@if ($theme == dark)
-		color: #f2f2f2
 
 .auth-layout__subtitle
 	font-size: 1.0625rem
 	font-weight: 400
-	text-align: left
-	color: var(--text-color)
-	opacity: 0.65
+	color: var(--auth-text-muted)
 	line-height: 1.6
 	margin: 0
 	max-width: 460px
@@ -388,8 +394,7 @@ $auth_layout_mobile_breakpoint: 900px
 .auth-layout__security-note
 	font-size: 0.8125rem
 	font-weight: 400
-	color: var(--text-color)
-	opacity: 0.55
+	color: var(--auth-text-muted)
 	margin: 0
 
 // ─── Panel del formulario (blanco) ───
