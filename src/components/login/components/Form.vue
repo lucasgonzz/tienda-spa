@@ -143,11 +143,15 @@ export default {
 	display: block
 	font-size: 0.8125rem
 	font-weight: 500
-	color: var(--text-color)
-	opacity: 0.75
+	// Color fijo de alto contraste (definido en AuthLayout.vue). No la variable de
+	// tema general, que esta pensada para superficies coloreadas (navbar), no para el
+	// panel blanco del formulario, donde quedaba casi invisible.
+	color: var(--auth-text-strong)
+	// Alineacion explicita: aunque AuthLayout.vue ya deja el subarbol en left, este
+	// componente se podria renderizar fuera de ese layout en el futuro, y una etiqueta
+	// centrada arriba de un input es un error que cuesta detectar a simple vista.
+	text-align: left
 	margin-bottom: 0.4rem
-	@if ($theme == dark)
-		color: #f2f2f2
 
 .login-form__input-row
 	display: flex
@@ -216,12 +220,12 @@ export default {
 
 .login-form__forgot-link
 	font-size: 0.875rem
-	color: var(--text-color)
-	opacity: 0.65
+	// Texto secundario/auxiliar: usa el tono muted fijo, no la variable de tema
+	// general (que quedaba casi invisible sobre el panel blanco).
+	color: var(--auth-text-muted)
 	text-decoration: none
 	&:hover
 		color: var(--primary-color)
-		opacity: 1
 		text-decoration: underline
 
 // Boton principal: solido con el color de marca, texto legible con la variable que ya
@@ -241,16 +245,15 @@ export default {
 	&:disabled
 		opacity: 0.7
 
-// Linea final con el link al registro
+// Linea final con el link al registro: se queda centrada (se ve mejor asi), por eso el
+// text-align: center va explicito -- el default del subarbol ahora es left (AuthLayout.vue).
 .login-form__register-text
 	text-align: center
 	font-size: 0.875rem
-	color: var(--text-color)
-	opacity: 0.75
+	// Texto secundario/auxiliar: tono muted fijo, no la variable de tema general.
+	color: var(--auth-text-muted)
 	margin-top: 1.25rem
 	margin-bottom: 0
-	@if ($theme == dark)
-		color: #f2f2f2
 	a
 		color: var(--primary-color)
 		font-weight: 600

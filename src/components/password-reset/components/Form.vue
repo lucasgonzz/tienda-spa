@@ -321,36 +321,30 @@ export default {
 }
 </script>
 <style lang="sass">
-// Necesario para el $theme que usan los @if de dark mode de las reglas nuevas de
-// abajo (indicador de paso y parrafo de instrucciones) -- login/components/Form.vue
-// importa lo mismo por el mismo motivo.
-@import '@/sass/_custom'
-
 .form-register
 	.custom-checkbox
 		text-align: left
 
 // Indicador chico "Paso X de 3": mismo tono discreto que el resto de textos
 // auxiliares del formulario, no debe competir visualmente con el titulo del AuthLayout.
+// Se queda centrado (text-align explicito, el default del subarbol ahora es left).
 .login-form__step-indicator
 	text-align: center
 	font-size: 0.8125rem
 	font-weight: 500
-	color: var(--text-color)
-	opacity: 0.6
+	// Tono muted fijo (definido en AuthLayout.vue), no la variable de tema general:
+	// esa esta pensada para superficies coloreadas, no para el panel blanco del formulario.
+	color: var(--auth-text-muted)
 	margin-bottom: 1rem
-	@if ($theme == dark)
-		color: #f2f2f2
 
 // Parrafo de instrucciones del paso 1: reemplaza al label del b-form-group que se
 // usaba antes como si fuera un parrafo (uso raro, se veia como etiqueta de campo).
+// Alineado a la izquierda de forma explicita, igual criterio que las etiquetas.
 .login-form__step-instructions
 	font-size: 0.875rem
-	color: var(--text-color)
-	opacity: 0.8
+	color: var(--auth-text-muted)
+	text-align: left
 	margin-bottom: 1rem
-	@if ($theme == dark)
-		color: #f2f2f2
 
 // Codigo numerico corto: se lee mejor centrado y con un poco de separacion entre
 // caracteres que como texto libre alineado a la izquierda (mismo tratamiento que
