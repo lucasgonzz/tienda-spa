@@ -3,27 +3,13 @@
 	title="Bienvenido de vuelta"
 	:subtitle="'Ingresa a tu cuenta de ' + commerce_name">
 		<form-login></form-login>
-
-		<hr>
-		<h6>
-			¿Aun  no tenes cuenta?
-		</h6>
-		<b-button
-		class="m-b-20"
-		block
-		@click="toRegister()"
-		variant="success">
-			Registrarse
-		</b-button>
 	</auth-layout>
 </template>
 <script>
-import nav from '@/mixins/nav'
 import AuthLayout from '@/components/auth/AuthLayout'
 import FormLogin from '@/components/login/components/Form'
 export default {
 	name: 'Login',
-	mixins: [nav],
 	created() {
 		this.$scrollToTop()
 	},
