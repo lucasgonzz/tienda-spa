@@ -7,19 +7,26 @@
             v-if="tienda_pausada"></pausar-tienda-online>
             <div
             v-else>
-                <nav-component></nav-component>
-                <b-container 
-                fluid 
-                :class="_class">
-                    <transition name="slide-left">
-                        <router-view/>
-                    </transition>
-                    <btn-whats-app></btn-whats-app>
-                    <footer-component></footer-component>
+                <!-- Rutas de autenticacion (login/registro/recuperar clave): pantalla completa, -->
+                <!-- sin navbar, footer, boton de WhatsApp ni buyer-messages (los resuelve AuthLayout). -->
+                <router-view
+                v-if="auth_route"/>
+                <div
+                v-else>
+                    <nav-component></nav-component>
+                    <b-container
+                    fluid
+                    :class="_class">
+                        <transition name="slide-left">
+                            <router-view/>
+                        </transition>
+                        <btn-whats-app></btn-whats-app>
+                        <footer-component></footer-component>
 
-                    <buyer-messages></buyer-messages>
+                        <buyer-messages></buyer-messages>
 
-                </b-container>
+                    </b-container>
+                </div>
             </div>
         </div>
     </div>
@@ -61,6 +68,17 @@ export default {
         },
         route() {
             return this.$route.name
+        },
+        /**
+         * Indica si la ruta activa es una de autenticacion (login, registro o
+         * recuperar clave). En esas rutas AuthLayout ya resuelve su propio chrome
+         * a pantalla completa, asi que el navbar, el footer, el boton de WhatsApp
+         * y buyer-messages no deben renderizarse encima.
+         *
+         * @returns {boolean}
+         */
+        auth_route() {
+            return ['Login', 'Register', 'PasswordReset'].indexOf(this.route) != -1
         },
         deferred_prompt() {
             return this.$store.state.install_btn.deferred_prompt
