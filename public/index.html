@@ -79,7 +79,21 @@
     <script src="https://sdk.mercadopago.com/js/v2"></script>
     <script src="https://live.decidir.com/static/v2.5/decidir.js"></script>
     
-    <link rel="icon" href="<%= BASE_URL %>favicon.ico">
+    <!--
+      Iconos PWA: los PNG van primero porque son mas especificos (tamano y formato exactos que
+      cada plataforma pide) y los navegadores modernos los priorizan sobre el .ico generico, que
+      queda al final como fallback para clientes viejos. El "?v=" de cache-busting usa
+      VUE_APP_ICONS_VERSION, que admin-api escribe en el .env del clone cuando regenera los
+      iconos de un comercio (ver EcommerceInstallationService.php). El guard typeof evita
+      ReferenceError si la variable no esta en el .env del build: sin el guard, html-webpack-plugin
+      tira excepcion y el build entero falla (paso justo con el intento anterior de este bloque);
+      con el guard, el "?v=" queda vacio pero la tienda sigue compilando y sirviendo los iconos.
+    -->
+    <link rel="icon" type="image/png" sizes="32x32" href="<%= BASE_URL %>img/icons/favicon-32x32.png?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>">
+    <link rel="icon" type="image/png" sizes="16x16" href="<%= BASE_URL %>img/icons/favicon-16x16.png?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>">
+    <link rel="apple-touch-icon" sizes="180x180" href="<%= BASE_URL %>img/icons/apple-touch-icon-180x180.png?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>">
+    <link rel="mask-icon" href="<%= BASE_URL %>img/icons/safari-pinned-tab.svg?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>" color="#000000">
+    <link rel="icon" href="<%= BASE_URL %>favicon.ico?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>">
     <title><%= htmlWebpackPlugin.options.title %></title>
     <!--
       Open Graph / Twitter Card: es lo que leen WhatsApp, Instagram y Facebook para armar la vista
