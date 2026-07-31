@@ -1,4 +1,22 @@
 let webpack = require('webpack')
+
+/**
+ * Escapa un valor para que sea seguro dentro de un atributo HTML del template de index.html.
+ * html-webpack-plugin usa templates de lodash, donde `<%= %>` interpola crudo (sin escapar),
+ * asi que un nombre de comercio con comillas, `<`, `>` o `&` podria romper el HTML o cortar
+ * un atributo `content="..."` si no se sanitiza antes de inyectarlo.
+ * @param {*} value Valor a escapar (titulo, descripcion, url o imagen del comercio).
+ * @returns {string} Valor convertido a string con los caracteres especiales de HTML escapados.
+ */
+function escapeHtmlAttribute(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
 module.exports = {
     lintOnSave: false,
     // configureWebpack: {
@@ -53,6 +71,27 @@ module.exports = {
             })
 
             return copyArgs
+        })
+
+        // Titulo y metadatos de la pagina, resueltos en tiempo de build. admin-api escribe estas
+        // variables en el .env del clone antes de compilar (EcommerceInstallationService), una vez
+        // por cliente. Los fallbacks existen para que el build local y cualquier build sin esas
+        // variables sigan funcionando: nunca deben producirse ni un crash ni un "undefined" en el
+        // HTML. Los cuatro valores se escapan con escapeHtmlAttribute antes de inyectarse porque
+        // html-webpack-plugin interpola sin escapar (ver comentario del helper mas arriba).
+        config.plugin('html').tap(args => {
+            // Nombre del comercio: variable local (no propiedad "name:") para no matchear el sed
+            // que admin-api corre sobre este archivo para patchear el bloque "pwa" (ver seccion
+            // "Que NO tocar" del prompt 270-03).
+            const siteName = process.env.VUE_APP_SITE_NAME || 'Tienda'
+
+            args[0].title           = escapeHtmlAttribute(siteName)
+            args[0].siteName        = escapeHtmlAttribute(siteName)
+            args[0].siteDescription = escapeHtmlAttribute(process.env.VUE_APP_SITE_DESCRIPTION || '')
+            args[0].siteImage       = escapeHtmlAttribute(process.env.VUE_APP_SITE_IMAGE || '')
+            args[0].siteUrl         = escapeHtmlAttribute(process.env.VUE_APP_SITE_URL || '')
+
+            return args
         })
     },
     devServer: {
