@@ -80,20 +80,20 @@
     <script src="https://live.decidir.com/static/v2.5/decidir.js"></script>
     
     <!--
-      Iconos PWA: los PNG van primero porque son mas especificos (tamano y formato exactos que
-      cada plataforma pide) y los navegadores modernos los priorizan sobre el .ico generico, que
-      queda al final como fallback para clientes viejos. El "?v=" de cache-busting usa
-      VUE_APP_ICONS_VERSION, que admin-api escribe en el .env del clone cuando regenera los
-      iconos de un comercio (ver EcommerceInstallationService.php). El guard typeof evita
-      ReferenceError si la variable no esta en el .env del build: sin el guard, html-webpack-plugin
-      tira excepcion y el build entero falla (paso justo con el intento anterior de este bloque);
-      con el guard, el "?v=" queda vacio pero la tienda sigue compilando y sirviendo los iconos.
+      Aca NO va ningun link de icono. Los iconos los declara @vue/cli-plugin-pwa en tiempo de
+      build, desde el bloque "pwa" de vue.config.js (iconPaths + assetsVersion): ese es el unico
+      lugar donde hay que tocarlos.
+
+      Por que no se declaran a mano (y no volver a hacerlo): el plugin inyecta su propio set de
+      links de iconos SIEMPRE, sin mirar lo que diga este template. Declararlos aca daba dos tags
+      por cada icono, y los del plugin -- que son los que ganan en la mayoria de los navegadores --
+      salian sin el "?v=" de cache-busting. Peor todavia: el plugin envuelve el PRIMER link de
+      icono de este template en un comentario condicional de Internet Explorer, con lo cual el tag
+      mas especifico quedaba invisible para todos los demas navegadores.
+
+      El favicon.ico sigue existiendo en public/ y se sirve en la raiz del sitio: es el que buscan
+      por su cuenta los navegadores y crawlers viejos cuando no encuentran un link declarado.
     -->
-    <link rel="icon" type="image/png" sizes="32x32" href="<%= BASE_URL %>img/icons/favicon-32x32.png?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>">
-    <link rel="icon" type="image/png" sizes="16x16" href="<%= BASE_URL %>img/icons/favicon-16x16.png?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>">
-    <link rel="apple-touch-icon" sizes="180x180" href="<%= BASE_URL %>img/icons/apple-touch-icon-180x180.png?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>">
-    <link rel="mask-icon" href="<%= BASE_URL %>img/icons/safari-pinned-tab.svg?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>" color="#000000">
-    <link rel="icon" href="<%= BASE_URL %>favicon.ico?v=<%= typeof VUE_APP_ICONS_VERSION !== 'undefined' ? VUE_APP_ICONS_VERSION : '' %>">
     <title><%= htmlWebpackPlugin.options.title %></title>
     <!--
       Open Graph / Twitter Card: es lo que leen WhatsApp, Instagram y Facebook para armar la vista

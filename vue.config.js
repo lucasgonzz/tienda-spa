@@ -108,6 +108,29 @@ module.exports = {
         themeColor: "#c5111d",
         name: "Tienda",
 
+        // Version de los iconos, para cache-busting. admin-api escribe VUE_APP_ICONS_VERSION en el
+        // .env del clone (un timestamp nuevo en cada install y en cada update) antes de compilar, y
+        // Vue CLI carga los .env ANTES de evaluar este archivo, asi que process.env ya la tiene.
+        // El plugin la concatena como "?v=<valor>" a TODOS los <link> de icono que inyecta en el
+        // <head>. Si la variable no estuviera definida queda '' y el plugin simplemente no agrega
+        // el parametro: el build no se rompe.
+        assetsVersion: process.env.VUE_APP_ICONS_VERSION || '',
+
+        // Iconos que el plugin declara en el <head>. Se explicitan los cinco aunque cuatro
+        // coincidan con el default del plugin, para que este bloque sea el UNICO lugar donde se
+        // decide que iconos van al HTML (antes estaban declarados tambien a mano en
+        // public/index.html y salian duplicados). El unico que cambia respecto del default es
+        // appleTouchIcon: el plugin apunta por defecto a 152x152 y el set que genera
+        // admin-api/deploy/tienda/generate_pwa_icons.js incluye el de 180x180, que es el que piden
+        // los iOS actuales.
+        iconPaths: {
+            favicon32: 'img/icons/favicon-32x32.png',
+            favicon16: 'img/icons/favicon-16x16.png',
+            appleTouchIcon: 'img/icons/apple-touch-icon-180x180.png',
+            maskIcon: 'img/icons/safari-pinned-tab.svg',
+            msTileImage: 'img/icons/msapplication-icon-144x144.png',
+        },
+
         backgroundColor: "#FFF",
         msTileColor: "#FFF",
         manifestOptions: {
