@@ -62,18 +62,32 @@
 							<div slot="error">Imagen no encontrada</div>
 						</vue-load-image>
 					</div>
-					<vue-load-image
-					v-else>
-						<img
-						class="img-carrousel"
-						slot="image"
-						:src="image.hosting_url"
-						:alt="article.name">
-				        <b-spinner
-						slot="preloader"
-				        variant="success"></b-spinner>
-						<div slot="error">Imagen no encontrada</div>
-					</vue-load-image>
+					<!-- En escritorio: lente interna. El wrapper es inline-block a proposito, asi mide
+					exactamente lo que mide la imagen (que tiene max-width 100% y max-height 70vh, o
+					sea que casi nunca ocupa todo el slide) y la lente, que va absoluta sobre el, cae
+					clavada sobre la foto y no sobre el espacio vacio del slide. -->
+					<div
+					v-else
+					class="cc-zoom"
+					@mouseenter="on_zoom_enter(index)"
+					@mousemove="on_zoom_move($event, index)"
+					@mouseleave="on_zoom_leave">
+						<vue-load-image>
+							<img
+							class="img-carrousel"
+							slot="image"
+							:src="image.hosting_url"
+							:alt="article.name">
+					        <b-spinner
+							slot="preloader"
+					        variant="success"></b-spinner>
+							<div slot="error">Imagen no encontrada</div>
+						</vue-load-image>
+						<div
+						class="cc-zoom__lens"
+						v-if="zoom_is_active(index)"
+						:style="zoom_lens_style(image)"></div>
+					</div>
 				</slide>
 			</carousel>
 		</div>
@@ -184,14 +198,25 @@ export default {
 			pinch_touch_start_y: 0,
 			pinch_touch_last_translate_x: 0,
 			pinch_touch_last_translate_y: 0,
+			/* Zoom con mouse (solo escritorio): indice del slide donde esta el cursor, o null si no hay ninguno. */
+			zoom_index: null,
+			/* Posicion del cursor dentro de la imagen, en porcentaje, para mapearla a background-position. */
+			zoom_x: 50,
+			zoom_y: 50,
+			/* Cuanto se amplia la foto dentro del marco. 2.5 = 250%. */
+			zoom_scale: 2.5,
 		}
 	},
 	watch: {
 		index() {
 			this.reset_pinch_zoom()
+			/* Sin esto, al cambiar de foto con las flechas la lente sigue mostrando la anterior
+			   hasta que llegue el proximo mousemove. */
+			this.on_zoom_leave()
 		},
 		article() {
 			this.reset_pinch_zoom()
+			this.on_zoom_leave()
 		},
 	},
 	methods: {
@@ -324,6 +349,83 @@ export default {
 			this.pinch_touch_is_pinching = false
 			this.pinch_touch_is_panning = false
 		},
+		/**
+		 * Indica si hay que dibujar la lente sobre este slide. En móvil nunca: ahí el zoom se hace
+		 * con el pinch de dos dedos que ya existe, y el nodo de la lente ni siquiera se renderiza.
+		 *
+		 * @param {number} index Índice del slide.
+		 * @returns {boolean}
+		 */
+		zoom_is_active(index) {
+			return !this.is_mobile && this.zoom_index === index
+		},
+		/**
+		 * Estilo de la lente: la misma foto, ampliada, posicionada según dónde está el cursor.
+		 *
+		 * La posición va en PORCENTAJE y no en píxeles a propósito. Con un background-size mayor
+		 * que el contenedor, el porcentaje de CSS ya hace el mapeo proporcional correcto (0%
+		 * alinea los bordes izquierdos, 100% los derechos). Calcularlo a mano en píxeles obligaría
+		 * a conocer el tamaño natural de la imagen, que acá no se sabe hasta que termina de
+		 * cargar. Lo demás (repeat, fondo, radio) vive en el <style>, no acá.
+		 *
+		 * @param {Object} image Imagen del slide.
+		 * @returns {Object}
+		 */
+		zoom_lens_style(image) {
+			return {
+				backgroundImage: 'url(' + image.hosting_url + ')',
+				backgroundSize: (this.zoom_scale * 100) + '%',
+				backgroundPosition: this.zoom_x + '% ' + this.zoom_y + '%',
+			}
+		},
+		/**
+		 * Enciende la lente al entrar el mouse en la foto.
+		 *
+		 * @param {number} index Índice del slide.
+		 * @returns {void}
+		 */
+		on_zoom_enter(index) {
+			if (this.is_mobile) {
+				return
+			}
+			this.zoom_index = index
+		},
+		/**
+		 * Mapea la posición del cursor dentro de la foto a la posición del fondo de la lente.
+		 *
+		 * @param {MouseEvent} event Evento de movimiento del mouse.
+		 * @param {number} index Índice del slide.
+		 * @returns {void}
+		 */
+		on_zoom_move(event, index) {
+			if (this.is_mobile) {
+				return
+			}
+			let rect = event.currentTarget.getBoundingClientRect()
+			/* Si el wrapper todavía no tiene tamaño (imagen sin cargar), no hay nada que mapear. */
+			if (!rect.width || !rect.height) {
+				return
+			}
+			let x = ((event.clientX - rect.left) / rect.width) * 100
+			let y = ((event.clientY - rect.top) / rect.height) * 100
+			/* Acotado a 0-100: con background-position en %, 0 alinea el borde izquierdo de la
+			   imagen ampliada con el del marco y 100 el derecho, así que fuera de ese rango se
+			   vería franja vacía. */
+			this.zoom_x = Math.min(100, Math.max(0, x))
+			this.zoom_y = Math.min(100, Math.max(0, y))
+			this.zoom_index = index
+		},
+		/**
+		 * Apaga la lente y devuelve la posición al centro, para que el próximo hover no arranque
+		 * con la posición vieja durante un frame.
+		 *
+		 * @returns {void}
+		 */
+		on_zoom_leave() {
+			this.zoom_index = null
+			this.zoom_x = 50
+			this.zoom_y = 50
+		},
 	},
 	created(){
 		this.setInterval()
@@ -424,6 +526,35 @@ export default {
 			overflow: hidden
 		.pinch-zoom-img
 			will-change: transform
+		// Lente de zoom con mouse (escritorio). Ojo: este bloque NO cuelga de
+		// .plantilla-comerciocity, a diferencia de todo el resto del grupo 346. Es a proposito: el
+		// zoom es usabilidad, no estetica. En reposo la pantalla se ve igual que siempre en
+		// cualquier plantilla y el efecto solo existe mientras el mouse esta encima, asi que
+		// dejarlo afuera de Moderno y Clasico seria negarles una funcion util sin ninguna razon.
+		.cc-zoom
+			position: relative
+			// inline-block para que el wrapper mida lo mismo que la imagen, y line-height 0 porque
+			// la imagen es inline: sin eso queda el espacio bajo la linea base, el wrapper sale
+			// mas alto que la foto y la lente sobresale por abajo.
+			display: inline-block
+			line-height: 0
+			max-width: 100%
+			cursor: zoom-in
+		.cc-zoom__lens
+			position: absolute
+			top: 0
+			left: 0
+			right: 0
+			bottom: 0
+			background-repeat: no-repeat
+			background-color: #FFF
+			// El mismo radio que .img-carrousel, para no mostrar esquinas cuadradas sobre una
+			// imagen redondeada.
+			border-radius: 7px
+			// Sin esto la lente se interpone entre el cursor y el wrapper, el mousemove deja de
+			// llegar y el zoom queda congelado en el primer punto.
+			pointer-events: none
+			z-index: 2
 		.img-carrousel
 			max-width: 100%
 			border-radius: 7px	
