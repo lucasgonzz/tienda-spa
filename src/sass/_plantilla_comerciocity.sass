@@ -1,0 +1,112 @@
+// Plantilla ComercioCity — la tercera plantilla de diseño de la tienda, junto a Moderno y Clásico.
+//
+// Se activa por la clase `plantilla-comerciocity` que arma App.vue (computed `_class`) con el slug
+// del `online_template` del comercio y le aplica al contenedor que envuelve al router-view. O sea
+// que todo lo que cuelgue de `.plantilla-comerciocity` aplica a TODAS las vistas de la tienda.
+//
+// A diferencia de Moderno y Clásico, que están desparramadas entre `_article_card.sass`,
+// `_text.sass` y varios `.vue`, esta plantilla vive entera acá. Si algo de ComercioCity hay que
+// tocar, se toca en este archivo.
+//
+// Se importa último en `app.sass` a propósito: así puede pisar lo que definieron los archivos
+// anteriores por especificidad, sin necesidad de `!important`.
+//
+// 🔴 La grilla NO se toca acá. Cuántas tarjetas entran por fila lo configura cada comercio desde
+// empresa (`cantidad_tarjetas_en_telefono` / `_tablet` / `_notebook` / `_escritorio`) y se resuelve
+// en los `_cont_cards_*.sass` como el `width: %` de `.model`. Esta plantilla cambia lo de adentro
+// de la tarjeta, nunca cuántas entran.
+
+.plantilla-comerciocity
+	--cc-surface: #FFFFFF
+	--cc-surface-muted: #F5F5F7
+	--cc-hairline: rgba(0, 0, 0, .08)
+	--cc-ink: #1D1D1F
+	--cc-ink-soft: rgba(29, 29, 31, .56)
+	--cc-radius-card: 16px
+	--cc-radius-inner: 12px
+	--cc-shadow-rest: 0 1px 2px rgba(0, 0, 0, .04), 0 4px 16px rgba(0, 0, 0, .05)
+	--cc-shadow-hover: 0 2px 6px rgba(0, 0, 0, .06), 0 12px 32px rgba(0, 0, 0, .10)
+	--cc-ease: cubic-bezier(.22, .61, .36, 1)
+
+	.article-card
+		background: var(--cc-surface)
+		border: 1px solid var(--cc-hairline)
+		border-radius: var(--cc-radius-card)
+		box-shadow: var(--cc-shadow-rest)
+		overflow: hidden
+		transition: transform .35s var(--cc-ease), box-shadow .35s var(--cc-ease)
+		cursor: pointer
+		// El hover levanta la tarjeta unos pixeles en vez de agrandarla. `_article_card.sass` hace
+		// `transform: scale(1.04)`, que empuja a las tarjetas vecinas y desalinea la fila entera;
+		// esta regla tiene más especificidad y lo anula. La sombra lleva `!important` porque la de
+		// `_article_card.sass` (la de nueve capas, en ≥992px) también lo lleva y si no, gana ella.
+		//
+		// El borde va con el shorthand y no con `border-color`, aunque acá lo único que cambia sea
+		// el color. Con `border-color` el resultado hoy también es 1px, pero por un camino frágil:
+		// en ≥992px `_article_card.sass` pone `border: 2px solid rgba(0,0,0,.3)` en el hover, y
+		// quien le gana ese `border-width` no es esta regla sino la regla base de arriba
+		// (`.plantilla-comerciocity .article-card`), que empata en especificidad (0,2,0) con
+		// `.article-card:hover` y gana solo por venir después en la hoja — o sea, por el orden del
+		// `@import` en `app.sass`. Si alguien mueve ese import, el empate se da vuelta y vuelve el
+		// borde de 2px. El shorthand fija los tres longhands acá mismo, con especificidad propia
+		// (0,3,0), y deja de depender del orden. Medido en Chrome sobre el CSS compilado, con las
+		// dos variantes: `border-top-width` = 1px en ambas.
+		&:hover
+			@media screen and (min-width: 768px)
+				transform: translateY(-4px)
+				box-shadow: var(--cc-shadow-hover) !important
+				border: 1px solid rgba(0, 0, 0, .12)
+
+		// Proporción fija 1:1 y la foto entera adentro (`contain`), sobre un fondo neutro. Las fotos
+		// de catálogo de una ferretería o una distribuidora vienen de cualquier proporción:
+		// enmarcarlas es mejor que recortarlas, y además deja todos los precios de la fila a la
+		// misma altura, que con el `max-height: 500px` de `_article_card.sass` no pasaba.
+		.cont-images
+			position: relative
+			// Anula el `max-height: 500px` de `_article_card.sass`. Sin esto el `aspect-ratio`
+			// queda capado en pantallas grandes y la proporción cuadrada no se cumple.
+			max-height: none
+			background: var(--cc-surface-muted)
+			aspect-ratio: 1 / 1
+			overflow: hidden
+			.vue-load-image
+				width: 100%
+				height: 100%
+				display: flex
+				align-items: center
+				justify-content: center
+				.spinner-border
+					margin: 0
+				img
+					width: 100%
+					height: 100%
+					object-fit: contain
+					// El padding va en la `img` y no en el contenedor para que el `scale` del hover
+					// llegue a ocupar el cuadro completo.
+					padding: 10%
+					// El redondeo lo hace el `overflow: hidden` de la tarjeta. Redondear también acá
+					// —como hace `_article_card.sass` por breakpoint— deja un halo entre los dos radios.
+					border-radius: 0
+					transition: transform .6s var(--cc-ease)
+		// El movimiento vive donde hay algo para mirar: se agranda la imagen, adentro del cuadro,
+		// no la tarjeta.
+		&:hover .cont-images img
+			@media screen and (min-width: 768px)
+				transform: scale(1.05)
+
+		// Pastilla flotante en vez del rectángulo rojo pegado a la esquina que dibuja
+		// `AgotadoInfo.vue`. El fondo oscuro translúcido con blur se lee sobre cualquier foto,
+		// clara u oscura. Gana por especificidad: el `background: $red` del componente no lleva
+		// `!important`.
+		.agotado
+			top: 12px
+			left: 12px
+			background: rgba(29, 29, 31, .72)
+			backdrop-filter: blur(10px)
+			-webkit-backdrop-filter: blur(10px)
+			border-radius: 999px
+			padding: 5px 12px
+			font-size: 11px
+			font-weight: 600
+			letter-spacing: .06em
+			text-transform: uppercase
