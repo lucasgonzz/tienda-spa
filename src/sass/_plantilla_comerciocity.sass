@@ -223,3 +223,56 @@
 		.vue-load-image .b-skeleton-img
 			height: auto !important
 			aspect-ratio: 1 / 1
+
+	// ── Títulos de sección ──────────────────────────────────────────────────────────────────
+	// 🔴 Acotados a `#articles-list` a propósito, y no `.plantilla-comerciocity .title` a secas:
+	// `TitleJumbotron.vue` usa la MISMA clase `.title` para el bloque de texto que va encima del
+	// banner del comercio, y ese no es un título de texto sino un contenedor posicionado sobre la
+	// imagen. Una regla suelta de `.title` le rompe el banner a todos los comercios que lo usan, y
+	// lo hace en silencio. Los cinco títulos de sección de verdad (Destacados, Ofertas, Novedades,
+	// Promociones, y el de categoría / Resultados / Ultimos ingresos) viven dentro de
+	// `#articles-list`; el jumbotron no. Ese es el corte.
+	#articles-list
+		.title
+			font-size: clamp(20px, 2.4vw, 28px)
+			font-weight: 600
+			letter-spacing: -.02em
+			color: var(--cc-ink)
+			text-align: left
+			margin: 40px 0 18px
+			// Alinea el título con el borde izquierdo de la primera tarjeta: `_cont_cards.sass` le
+			// da a `.model` un `margin: 0 1% 50px`, así que la columna de productos arranca 1%
+			// adentro. Sin esto el título queda corrido respecto de la grilla.
+			padding-left: 1%
+			@media screen and (max-width: 576px)
+				margin: 28px 0 14px
+
+	// Solo el margen de abajo. Los 50px verticales de hoy hacen entrar dos filas donde entrarían
+	// tres. El `1%` lateral y el `width` que viene de las clases `tarjetas-*` NO se tocan: esa es
+	// la grilla que configura cada comercio.
+	.cont-models
+		.model
+			margin-bottom: 28px
+			@media screen and (max-width: 576px)
+				margin-bottom: 18px
+
+	.featured-list
+		margin-bottom: 8px
+		+ .featured-list
+			margin-top: 4px
+
+	// "No hay mas artículos" y "No se encontraron resultados" son mensajes de sistema: tienen que
+	// estar, no gritar. Hoy pesan casi tanto como un título de sección.
+	.not-results
+		font-size: 13px
+		color: var(--cc-ink-soft)
+		padding: 8px 0 24px
+
+	.text-with-icon
+		color: var(--cc-ink-soft)
+		font-weight: 500
+		font-size: 15px
+		.bi
+			font-size: 2.6em
+			opacity: .35
+			margin-bottom: 8px
