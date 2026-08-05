@@ -2,7 +2,11 @@
 	<div 
 	class="cont-buttons m-t-10">
 		
+		<!-- La clase fija btn-ver-mas es el unico enganche estable para apuntarle desde una
+		plantilla: el :class de al lado cambia entre btn-mas-info y w-100 segun si el visitante
+		puede comprar, asi que no sirve como selector. -->
 		<b-button
+		class="btn-ver-mas"
 		:class="(authenticated || puede_comprar_sin_login) ? 'btn-mas-info' : 'w-100'"
 		@click="toArticle(article)"
 		variant="primary">
@@ -25,6 +29,7 @@
 			:disabled="article.precio_pausado ? true : false"
 			variant="outline-primary">
 				<i class="bi bi-cart-plus"></i>
+				<span class="btn-cart-label">Agregar</span>
 			</b-button>
 			<b-button
 			v-else
@@ -32,6 +37,7 @@
 			@click.stop="remove_cart(article)"
 			variant="danger">
 				<i class="bi bi-cart-plus"></i>
+				<span class="btn-cart-label">Quitar</span>
 			</b-button>
  		</template>
 
@@ -64,6 +70,12 @@ export default {
 
 	.btn-mas-info
 		width: calc(100% - 45px - 10px)
+
+	// La etiqueta del boton de carrito nace oculta: en Moderno y en Clasico el boton es un icono
+	// de 45px de ancho y el texto no entra. La plantilla ComercioCity, donde ese boton pasa a
+	// ocupar la fila entera, la muestra desde _plantilla_comerciocity.sass.
+	.btn-cart-label
+		display: none
 
 
 .plantilla-clasico

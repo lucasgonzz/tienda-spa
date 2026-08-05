@@ -69,7 +69,13 @@ export default {
  	},
 	methods: {
 		set_article() {
-			if (this.commerce.online_configuration.online_template.slug == 'clasico') {
+			// La tarjeta entera navega al articulo solo en estas dos plantillas. Moderno queda
+			// afuera a proposito: ahi el boton "Ver mas" es la unica forma de entrar al articulo,
+			// asi que si la tarjeta tambien navegara el boton perderia su razon de ser y ademas
+			// cambiaria el comportamiento de los comercios que hoy usan esa plantilla.
+			// El boton de carrito usa @click.stop, asi que agregar al carrito no dispara esto.
+			let plantillas_con_tarjeta_clickeable = ['clasico', 'comerciocity']
+			if (plantillas_con_tarjeta_clickeable.indexOf(this.commerce.online_configuration.online_template.slug) != -1) {
 				this.toArticle(this.article)
 			}
 		},
