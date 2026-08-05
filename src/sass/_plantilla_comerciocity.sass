@@ -276,3 +276,107 @@
 			font-size: 2.6em
 			opacity: .35
 			margin-bottom: 8px
+
+	// ── Vista del artículo ──────────────────────────────────────────────────────────────────
+	// Las dos superficies (imagen y datos) pasan al mismo lenguaje que la tarjeta: sin el borde
+	// gris de 2px, radio grande y sombra suave. El `border: 2px solid #DDDDDD` que define cada
+	// componente no lleva `!important` y estas reglas tienen un nivel más de especificidad.
+	.cont-article-image, .article-data
+		border: 1px solid var(--cc-hairline)
+		border-radius: 20px
+		box-shadow: var(--cc-shadow-rest)
+
+	.cont-article-image
+		margin: 0 0 24px
+		background: var(--cc-surface)
+		overflow: hidden
+
+		// La selección de miniatura se marca con `box-shadow` y no con `border`. El problema no
+		// era estético: `.selected-image` agregaba `border: 2px solid #333` y, como las no
+		// seleccionadas no tienen borde, al elegir una la imagen se corría 2px y temblaba la
+		// columna entera. La sombra no ocupa espacio en el layout.
+		.images-preview
+			padding: 16px 0
+			img
+				width: 74%
+				margin: 8px auto
+				display: block
+				border-radius: 10px
+				background: var(--cc-surface-muted)
+				// Anula la sombra de la clase `shadow-1` que el template le pone a cada
+				// miniatura: `_shadows.sass` la declara con `!important`, así que sin otro
+				// `!important` no hay forma de sacarla.
+				box-shadow: none !important
+				transition: box-shadow .2s var(--cc-ease), transform .2s var(--cc-ease)
+				&:hover
+					transform: translateY(-1px)
+			.selected-image
+				border: none
+				// El `!important` de acá le devuelve la sombra a la seleccionada, después de que
+				// la regla de arriba se la sacó a todas. Pelean entre ellas dos, no contra el
+				// componente. El anillo va en el color secundario del comercio, el mismo de los
+				// botones, y no en negro.
+				box-shadow: 0 0 0 2px var(--secondary-color) !important
+
+	.article-data
+		padding: 28px
+		@media screen and (max-width: 576px)
+			padding: 20px
+
+		// Los estilos de estos dos componentes son `scoped`, o sea que compilan con un atributo
+		// que suma especificidad. Por eso la cadena lleva `.article-data` adelante: con un nivel
+		// más alcanza y no hace falta `!important`.
+		.cont-name .product-name
+			font-size: 26px
+			line-height: 1.25
+			font-weight: 600
+			letter-spacing: -.02em
+			color: var(--cc-ink)
+			@media screen and (max-width: 576px)
+				font-size: 22px
+
+		.cont-name .num
+			font-size: 12px
+			letter-spacing: .06em
+			text-transform: uppercase
+			color: var(--cc-ink-soft)
+
+		.price
+			font-size: 32px
+			font-weight: 600
+			letter-spacing: -.025em
+			color: var(--cc-ink)
+			margin-bottom: 4px
+			@media screen and (max-width: 576px)
+				font-size: 26px
+
+		.btn
+			border-radius: 999px
+			font-weight: 500
+			letter-spacing: -.01em
+
+		// Separa "qué es y cuánto sale" de "cómo lo compro". La línea no puede quedar colgando
+		// sola: `add-to-cart/Index.vue` tiene el div `.add-to-cart` adentro de dos `v-if`
+		// (visitante que puede comprar, y artículo con precio y stock), así que cuando no
+		// corresponde el elemento directamente no existe en el DOM.
+		.add-to-cart
+			padding-top: 18px
+			border-top: 1px solid var(--cc-hairline)
+
+	// 🔴 El `.article-page` de más no es redundante. `views/Article.vue` usa `<style scss scoped>`,
+	// que compila a `.article-page__section[data-v-hash]` — o sea (0,2,0), lo mismo que valdría
+	// `.plantilla-comerciocity .article-page__section`. En un empate gana el que va después en la
+	// hoja, y los estilos de componente se emiten DESPUÉS que `app.sass`: el empate lo perdería la
+	// plantilla y la pantalla no cambiaría nada, sin ningún error a la vista. Con el nivel extra
+	// queda (0,3,0) y gana. Si algún día esto deja de aplicarse, es por acá.
+	.article-page
+		.article-page__section
+			border-top: 1px solid var(--cc-hairline)
+			margin-top: 2.5rem
+
+		.article-page__section-eyebrow
+			font-size: 11px
+			letter-spacing: .09em
+			font-weight: 600
+			color: var(--cc-ink-soft)
+			margin-bottom: 14px
