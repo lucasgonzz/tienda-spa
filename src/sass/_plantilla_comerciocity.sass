@@ -380,3 +380,28 @@
 			font-weight: 600
 			color: var(--cc-ink-soft)
 			margin-bottom: 14px
+
+	// ── Modal de agregar al carrito ─────────────────────────────────────────────────────────
+	// Este bloque solo funciona porque App.vue ahora copia la clase de plantilla al <body>:
+	// BootstrapVue monta el modal en un portal al final del body, o sea fuera del contenedor
+	// que la llevaba. Y como los tokens --cc-* se declaran arriba en el selector raiz
+	// `.plantilla-comerciocity`, que ahora es el body, las custom properties se heredan
+	// tambien adentro del modal. Si la clase volviera a estar solo en el b-container, las
+	// variables no llegarian hasta acá y todo esto se resolveria a vacio.
+	//
+	// El #EBEBEB que le pone add-to-cart-modal/Index.vue venia de la estetica vieja y pelea
+	// con las fichas blancas del diseno nuevo. Se corrige solo para esta plantilla: la cadena
+	// `.plantilla-comerciocity #add-to-cart-modal .modal-content` tiene mas especificidad que
+	// la del componente, asi que gana sin depender del orden de compilacion.
+	#add-to-cart-modal
+		.modal-content
+			background: var(--cc-surface)
+			border: none
+			border-radius: 20px
+			.modal-header
+				border-bottom: 1px solid var(--cc-hairline)
+				.modal-title
+					font-size: 17px
+					font-weight: 600
+					letter-spacing: -.01em
+					color: var(--cc-ink)

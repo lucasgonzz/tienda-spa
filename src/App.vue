@@ -111,6 +111,18 @@ export default {
 
             return _class
         },
+        /**
+         * Clase de la plantilla activa ('plantilla-moderno', 'plantilla-clasico', ...).
+         * Devuelve null mientras el comercio no cargó.
+         *
+         * @returns {string|null}
+         */
+        plantilla_class() {
+            if (!this.commerce || !this.commerce.online_configuration || !this.commerce.online_configuration.online_template) {
+                return null
+            }
+            return 'plantilla-' + this.commerce.online_configuration.online_template.slug
+        },
     },
     watch: {
         authenticated() {
@@ -119,6 +131,14 @@ export default {
 
                 this.escuchar_mensajes()
             }
+        },
+        /* El comercio llega asincrónico, así que la clase no se puede poner una sola vez en
+           mounted: con immediate cubre el arranque, y el watcher cubre el cambio de plantilla. */
+        plantilla_class: {
+            immediate: true,
+            handler(nueva) {
+                this.aplicar_clase_plantilla_en_body(nueva)
+            },
         },
     },
     data() {
@@ -147,6 +167,31 @@ export default {
         this.$scrollToTop()
     },
     methods: {
+        /**
+         * Copia la clase de la plantilla activa al <body>.
+         *
+         * Por que en el body y no solo en el b-container: BootstrapVue monta los modales
+         * (y tooltips, popovers y toasts) en un PORTAL al final del <body>, o sea fuera
+         * del contenedor que lleva la clase. Sin esto, el modal de agregar al carrito
+         * -- que renderiza el mismo article-view que la vista del articulo -- queda sin
+         * ningun estilo de plantilla. Ver el hallazgo 20260805-modal-carrito-fuera-del-
+         * wrapper-de-plantilla.
+         *
+         * @param {string|null} clase_nueva
+         * @returns {void}
+         */
+        aplicar_clase_plantilla_en_body(clase_nueva) {
+            /* Saca cualquier plantilla anterior: el comercio puede cambiarla y la clase vieja quedaria pegada. */
+            let clases_actuales = Array.prototype.slice.call(document.body.classList)
+            clases_actuales.forEach(clase => {
+                if (clase.indexOf('plantilla-') === 0) {
+                    document.body.classList.remove(clase)
+                }
+            })
+            if (clase_nueva) {
+                document.body.classList.add(clase_nueva)
+            }
+        },
         escuchar_mensajes() {
             setInterval(() => {
                 if (this.$route.name != 'Messages') {
