@@ -1,6 +1,24 @@
 import Vue from 'vue'
 import moment from 'moment'
-import commerce_module from '@/store/commerce'
+/*
+ * 🔴 Se importa el STORE ARMADO, no el objeto del modulo ('@/store/commerce').
+ *
+ * Leer commerce_module.state.commerce anda hoy solo por casualidad: store/commerce.js
+ * declara `state` como objeto plano y Vuex usa ESA misma referencia como estado del
+ * modulo. El dia que alguien lo pase a `state: () => ({ ... })` —que es el patron
+ * habitual y una refactorizacion perfectamente razonable— `modulo.state` pasa a ser una
+ * funcion, `modulo.state.commerce` queda undefined, tracking_activo() devuelve false para
+ * siempre y el tracking se apaga ENTERO sin un solo error en consola. Nadie se entera
+ * hasta que alguien pregunta por que la tabla esta vacia hace tres semanas.
+ * Leyendo store.state.commerce.commerce las dos formas de declarar el state funcionan.
+ *
+ * Esto cierra un ciclo de imports (store/index.js -> store/categories.js ->
+ * utils/tracking.js -> store/index.js) y es seguro porque el acceso al store es SIEMPRE
+ * en tiempo de ejecucion, adentro de tracking_activo(): cuando esa funcion corre, el
+ * store ya termino de construirse. Lo que NO se puede hacer es tocar `store` en el cuerpo
+ * de este modulo (fuera de una funcion) — ahi todavia vale undefined.
+ */
+import store from '@/store'
 
 /**
  * Seguimiento del comportamiento de los compradores en la tienda.
@@ -267,7 +285,8 @@ function id_de_sesion() {
  * @returns {boolean}
  */
 export function tracking_activo() {
-	let commerce = commerce_module.state.commerce
+	/* store queda undefined solo si alguien llama esto en tiempo de carga del modulo. */
+	let commerce = store && store.state.commerce ? store.state.commerce.commerce : null
 	if (!commerce || !commerce.extencions) {
 		return false
 	}
