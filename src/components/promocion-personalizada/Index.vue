@@ -52,6 +52,25 @@ import Tarjeta from '@/components/promocion-personalizada/Tarjeta'
 import Navegacion from '@/components/promocion-personalizada/Navegacion'
 import { firma_de_ofertas, esta_descartado, marcar_descartado } from '@/utils/promocion_personalizada'
 
+/*
+ * Rutas donde el mensaje NO se abre solo: el carrito, el checkout y las pantallas de
+ * resultado del pago. Ahi el comprador esta con la plata en la mano, y taparle el formulario
+ * con la promocion de otro producto es lo peor que puede hacer este componente. Recargar la
+ * pagina parado en el pago es como se llega.
+ *
+ * Los nombres salen tal cual de src/router/index.js. El boton del navbar lo sigue pudiendo
+ * abrir a mano tambien en estas rutas: ahi lo pidio el comprador, que es otra cosa.
+ */
+const RUTAS_SIN_APERTURA_AUTOMATICA = [
+	'Cart',
+	'Payment',
+	'PaymentCard',
+	'PaymentSuccess',
+	'PaymentPending',
+	'PaymentFailure',
+	'Thanks',
+]
+
 /**
  * El mensaje de la oferta personalizada: una oferta por pantalla, navegable.
  *
@@ -80,8 +99,30 @@ export default {
 		}
 	},
 	computed: {
+		/**
+		 * El comprador que esta logueado AHORA, o null.
+		 *
+		 * Es el disparador de todo lo de este componente, y no `authenticated`: pasar de un
+		 * comprador a otro sin recargar la pagina deja `authenticated` en true todo el tiempo,
+		 * y el mensaje del primero le quedaba abierto al segundo.
+		 *
+		 * @returns {number|null}
+		 */
+		buyer_id() {
+			if (!this.authenticated || !this.user || !this.user.id) {
+				return null
+			}
+			return Number(this.user.id)
+		},
+		/**
+		 * 🔴 Sale del GETTER y no de state.client_offers.articles: el getter compara contra la
+		 * sesion de ahora, asi que esta lista no puede ser la de otro comprador ni por un
+		 * instante. Ver el docblock de articles_vigentes en el store.
+		 *
+		 * @returns {Array}
+		 */
 		articles() {
-			return this.$store.state.client_offers.articles
+			return this.$store.getters['client_offers/articles_vigentes']
 		},
 		loaded() {
 			return this.$store.state.client_offers.loaded
@@ -119,28 +160,61 @@ export default {
 		/**
 		 * Firma de este comprador con estas ofertas. Es lo que se guarda al descartar.
 		 *
+		 * 🔴 Sin comprador o sin ofertas devuelve cadena vacia, y esa guarda importa: las dos
+		 * puntas de la firma (esta_descartado y marcar_descartado) cortan con falsy, asi que
+		 * asi es imposible descartar —o dar por descartada— una firma armada a medias, con la
+		 * lista de otro o con un buyer_id inventado. `this.articles` ya viene del getter, que
+		 * garantiza la otra mitad.
+		 *
 		 * @returns {string}
 		 */
 		firma() {
-			let buyer_id = this.user && this.user.id ? this.user.id : 0
-			return firma_de_ofertas(buyer_id, this.articles)
+			if (this.buyer_id === null || !this.articles.length) {
+				return ''
+			}
+			return firma_de_ofertas(this.buyer_id, this.articles)
+		},
+		/**
+		 * @returns {boolean}
+		 */
+		en_ruta_sin_apertura_automatica() {
+			return RUTAS_SIN_APERTURA_AUTOMATICA.indexOf(this.$route.name) != -1
 		},
 	},
 	watch: {
 		/*
-		 * auth/me resuelve DESPUES del primer render (App.vue::callMethods lo dispara en
-		 * segundo plano), asi que el caso normal es que cuando este componente se crea todavia
-		 * no haya sesion. Sin este watcher la oferta no se pediria nunca.
+		 * 🔴 El disparador es la IDENTIDAD del comprador, no `authenticated`. Dos motivos, y
+		 * los dos son bugs que ya pasaron:
+		 *
+		 *   1. auth/me resuelve DESPUES del primer render (App.vue::callMethods lo dispara en
+		 *      segundo plano), asi que el caso normal es que cuando este componente se crea
+		 *      todavia no haya sesion. Por eso `immediate` no alcanza solo: hace falta el
+		 *      watcher.
+		 *   2. Cerrar sesion y que entre otro comprador en la misma pestaña NO recarga la
+		 *      pagina y deja `authenticated` en true de punta a punta. Con un booleano ahi no
+		 *      se ve nada; con el id, si.
+		 *
+		 * `sincronizar_comprador` limpia el estado del anterior (articles, loaded, indice,
+		 * mensaje_visible y cantidad_pendiente) y recien despues se decide algo. El orden no
+		 * se invierte: cargar() corta por `loaded`, y sin limpiarlo antes el comprador nuevo
+		 * no pediria nunca las suyas.
 		 */
-		authenticated() {
-			if (this.authenticated) {
+		buyer_id: {
+			immediate: true,
+			handler() {
+				this.$store.commit('client_offers/sincronizar_comprador', this.buyer_id)
 				this.cargar()
-				return
-			}
-			/* Se cerro sesion con el mensaje abierto: se esconde, no es de este comprador. */
-			this.$store.commit('client_offers/set_mensaje_visible', false)
+			},
 		},
 		articles() {
+			this.evaluar_apertura()
+		},
+		/*
+		 * El mensaje que no se abrio por estar en el checkout tiene que poder abrirse cuando
+		 * el comprador sale de ahi. Como en ese caso NO se marco descartado, alcanza con
+		 * volver a evaluar al cambiar de ruta.
+		 */
+		'$route.name'() {
 			this.evaluar_apertura()
 		},
 		visible(nuevo) {
@@ -152,12 +226,15 @@ export default {
 		},
 	},
 	created() {
-		this.cargar()
 		/*
-		 * Y tambien se evalua de una: este componente no vive en las rutas de auth (App.vue lo
-		 * saca junto con el navbar), asi que se destruye y se vuelve a crear al entrar y salir
-		 * del login. Si las ofertas ya llegaron mientras no estaba montado, el watcher de
-		 * articles no vuelve a disparar y sin esto el mensaje no se mostraria nunca.
+		 * La carga NO se pide aca: la dispara el watcher de buyer_id, que corre con `immediate`
+		 * antes que este created y ademas vuelve a correr cuando la sesion cambia. Llamar a
+		 * cargar() de nuevo aca seria ruido.
+		 *
+		 * Lo que si se evalua de una es la apertura: este componente no vive en las rutas de
+		 * auth (App.vue lo saca junto con el navbar), asi que se destruye y se vuelve a crear
+		 * al entrar y salir del login. Si las ofertas ya llegaron mientras no estaba montado,
+		 * el watcher de articles no vuelve a disparar y sin esto el mensaje no se mostraria.
 		 */
 		this.evaluar_apertura()
 	},
@@ -171,24 +248,33 @@ export default {
 	},
 	methods: {
 		/**
-		 * Pide las ofertas una sola vez por sesion de SPA.
+		 * Pide las ofertas una sola vez POR COMPRADOR.
+		 *
+		 * `loaded` no es global: `sincronizar_comprador` lo baja cuando cambia la sesion, asi
+		 * que cada comprador pide las suyas y ninguno hereda las del anterior.
 		 *
 		 * @returns {void}
 		 */
 		cargar() {
-			if (!this.authenticated || this.loaded || this.loading) {
+			if (this.buyer_id === null || this.loaded || this.loading) {
 				return
 			}
 			this.$store.dispatch('client_offers/getModels')
 		},
 		/**
-		 * Decide si el mensaje se abre solo. Solo se abre cuando hay al menos una oferta y
-		 * esta combinacion de comprador y ofertas no fue descartada en esta sesion.
+		 * Decide si el mensaje se abre SOLO. Se abre cuando hay al menos una oferta, la ruta
+		 * admite que aparezca, y esta combinacion de comprador y ofertas no fue descartada.
 		 *
 		 * @returns {void}
 		 */
 		evaluar_apertura() {
-			if (!this.articles.length || esta_descartado(this.firma)) {
+			/*
+			 * 🔴 Cuando corta por la ruta NO se marca descartado, y esa omision es la parte
+			 * que importa: descartar aca seria "no te lo mostre, y encima no te lo muestro
+			 * nunca mas en esta sesion" por el solo hecho de haber recargado parado en el
+			 * pago. El watcher de $route lo vuelve a evaluar apenas sale del checkout.
+			 */
+			if (!this.articles.length || this.en_ruta_sin_apertura_automatica || esta_descartado(this.firma)) {
 				return
 			}
 			this.$store.commit('client_offers/set_indice', 0)
@@ -302,17 +388,37 @@ export default {
 			/* El objeto ya viene completo de la API, con la misma forma que cualquier listado. */
 			this.$store.commit('articles/setArticleToShow', article)
 
-			this.$store.commit('client_offers/set_cantidad_pendiente', this.cantidad_a_precargar(article))
+			let cantidad = this.cantidad_a_precargar(article)
 
 			marcar_descartado(this.firma)
 			this.$store.commit('client_offers/set_mensaje_visible', false)
 			this.$store.commit('client_offers/set_indice', 0)
 
 			/*
-			 * vue-router 3.2 devuelve una promesa que RECHAZA cuando la navegacion es a la
-			 * misma ruta (NavigationDuplicated), y eso pasa de verdad: el boton del navbar
-			 * reabre el mensaje estando ya parado en la ficha de esa oferta.
+			 * 🔴 El caso de "ya estoy parado en esa ficha" se resuelve ACA, ANTES de navegar, y
+			 * no se puede simplificar en un push con .catch():
+			 *
+			 * vue-router 3 RECHAZA la navegacion a la misma ruta (NavigationDuplicated) y eso
+			 * pasa de verdad — el boton del navbar reabre el mensaje estando ya en la ficha de
+			 * esa oferta. Ahi el watcher de $route de Article.vue no dispara, setArticleProps()
+			 * no corre, y la cantidad no se precarga nunca: el comprador aprieta "Usar la
+			 * promocion" de una oferta por cantidad y se queda con la cantidad de antes. Peor
+			 * todavia: `cantidad_pendiente` quedaba seteada esperando una ficha que no se iba
+			 * a cargar, y se la comia el proximo articulo que abriera, que no tiene ninguna
+			 * oferta.
+			 *
+			 * Estando ya en la ficha se aplica la cantidad a mano y no queda nada pendiente.
 			 */
+			if (this.ya_estoy_en_la_ficha(article)) {
+				if (cantidad) {
+					this.$store.commit('articles/setAmount', cantidad)
+				}
+				this.$store.commit('client_offers/set_cantidad_pendiente', null)
+				return
+			}
+
+			this.$store.commit('client_offers/set_cantidad_pendiente', cantidad)
+
 			let navegacion = this.$router.push({
 				name: 'Article',
 				params: {
@@ -321,8 +427,32 @@ export default {
 				},
 			})
 			if (navegacion && typeof navegacion.catch == 'function') {
-				navegacion.catch(() => {})
+				navegacion.catch(() => {
+					/*
+					 * La navegacion no se concreto (la aborto un guard, o quedo duplicada por
+					 * un caso que la comparacion de arriba no cubre). La cantidad pendiente NO
+					 * puede sobrevivir a eso: nadie la va a consumir y se la comeria la
+					 * proxima ficha que abra el comprador.
+					 */
+					this.$store.commit('client_offers/set_cantidad_pendiente', null)
+				})
 			}
+		},
+		/**
+		 * ¿El comprador ya esta parado en la ficha de ese articulo?
+		 *
+		 * Se compara por los parametros de la ruta y no por article_to_show del store: ese ya
+		 * lo acaba de pisar usar_la_promocion(), asi que compararlo diria siempre que si.
+		 *
+		 * @param {object} article
+		 * @returns {boolean}
+		 */
+		ya_estoy_en_la_ficha(article) {
+			if (this.$route.name != 'Article' || !article || !article.slug) {
+				return false
+			}
+			return String(this.$route.params.slug) == String(article.slug)
+				&& String(this.$route.params.commerce_id) == String(process.env.VUE_APP_COMMERCE_ID)
 		},
 		/**
 		 * Cuantas unidades dejar precargadas en la ficha.

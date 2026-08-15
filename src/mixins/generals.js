@@ -436,15 +436,18 @@ export default {
 		 * mostrando un ahorro que no es el real.
 		 *
 		 * 🔴 ESTE ES EL TACHADO DE LOS LISTADOS, y por eso solo devuelve algo con
-		 * tipo_descuento 'unidad'. En un listado (tarjeta, ficha, buscador) el precio grande
-		 * sale SIEMPRE de articlePriceEfectivo, y con 'cantidad' el servidor no toca
-		 * final_price: el precio grande y la base son la MISMA cifra, asi que tacharla seria
-		 * mostrar dos veces el mismo importe, uno cruzado.
+		 * tipo_descuento 'unidad'. En un listado (tarjeta, buscador) el precio grande sale
+		 * SIEMPRE de articlePriceEfectivo, y con 'cantidad' el servidor no toca final_price:
+		 * el precio grande y la base son la MISMA cifra, asi que tacharla seria mostrar dos
+		 * veces el mismo importe, uno cruzado.
 		 *
-		 * Si lo que necesitas es la base para compararla contra OTRO precio —el del tramo, en
-		 * la tarjeta del mensaje de promocion—, ese es precio_base_de_oferta(). No le saques
-		 * este corte a este metodo para resolver aquel caso: le rompe el tachado a los trece
-		 * llamadores de los listados.
+		 * Si lo que necesitas es la base para compararla contra OTRO precio —el del tramo, que
+		 * es lo que muestran la tarjeta del mensaje de promocion y la ficha del producto
+		 * cuando hay una cantidad elegida—, ese es precio_base_de_oferta(). Y si el precio de
+		 * al lado es el del carrito, que sale del pivot y no lleva recargo, ese es
+		 * precio_base_de_linea(). No le saques el corte por tipo a este metodo para resolver
+		 * ninguno de esos dos casos: le rompe el tachado a los trece llamadores de los
+		 * listados.
 		 *
 		 * @param {object} article
 		 * @param {boolean} formated
@@ -501,6 +504,10 @@ export default {
 		 *     'cantidad' es el del MEJOR TRAMO, que es mas barato que la base. Ahi el tachado
 		 *     si tiene sentido, y es justo lo que el comprador tiene que ver: cuanto pagaba
 		 *     antes y cuanto paga llevando N.
+		 *   - En la FICHA del producto pasa lo mismo pero con el tramo de la cantidad que el
+		 *     comprador tiene elegida en ese momento, que es la que le precargo el mensaje y
+		 *     la que puede cambiar a mano. Ver el computed precio_tachado de
+		 *     components/article/components/data/Price.vue.
 		 *
 		 * Por eso este metodo devuelve la base sin mirar el tipo, y quien lo llama decide si la
 		 * muestra comparandola contra el precio que EL esta renderizando. La regla que no se
@@ -607,6 +614,110 @@ export default {
 			/* Mismo redondeo a 2 decimales que hace el servidor al aplicar el porcentaje. */
 			let price = Math.round(Number(base) * (1 - porcentaje / 100) * 100) / 100
 			return formated ? this.price(price) : price
+		},
+		/**
+		 * Pasa el decimal(6,2) del contrato a algo legible: 15.00 -> "15", 12.50 -> "12,5".
+		 *
+		 * @param {number|string|null} valor
+		 * @returns {string|null}
+		 */
+		porcentaje_legible(valor) {
+			if (valor === null || typeof valor == 'undefined' || valor === '') {
+				return null
+			}
+			let numero = Number(valor)
+			if (isNaN(numero) || numero <= 0) {
+				return null
+			}
+			return String(Math.round(numero * 100) / 100).replace('.', ',')
+		},
+		/**
+		 * "Llevá 12 o más y pagás 18% menos": a partir de cuantas unidades mejora el precio.
+		 *
+		 * 🔴 Vive en el mixin y no en el componente porque esa frase se muestra en DOS lados —
+		 * la tarjeta del mensaje de promocion y la ficha del producto— y son el mismo dato:
+		 * si se escribe dos veces, el dia que cambie la redaccion va a cambiar en uno solo.
+		 *
+		 * El mejor tramo es el ULTIMO del array: el contrato con empresa-api garantiza tramos
+		 * contiguos, ordenados por `min` y con porcentaje creciente, y el ultimo lleva `max`
+		 * en null (sin techo).
+		 *
+		 * @param {object} article
+		 * @returns {string|null}
+		 */
+		texto_del_mejor_tramo(article) {
+			let oferta = this.oferta_personalizada(article)
+			if (!oferta || !oferta.precio_aplicado || oferta.tipo_descuento != 'cantidad') {
+				return null
+			}
+			if (!Array.isArray(oferta.rangos) || !oferta.rangos.length) {
+				return null
+			}
+			let mejor_tramo = oferta.rangos[oferta.rangos.length - 1]
+			if (!mejor_tramo || !mejor_tramo.min) {
+				return null
+			}
+			let cantidad = Number(mejor_tramo.min)
+			let porcentaje = this.porcentaje_legible(mejor_tramo.porcentaje)
+			if (!cantidad || isNaN(cantidad) || !porcentaje) {
+				return null
+			}
+			return 'Llevá ' + cantidad + ' o más y pagás ' + porcentaje + '% menos'
+		},
+		/**
+		 * El precio ORIGINAL de una linea del CARRITO, para tacharlo al lado de lo que se
+		 * cobra. null cuando no hay nada honesto que tachar.
+		 *
+		 * 🔴 Existe aparte de precio_base_de_oferta() por una sola razon, y es la ESCALA. En
+		 * el carrito el precio que se muestra es `article.pivot.price`, que lo resolvio el
+		 * SERVIDOR y por lo tanto NO lleva el online_price_surchage que el SPA le suma a
+		 * final_price adentro de articlePriceEfectivo. Si el tachado saliera de
+		 * precio_base_de_oferta() —que si aplica ese recargo— los dos numeros de al lado
+		 * serian de escalas distintas y el ahorro anunciado no seria el real. Por eso este
+		 * devuelve `precio_sin_oferta` CRUDO: la misma escala que el pivot.
+		 *
+		 * 🔴 Y la comparacion final es contra el pivot y estricta. Cubre de una sola vez los
+		 * tres casos en los que tachar seria mentir: la oferta por cantidad cuya cantidad no
+		 * llega al primer tramo (el servidor cobra la base y no hay descuento), el pivot
+		 * optimista que el SPA calculo con recargo antes de que contestara el servidor, y
+		 * cualquier linea vieja cuyo precio guardado ya no tenga nada que ver con la base.
+		 *
+		 * @param {object} article articulo del carrito, con su pivot
+		 * @returns {string|null}
+		 */
+		precio_base_de_linea(article) {
+			if (!this.puede_ver_precios()) {
+				return null
+			}
+			let oferta = this.oferta_personalizada(article)
+			if (!oferta || !oferta.precio_aplicado) {
+				return null
+			}
+			if (!article || article.precio_pausado) {
+				return null
+			}
+			/* Misma limitacion conocida que en precio_sin_oferta(): con la extension de rangos
+			   por cantidad vendida prendida la oferta personalizada NO altera ningun precio. */
+			if (this.commerce_has_extencion('lista_de_precios_por_rango_de_cantidad_vendida')) {
+				return null
+			}
+			if (typeof article.precio_sin_oferta == 'undefined' || article.precio_sin_oferta === null) {
+				return null
+			}
+			if (!article.pivot || typeof article.pivot.price == 'undefined' || article.pivot.price === null) {
+				return null
+			}
+			let base = Number(article.precio_sin_oferta)
+			let cobrado = Number(article.pivot.price)
+			if (isNaN(base) || isNaN(cobrado)) {
+				return null
+			}
+			/* En centavos, para no comparar flotantes. Si no se cobra menos que la base, no hay
+			   ahorro: la regla es no mostrar nunca un tachado igual al precio de al lado. */
+			if (Math.round(base * 100) <= Math.round(cobrado * 100)) {
+				return null
+			}
+			return this.price(base)
 		},
 		checkAuth() {
 			if (this.authenticated) {

@@ -2,10 +2,20 @@
 <div>
 	<div
 	v-if="puede_ver_precios() || is_promocion_vinoteca">
-		<p 
+		<p
 		v-if="$route.name == 'Cart' || $route.name == 'Orders'"
 		class="product-price">
 			{{ price(article.pivot.price) }}
+			<!--
+				El precio original tachado al lado de lo que se cobra, solo en el CARRITO. Ver
+				precio_original_de_linea: en pedidos ya cerrados no va, y la base se compara
+				contra el pivot y no contra articlePriceEfectivo.
+			-->
+			<span
+			v-if="precio_original_de_linea"
+			class="price__tachado">
+				{{ precio_original_de_linea }}
+			</span>
 		</p>
 		<div 
 		v-else
@@ -72,7 +82,29 @@ export default {
 	computed: {
 		is_promocion_vinoteca() {
 			return typeof this.article.bar_code == 'undefined'
-		}
+		},
+		/**
+		 * El precio original de esta linea, para tacharlo al lado de lo que se cobra.
+		 *
+		 * 🔴 Solo en el CARRITO, y la exclusion de 'Orders' es deliberada: en un pedido ya
+		 * cerrado el precio del pivot es HISTORICO — es lo que se cobro el dia que se
+		 * confirmo—, y tacharle al lado la base de hoy seria anunciar un ahorro que nadie sabe
+		 * si existio. Si el precio de lista bajo desde entonces, incluso seria al reves.
+		 *
+		 * 🔴 La base sale de precio_base_de_linea() y no de precio_sin_oferta(): en esta vista
+		 * el precio que se muestra es `article.pivot.price`, resuelto por el servidor y SIN el
+		 * online_price_surchage que el SPA le suma a final_price. La comparacion tiene que ir
+		 * contra el pivot y en su misma escala, o los dos numeros de al lado serian de escalas
+		 * distintas.
+		 *
+		 * @returns {string|null}
+		 */
+		precio_original_de_linea() {
+			if (this.$route.name != 'Cart') {
+				return null
+			}
+			return this.precio_base_de_linea(this.article)
+		},
 	},
 	methods: {
 		toLogin() {

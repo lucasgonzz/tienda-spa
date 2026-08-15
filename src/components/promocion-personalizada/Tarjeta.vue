@@ -75,7 +75,8 @@
  * No pide datos ni toca el store: recibe el articulo ya resuelto por la API (con su
  * `oferta_personalizada` colgada) y se apoya en los mixins globales que inyecta main.js
  * con Vue.mixin — `generals` (articleImage, articlePriceEfectivo, oferta_personalizada,
- * precio_base_de_oferta, precio_con_oferta_por_cantidad) y `dates` (date). No importa nada.
+ * precio_base_de_oferta, precio_con_oferta_por_cantidad, texto_del_mejor_tramo,
+ * porcentaje_legible) y `dates` (date). No importa nada.
  */
 export default {
 	props: {
@@ -134,14 +135,20 @@ export default {
 			if (!this.oferta) {
 				return null
 			}
+			/*
+			 * La frase de la oferta por cantidad la arma el mixin y no este componente: es
+			 * exactamente la misma que muestra la ficha del producto (Price.vue), y con dos
+			 * copias el dia que cambie la redaccion iba a cambiar en una sola.
+			 *
+			 * Devuelve null cuando la oferta no altera ningun precio (precio_aplicado en
+			 * false: extension de rangos por cantidad vendida prendida, o precio pausado). Es
+			 * lo correcto: ahi la tienda no va a cobrar el tramo ni en la ficha ni en el
+			 * carrito, y anunciarlo seria prometer un precio que no existe.
+			 */
 			if (this.es_por_cantidad) {
-				let porcentaje = this.formatear_porcentaje(this.mejor_tramo ? this.mejor_tramo.porcentaje : null)
-				if (!porcentaje || !this.cantidad_del_mejor_tramo) {
-					return null
-				}
-				return 'Llevá ' + this.cantidad_del_mejor_tramo + ' o más y pagás ' + porcentaje + '% menos'
+				return this.texto_del_mejor_tramo(this.article)
 			}
-			let porcentaje_unidad = this.formatear_porcentaje(this.oferta.porcentaje)
+			let porcentaje_unidad = this.porcentaje_legible(this.oferta.porcentaje)
 			if (!porcentaje_unidad) {
 				return null
 			}
@@ -222,22 +229,6 @@ export default {
 		},
 	},
 	methods: {
-		/**
-		 * Pasa el decimal(6,2) del contrato a algo legible: 15.00 -> "15", 12.50 -> "12,5".
-		 *
-		 * @param {number|string|null} valor
-		 * @returns {string|null}
-		 */
-		formatear_porcentaje(valor) {
-			if (valor === null || typeof valor == 'undefined' || valor === '') {
-				return null
-			}
-			let numero = Number(valor)
-			if (isNaN(numero) || numero <= 0) {
-				return null
-			}
-			return String(Math.round(numero * 100) / 100).replace('.', ',')
-		},
 		/**
 		 * @returns {void}
 		 */
