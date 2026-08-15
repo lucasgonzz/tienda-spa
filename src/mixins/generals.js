@@ -409,6 +409,205 @@ export default {
 			} 
 			return true
 		},
+		/**
+		 * La oferta personalizada del articulo, o null.
+		 *
+		 * Es la unica puerta de lectura de article.oferta_personalizada en todo el SPA. El
+		 * contrato con la API es ADITIVO: un articulo que llego por un camino que no pasa
+		 * por checkPriceTypes, o de una API vieja, simplemente no trae el campo y aca sale
+		 * null. Todos los v-if del tachado cortan con eso.
+		 *
+		 * @param {object} article
+		 * @returns {object|null}
+		 */
+		oferta_personalizada(article) {
+			if (!article || !article.oferta_personalizada) {
+				return null
+			}
+			return article.oferta_personalizada
+		},
+		/**
+		 * El precio ORIGINAL, para tacharlo al lado del descontado. null cuando no hay oferta
+		 * con precio aplicado.
+		 *
+		 * 🔴 Replica el mismo tratamiento que articlePriceEfectivo le da a final_price
+		 * (online_price_surchage y su Math.round). Si no lo replicara, el tachado y el precio
+		 * grande serian dos numeros de escalas distintas y el descuento se veria mal —
+		 * mostrando un ahorro que no es el real.
+		 *
+		 * 🔴 ESTE ES EL TACHADO DE LOS LISTADOS, y por eso solo devuelve algo con
+		 * tipo_descuento 'unidad'. En un listado (tarjeta, ficha, buscador) el precio grande
+		 * sale SIEMPRE de articlePriceEfectivo, y con 'cantidad' el servidor no toca
+		 * final_price: el precio grande y la base son la MISMA cifra, asi que tacharla seria
+		 * mostrar dos veces el mismo importe, uno cruzado.
+		 *
+		 * Si lo que necesitas es la base para compararla contra OTRO precio —el del tramo, en
+		 * la tarjeta del mensaje de promocion—, ese es precio_base_de_oferta(). No le saques
+		 * este corte a este metodo para resolver aquel caso: le rompe el tachado a los trece
+		 * llamadores de los listados.
+		 *
+		 * @param {object} article
+		 * @param {boolean} formated
+		 * @returns {string|number|null}
+		 */
+		precio_sin_oferta(article, formated = true) {
+			if (!this.puede_ver_precios()) {
+				return null
+			}
+			let oferta = this.oferta_personalizada(article)
+			if (!oferta || !oferta.precio_aplicado) {
+				return null
+			}
+			if (oferta.tipo_descuento != 'unidad') {
+				return null
+			}
+			/* Con precio pausado no hay importe: articlePriceEfectivo devuelve el texto de
+			   configuracion, asi que no hay nada contra que tachar. */
+			if (article.precio_pausado) {
+				return null
+			}
+			/* La extension de rangos por cantidad vendida hace que articlePriceEfectivo ignore
+			   final_price y use article.ranges[].price. Ahi el precio grande y precio_sin_oferta
+			   serian de escalas distintas, asi que no se tacha nada. Es la misma limitacion que
+			   la API ya fija mandando precio_aplicado en false; la guarda queda por las dudas. */
+			if (this.commerce_has_extencion('lista_de_precios_por_rango_de_cantidad_vendida')) {
+				return null
+			}
+			if (typeof article.precio_sin_oferta == 'undefined' || article.precio_sin_oferta === null) {
+				return null
+			}
+			let price = Number(article.precio_sin_oferta)
+			if (isNaN(price)) {
+				return null
+			}
+			/* Mismo recargo y mismo redondeo que articlePriceEfectivo, para que los dos numeros
+			   queden en la misma escala. */
+			if (this.commerce.online_configuration.online_price_surchage) {
+				price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
+				price = Math.round(price)
+			}
+			return formated ? this.price(price) : price
+		},
+		/**
+		 * El precio ORIGINAL de un articulo con oferta, sea del tipo que sea.
+		 *
+		 * 🔴 Es hermano de precio_sin_oferta() y NO es lo mismo. La diferencia es CONTRA QUE se
+		 * compara el tachado:
+		 *
+		 *   - En un LISTADO el precio grande sale de articlePriceEfectivo, y con 'cantidad' esa
+		 *     cifra ES la base, asi que no hay nada que tachar. Ese caso lo corta
+		 *     precio_sin_oferta() y esta bien que lo corte.
+		 *   - En la TARJETA del mensaje de promocion, el precio grande de una oferta
+		 *     'cantidad' es el del MEJOR TRAMO, que es mas barato que la base. Ahi el tachado
+		 *     si tiene sentido, y es justo lo que el comprador tiene que ver: cuanto pagaba
+		 *     antes y cuanto paga llevando N.
+		 *
+		 * Por eso este metodo devuelve la base sin mirar el tipo, y quien lo llama decide si la
+		 * muestra comparandola contra el precio que EL esta renderizando. La regla que no se
+		 * negocia es la del llamador: nunca mostrar un tachado igual al precio de al lado.
+		 *
+		 * Mismo recargo y mismo redondeo que articlePriceEfectivo, por lo mismo de siempre: dos
+		 * numeros en escalas distintas le muestran al comprador un ahorro que no es el real.
+		 *
+		 * @param {object} article
+		 * @param {boolean} formated
+		 * @returns {string|number|null}
+		 */
+		precio_base_de_oferta(article, formated = true) {
+			if (!this.puede_ver_precios()) {
+				return null
+			}
+			let oferta = this.oferta_personalizada(article)
+			if (!oferta || !oferta.precio_aplicado) {
+				return null
+			}
+			/* Con precio pausado no hay importe contra que comparar: articlePriceEfectivo
+			   devuelve el texto de configuracion, no un numero. */
+			if (article.precio_pausado) {
+				return null
+			}
+			/* Con la extension de rangos por cantidad vendida el precio grande sale de
+			   article.ranges[].price y no de final_price: la base quedaria en otra escala. */
+			if (this.commerce_has_extencion('lista_de_precios_por_rango_de_cantidad_vendida')) {
+				return null
+			}
+			if (typeof article.precio_sin_oferta == 'undefined' || article.precio_sin_oferta === null) {
+				return null
+			}
+			let price = Number(article.precio_sin_oferta)
+			if (isNaN(price)) {
+				return null
+			}
+			if (this.commerce.online_configuration.online_price_surchage) {
+				price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
+				price = Math.round(price)
+			}
+			return formated ? this.price(price) : price
+		},
+		/**
+		 * Precio unitario con el tramo por cantidad aplicado, para tipo_descuento 'cantidad'.
+		 * Recorre los tramos ordenados por min y se queda con el ultimo que encaja; `max` null
+		 * es SIN TECHO (convencion del contrato, igual que category_price_type_ranges).
+		 *
+		 * La base es articlePriceEfectivo(article, false): para 'cantidad' el servidor NO toca
+		 * final_price (ahi no conoce la cantidad), asi que el precio efectivo es el de lista y
+		 * el descuento del tramo se aplica encima. El precio que se cobra de verdad lo vuelve a
+		 * resolver el servidor en el carrito; esto es solo lo que se le muestra al comprador.
+		 *
+		 * @param {object} article
+		 * @param {number} cantidad
+		 * @param {boolean} formated
+		 * @returns {string|number|null}
+		 */
+		precio_con_oferta_por_cantidad(article, cantidad, formated = true) {
+			if (!this.puede_ver_precios()) {
+				return null
+			}
+			let oferta = this.oferta_personalizada(article)
+			if (!oferta || !oferta.precio_aplicado) {
+				return null
+			}
+			if (oferta.tipo_descuento != 'cantidad' || !Array.isArray(oferta.rangos)) {
+				return null
+			}
+			if (article.precio_pausado) {
+				return null
+			}
+			/* Misma limitacion conocida que en precio_sin_oferta(): con la extension de rangos
+			   por cantidad vendida prendida la oferta personalizada NO altera ningun precio. */
+			if (this.commerce_has_extencion('lista_de_precios_por_rango_de_cantidad_vendida')) {
+				return null
+			}
+			let cantidad_pedida = Number(cantidad)
+			if (!cantidad_pedida || isNaN(cantidad_pedida) || cantidad_pedida <= 0) {
+				return null
+			}
+			let base = this.articlePriceEfectivo(article, false)
+			if (base === null || typeof base == 'undefined' || isNaN(Number(base))) {
+				return null
+			}
+			/* Se ordena por min y se recorre entero quedandose con el ULTIMO tramo que encaja:
+			   es la misma forma que usa CartHelper::get_price_range() del lado del servidor.
+			   min null = sin piso, max null = SIN TECHO. El null no se convierte a ningun
+			   numero grande. */
+			let rangos = oferta.rangos.slice().sort(function (a, b) {
+				return Number(a.min) - Number(b.min)
+			})
+			let porcentaje = null
+			rangos.forEach(rango => {
+				let cumple_min = rango.min === null || typeof rango.min == 'undefined' || cantidad_pedida >= Number(rango.min)
+				let cumple_max = rango.max === null || typeof rango.max == 'undefined' || cantidad_pedida <= Number(rango.max)
+				if (cumple_min && cumple_max) {
+					porcentaje = Number(rango.porcentaje)
+				}
+			})
+			if (porcentaje === null || isNaN(porcentaje)) {
+				return null
+			}
+			/* Mismo redondeo a 2 decimales que hace el servidor al aplicar el porcentaje. */
+			let price = Math.round(Number(base) * (1 - porcentaje / 100) * 100) / 100
+			return formated ? this.price(price) : price
+		},
 		checkAuth() {
 			if (this.authenticated) {
 				return true

@@ -38,6 +38,17 @@
 				class="product-price"
 				v-else>
 					{{ articlePriceEfectivo(article) }}
+					<!--
+						El precio original, tachado al lado del descontado. Solo aparece cuando la
+						oferta personalizada del comprador hizo que la API dejara final_price ya
+						descontado; en cualquier otro caso precio_sin_oferta() devuelve null y
+						esto no se renderiza.
+					-->
+					<span
+					v-if="precio_sin_oferta(article)"
+					class="price__tachado">
+						{{ precio_sin_oferta(article) }}
+					</span>
 				</p>
 
 			</div>
@@ -74,3 +85,18 @@ export default {
 }
 </script>
  
+<style scoped lang="sass">
+// El precio original tachado al lado del descontado. Nunca en rojo: es informacion, no una
+// alarma. Un escalon mas chico que el precio de la tarjeta y bajado de opacidad.
+.price__tachado
+	font-size: .72em
+	font-weight: 400
+	margin-left: .35em
+	opacity: .45
+	text-decoration: line-through
+	// El importe no se parte a la mitad; si no entra al lado, cae entero al renglon de abajo.
+	white-space: nowrap
+	@media screen and (max-width: 576px)
+		font-size: .78em
+		margin-left: .25em
+</style>

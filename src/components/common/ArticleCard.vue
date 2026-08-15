@@ -62,11 +62,22 @@
 			class="amount">
 				Cantidad: {{ article.pivot.amount }}
 			</p>
-			<p 
+			<p
 			v-if="articlePriceEfectivo(article)"
 			translate="no"
 			class="product-price">
 				{{ articlePriceEfectivo(article) }}
+				<!--
+					El precio original, tachado al lado del descontado. Solo aparece cuando la
+					oferta personalizada del comprador hizo que la API dejara final_price ya
+					descontado; en cualquier otro caso precio_sin_oferta() devuelve null y esto
+					no se renderiza.
+				-->
+				<span
+				v-if="precio_sin_oferta(article)"
+				class="price__tachado">
+					{{ precio_sin_oferta(article) }}
+				</span>
 			</p>
 			<b-button
 			class="btn-more-info"
@@ -179,5 +190,21 @@ export default {
 	color: #FFF
 	z-index: 10
 	padding: 5px 10px
+
+// El precio original tachado al lado del descontado. Nunca en rojo: es informacion, no una
+// alarma. Va anidado bajo .article-card porque este bloque NO es scoped y si no se escaparia
+// al resto de la tienda.
+.article-card
+	.price__tachado
+		font-size: .72em
+		font-weight: 400
+		margin-left: .35em
+		opacity: .45
+		text-decoration: line-through
+		// El importe no se parte a la mitad; si no entra al lado, cae entero al renglon de abajo.
+		white-space: nowrap
+		@media screen and (max-width: 576px)
+			font-size: .78em
+			margin-left: .25em
 </style>
  

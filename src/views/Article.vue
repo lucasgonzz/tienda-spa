@@ -122,6 +122,21 @@ export default {
 		setArticleProps() {
 			this.$store.dispatch('articles/getSimilars')
 			this.checkCartArticle()
+			/*
+			 * La cantidad que dejó pedida el mensaje de promoción GANA sobre la del carrito:
+			 * el comprador acaba de decir "quiero N a este precio". checkCartArticleAmount()
+			 * acaba de pisar el amount con lo del carrito (o con ''), así que esto va después
+			 * o no se ve. Se consume una sola vez.
+			 *
+			 * Va acá y no en created() porque setArticleProps() es el EMBUDO ÚNICO de los dos
+			 * caminos de carga, y esta vista se REUSA al ir de un artículo a otro (el watcher
+			 * de $route llama a getArticleToShowBySlug, que termina acá).
+			 */
+			let cantidad_promo = this.$store.state.client_offers.cantidad_pendiente
+			if (cantidad_promo) {
+				this.$store.commit('articles/setAmount', cantidad_promo)
+				this.$store.commit('client_offers/set_cantidad_pendiente', null)
+			}
 			this.data_seted = true
 			/*
 			 * Arranca el reloj de la vista de producto. Es el único embudo por el que pasan
