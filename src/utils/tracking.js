@@ -324,12 +324,38 @@ function enviar_lote(eventos) {
 	try {
 		/*
 		 * sendBeacon sobrevive al cierre de la pestaña, que es justo el momento en que se
-		 * pierde el ultimo product_view. No admite headers propios, pero no hacen falta:
-		 * las rutas de /api de Laravel no pasan por VerifyCsrfToken, y el beacon viaja
-		 * con credenciales (la cookie de sesion) igual que el resto de las llamadas.
+		 * pierde el ultimo product_view. Tiene dos limitaciones y las dos estan resueltas
+		 * del lado del servidor a proposito, asi que NO toques esto sin tocar tienda-api:
+		 *
+		 * 1) No admite headers propios, o sea que no puede mandar el X-XSRF-TOKEN que axios
+		 *    saca de la cookie en todas las demas llamadas. Y las rutas de /api de ESTE
+		 *    proyecto SI pasan por VerifyCsrfToken: tienda-api mete
+		 *    EnsureFrontendRequestsAreStateful en el grupo 'api', y ese middleware inyecta
+		 *    VerifyCsrfToken. Medido el 15/8/2026 contra la API levantada: un POST con el
+		 *    Origin del dominio stateful y sin X-XSRF-TOKEN devolvia 419 (igual que
+		 *    /api/carts, que es preexistente). Sin Origin devolvia 204, que es por lo que
+		 *    los tests no lo veian.
+		 *    Por eso 'api/buyer-tracking/*' esta EXCEPTUADO del CSRF en VerifyCsrfToken de
+		 *    tienda-api. Es la unica razon por la que este beacon llega.
+		 *    Ojo con el 419 silencioso: sendBeacon devuelve true por haber ENCOLADO, no por
+		 *    haber llegado, asi que el fallback por axios de mas abajo no corre nunca cuando
+		 *    el navegador acepta el beacon. Un rechazo del servidor no se nota desde aca.
+		 *
+		 * 2) El content-type de un Blob de 'application/json' NO esta en la lista segura de
+		 *    CORS, asi que el request deja de ser simple y el navegador manda un OPTIONS de
+		 *    preflight antes. Aca el cruce de origenes es real (cliente.com.ar ->
+		 *    api.cliente.com.ar) y el envio pasa durante pagehide/beforeunload, donde ese
+		 *    preflight puede no llegar a completarse: el navegador descarta el beacon y se
+		 *    pierde el ultimo product_view de la sesion, que es EXACTAMENTE el caso por el
+		 *    que se eligio sendBeacon.
+		 *    'text/plain;charset=UTF-8' si esta en la lista segura: sin preflight, un solo
+		 *    request. El cuerpo sigue siendo el mismo JSON, sin cambiarle un solo campo —
+		 *    BuyerTrackingController lo parsea con json_decode del cuerpo crudo cuando el
+		 *    content-type no es JSON. El fallback por axios de abajo si manda
+		 *    application/json y el controller lo sigue aceptando.
 		 */
 		if (typeof navigator != 'undefined' && typeof navigator.sendBeacon == 'function') {
-			let blob = new Blob([JSON.stringify(cuerpo)], { type: 'application/json' })
+			let blob = new Blob([JSON.stringify(cuerpo)], { type: 'text/plain;charset=UTF-8' })
 			if (navigator.sendBeacon(process.env.VUE_APP_API_URL + '/api' + RUTA_INGESTA, blob)) {
 				return
 			}
