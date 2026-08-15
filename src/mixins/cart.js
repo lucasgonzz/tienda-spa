@@ -1,4 +1,4 @@
-import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
+import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 export default {
 	computed: {
 		cant_cart_items() {
@@ -275,16 +275,32 @@ export default {
 						// direccion guardada en buyer/selected_buyer (ver prompt 402).
 						address         : this.order_address,
 					})
-					.then(() => {
+					.then(res => {
 						if (from_mercadopago) {
 							// El pedido YA quedo creado (el POST devolvio 201): lo que falta es el
 							// pago en MercadoPago. Se trackea igual porque checkout_complete
 							// significa "pedido creado", no "pedido pagado", y este camino nunca
-							// vuelve a pasar por aca. Va sin order_id: en esta rama el SPA no
-							// llama a getCurrentOrder, asi que no lo conoce.
+							// vuelve a pasar por aca.
+							//
+							// El order_id sale del cuerpo del 201, que OrderController@store ahora
+							// devuelve como {"order_id": N}. En esta rama el SPA nunca llama a
+							// getCurrentOrder, asi que es la unica forma de conocerlo — y MercadoPago
+							// es el medio dominante, o sea que sin esto el grueso de los
+							// checkout_complete quedaria sin poder atarse a la venta.
+							//
+							// 🔴 El fallback a null NO es defensivo por las dudas: los dos lados nunca
+							// se despliegan juntos, asi que este SPA va a correr un tiempo contra la
+							// API vieja, que responde 201 con cuerpo VACIO. Ahi order_id queda null y
+							// el evento igual se manda (armar_evento saltea los null).
+							let order_id = res.data && res.data.order_id ? res.data.order_id : null
 							trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
+								order_id: order_id,
 								amount: this.total,
 							})
+							// Vaciado inmediato: esta rama se va del SPA enseguida (redirect a
+							// MercadoPago) y los 5 segundos del temporizador de la cola no llegan.
+							// Ver el comentario largo de la rama de abajo para el otro motivo.
+							enviar_cola()
 							this.$store.commit('auth/setLoading', false)
 							this.$store.commit('auth/setMessage', '')
 							return
@@ -315,6 +331,27 @@ export default {
 								order_id: pedido ? pedido.id : null,
 								amount: pedido && pedido.total != null ? pedido.total : total_del_pedido,
 							})
+							/*
+							 * 🔴 Vaciado INMEDIATO, y esto no es una optimizacion: es lo unico que
+							 * le da una chance al buyer_id.
+							 *
+							 * trackear() solo encola — el envio real sale 5 segundos despues, por
+							 * temporizador. Mientras tanto esta misma cadena sigue y llega a
+							 * logoutGuestAfterOrder(), que hace POST buyer/logout y es el camino
+							 * NORMAL del checkout de invitado. Cuando el lote finalmente saliera, la
+							 * sesion ya no existe, y BuyerTrackingController resuelve el comprador
+							 * desde el guard en el momento de la ingesta: buyer_id llegaria null.
+							 * Peor que perderlo siempre: si el temporizador casualmente disparaba
+							 * antes del logout, si lo llevaba. Sin esto la atribucion de las compras
+							 * queda librada a una carrera, sin patron.
+							 *
+							 * ⚠️ Esto REDUCE la carrera, no la elimina: el envio del tracking y el
+							 * del logout son dos requests independientes y el orden en que llegan al
+							 * servidor no esta garantizado. La atribucion igual es recuperable por
+							 * order_id -> orders.buyer_id, que es la via confiable cuando el
+							 * buyer_id del evento viene null.
+							 */
+							enviar_cola()
 							return this.deleteCartAfterOrder(cart_id)
 						})
 						.then(() => {
