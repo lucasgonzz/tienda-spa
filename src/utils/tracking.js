@@ -38,12 +38,17 @@ const CLAVE_ACTIVIDAD = 'bt_session_last_activity'
 /* Media hora sin actividad corta la sesion de navegacion y empieza otra. */
 const MINUTOS_SESION = 30
 
-/* Disparadores del envio: 20 eventos acumulados o 5 segundos desde el primero encolado. */
+/*
+ * Disparadores del envio: 20 eventos acumulados o 5 segundos desde el primero encolado.
+ *
+ * TOPE_COLA tiene que quedar por DEBAJO del tope de 50 eventos por lote que aplica
+ * BuyerTrackingHelper: como trackear() vacia la cola apenas toca las 20, la cola nunca
+ * puede tener mas de 20 y cada vaciado sale en un solo lote, sin partir. Si algun dia
+ * alguien sube este numero por encima de 50, hay que volver a partir el envio en
+ * enviar_cola() — si no, la API recorta el lote en silencio y se pierden eventos.
+ */
 const TOPE_COLA = 20
 const MS_ESPERA = 5000
-
-/* Tope de eventos por lote que acepta la API. Si la cola tiene mas, salen varios lotes. */
-const TOPE_LOTE_API = 50
 
 /*
  * Formato de fecha local, el mismo que guarda el resto del sistema. NO se manda ISO en
@@ -371,18 +376,26 @@ function enviar_lote(eventos) {
 }
 
 /**
- * Vacia la cola. Si hay mas eventos que el tope de la API, salen en varios lotes.
+ * Vacia la cola en un solo lote y apaga el temporizador pendiente.
+ *
+ * Sale en un lote y no en varios porque la cola no puede pasar de TOPE_COLA (20) y el
+ * tope de la API es 50 — ver el comentario de TOPE_COLA arriba, que es donde vive el
+ * invariante.
+ *
+ * Es publica porque hay un caso donde esperar los 5 segundos del temporizador rompe el
+ * dato: el checkout de invitado (ver mixins/cart.js). Fuera de eso NO la llames a mano;
+ * el sentido de la cola es no gastarle un request al comprador por cada evento.
  *
  * @returns {void}
  */
-function enviar_cola() {
+export function enviar_cola() {
 	try {
 		if (temporizador !== null) {
 			clearTimeout(temporizador)
 			temporizador = null
 		}
-		while (cola.length) {
-			enviar_lote(cola.splice(0, TOPE_LOTE_API))
+		if (cola.length) {
+			enviar_lote(cola.splice(0, cola.length))
 		}
 	} catch (e) {
 		/* Ni el vaciado de la cola puede llegarle al comprador. */
