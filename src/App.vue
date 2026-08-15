@@ -25,6 +25,8 @@
 
                         <buyer-messages></buyer-messages>
 
+                        <promocion-personalizada></promocion-personalizada>
+
                     </b-container>
                 </div>
             </div>
@@ -57,6 +59,10 @@ export default {
         FooterComponent,
 
         BuyerMessages: () => import('@/components/buyer-messages/Index'),
+
+        /* El mensaje de la oferta personalizada. Diferido: solo se descarga cuando el
+           comprador llega a una pantalla de tienda (no en login ni registro). */
+        PromocionPersonalizada: () => import('@/components/promocion-personalizada/Index'),
     },
     mixins: [WebSockets, transitions, update_app, app, firebase, articles, VueScreenSize.VueScreenSizeMixin],
     computed: {

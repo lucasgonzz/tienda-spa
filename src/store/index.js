@@ -27,6 +27,8 @@ import payment_methods from './payment_methods'
 import delivery_zones from './delivery_zones'
 import delivery_day from './delivery_day'
 
+import client_offers from './client_offers'
+
 import bodegas from './bodegas'
 import cepas from './cepas'
 import current_acount from './current_acount'
@@ -66,6 +68,7 @@ export default new Vuex.Store({
 		platelets,
 		payment_methods,
 		delivery_zones,
+		client_offers,
 
 		bodegas,
 		delivery_day,

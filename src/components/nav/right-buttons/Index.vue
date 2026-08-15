@@ -1,6 +1,7 @@
 <template>
 	<div
 	class="right-buttons">
+		<promocion-btn></promocion-btn>
 		<cart-btn></cart-btn>
 		<messages-btn></messages-btn>
 		<auth-btn></auth-btn>
@@ -8,7 +9,8 @@
 </template>
 <script>
 export default {
-	components: { 
+	components: {
+		PromocionBtn: () => import('@/components/nav/right-buttons/PromocionBtn'),
 		CartBtn: () => import('@/components/nav/right-buttons/cart-btn/Index'),
 		MessagesBtn: () => import('@/components/nav/right-buttons/MessagesBtn'),
 		AuthBtn: () => import('@/components/nav/right-buttons/AuthBtn'),				
