@@ -1,3 +1,4 @@
+import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 export default {
 	computed: {
 		cant_cart_items() {
@@ -276,6 +277,14 @@ export default {
 					})
 					.then(() => {
 						if (from_mercadopago) {
+							// El pedido YA quedo creado (el POST devolvio 201): lo que falta es el
+							// pago en MercadoPago. Se trackea igual porque checkout_complete
+							// significa "pedido creado", no "pedido pagado", y este camino nunca
+							// vuelve a pasar por aca. Va sin order_id: en esta rama el SPA no
+							// llama a getCurrentOrder, asi que no lo conoce.
+							trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
+								amount: this.total,
+							})
 							this.$store.commit('auth/setLoading', false)
 							this.$store.commit('auth/setMessage', '')
 							return
@@ -283,6 +292,8 @@ export default {
 
 						// Se guarda el id ANTES de limpiar el carrito del store: despues this.cart es null.
 						const cart_id = this.cart.id
+						// Mismo motivo que cart_id: el total del carrito hay que leerlo antes de vaciarlo.
+						const total_del_pedido = this.total
 
 						this.$store.commit('cart/setCart', null)
 						this.$store.commit('cart/set_buyer_id', null)
@@ -295,6 +306,15 @@ export default {
 						// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion -> 4) navegar.
 						this.$store.dispatch('orders/getCurrentOrder')
 						.then(() => {
+							// El tracking se SUMA a la secuencia, no la altera: sigue siendo
+							// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion ->
+							// 4) navegar. Va aca y no antes porque el order_id recien se conoce
+							// despues de getCurrentOrder (POST /orders responde 201 sin cuerpo).
+							let pedido = this.$store.state.orders.order
+							trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
+								order_id: pedido ? pedido.id : null,
+								amount: pedido && pedido.total != null ? pedido.total : total_del_pedido,
+							})
 							return this.deleteCartAfterOrder(cart_id)
 						})
 						.then(() => {

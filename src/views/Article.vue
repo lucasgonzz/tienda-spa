@@ -39,6 +39,7 @@ import Preguntar from '@/components/article/components/Preguntar'
 import Categories from '@/components/categories/components/Categories'
 import Platelets from '@/components/home/components/platelets/Index'
 import articles from '@/mixins/articles'
+import { abrir_vista_de_producto, cerrar_vista } from '@/utils/tracking'
 
 /**
  * Vista detalle de artículo: layout envuelto para alinearlo con el resto de páginas retail de la tienda.
@@ -122,6 +123,12 @@ export default {
 			this.$store.dispatch('articles/getSimilars')
 			this.checkCartArticle()
 			this.data_seted = true
+			/*
+			 * Arranca el reloj de la vista de producto. Es el único embudo por el que pasan
+			 * los dos caminos de carga (created con el artículo ya en el store, y la vuelta
+			 * del fetch por slug), así que alcanza con engancharlo acá.
+			 */
+			abrir_vista_de_producto(this.article)
 		},
 	},
 	created() {
@@ -132,10 +139,18 @@ export default {
 	},
 	watch: {
 		$route(to, from) {
+			/*
+			 * Al ir de un artículo a otro este componente se REUSA: beforeRouteLeave no
+			 * dispara y este watcher es el único que puede cerrar la vista anterior antes
+			 * de que empiece la siguiente. cerrar_vista() es idempotente, así que si además
+			 * llega beforeRouteLeave no se duplica el evento.
+			 */
+			cerrar_vista()
 			this.getArticleToShowBySlug()
 		},
 	},
 	beforeRouteLeave(to, from, next) {
+		cerrar_vista()
 		this.$store.commit('articles/setArticleToShow', null)
 		next()
 	},

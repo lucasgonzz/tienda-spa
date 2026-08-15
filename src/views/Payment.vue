@@ -61,7 +61,8 @@ import DeliveryZones from '@/components/payment/components/DeliveryZones'
 import Cupon from '@/components/payment/components/cupon/Index'
 import Description from '@/components/payment/components/Description'
 import BtnSave from '@/components/payment/components/BtnSave'
-import payment_set_height from '@/mixins/payment_set_height' 
+import payment_set_height from '@/mixins/payment_set_height'
+import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 export default {
 	mixins: [payment_set_height],
 	components: {
@@ -81,6 +82,9 @@ export default {
 	created() {
 		this.setTitle('Pedido')
 		this.$store.commit('cart/setPaymentMethod', null)
+		/* El comprador entró a confirmar la compra. El par con checkout_complete es lo que
+		   deja medir el abandono del checkout. */
+		trackear(TIPOS_EVENTO.CHECKOUT_INICIO)
 		// this.setFirstColHeigth()
 	},
 	computed: {

@@ -2,6 +2,7 @@ import axios from 'axios'
 axios.defaults.withCredentials = true
 axios.defaults.baseURL = process.env.VUE_APP_API_URL
 import last_searchs from '@/store/last_searchs'
+import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 export default {
 	namespaced: true,
 	state: {
@@ -298,6 +299,23 @@ export default {
 					last_searchs.state.last_searchs.unshift(last_search)
 				}
 				commit('setArticles', res.data.articles.data)
+				/*
+				 * El evento de búsqueda va acá, en la búsqueda COMPLETA, y no en el
+				 * autocomplete del navbar (components/nav/buscador/Index.vue), que dispara
+				 * cada ~1000 ms de tecleo e inundaría la tabla con términos a medio escribir.
+				 *
+				 * results_count sale del total del paginador, no del largo de la página: lo
+				 * que le sirve al motor de ofertas es cuántos resultados hubo, y un 0 —"buscó
+				 * y no encontró nada"— es el dato más valioso de toda la tabla.
+				 */
+				let paginador = res.data.articles
+				let results_count = typeof paginador.total == 'number'
+					? paginador.total
+					: (paginador.data ? paginador.data.length : 0)
+				trackear(TIPOS_EVENTO.BUSQUEDA, {
+					search_term: state.search_query,
+					results_count: results_count,
+				})
 			})
 			.catch(err => {
 				commit('setLoadingArticles', false)

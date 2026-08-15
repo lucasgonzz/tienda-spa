@@ -1,3 +1,4 @@
+import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 export default {
 	computed: {
 		color() {
@@ -17,6 +18,18 @@ export default {
 				this.$store.commit('cart/removeArticle', {
 					item: article,
 					remove_only_one_amount: false
+				})
+				/*
+				 * Igual que cart_add: el evento sale del llamador, que es el único que sabe
+				 * que la intención era quitar. Este método es el botón "Quitar" y saca la
+				 * línea entera (remove_only_one_amount: false), así que la cantidad quitada
+				 * es todo lo que había.
+				 */
+				trackear(TIPOS_EVENTO.CARRITO_QUITAR, {
+					article_id: article.id,
+					category_id: article.category_id,
+					sub_category_id: article.sub_category_id,
+					quantity: article.amount,
 				})
 				this.$store.commit('auth/setMessage', 'Guardando carrito')
 				this.$store.commit('auth/setLoading', true)

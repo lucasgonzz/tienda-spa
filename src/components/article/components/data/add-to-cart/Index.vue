@@ -70,6 +70,7 @@
 </template>
 <script>
 import articles from '@/mixins/articles'
+import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 export default {
 	name: 'AddToCart',
 	mixins: [articles],
@@ -181,6 +182,25 @@ export default {
 					price: this.articlePriceEfectivo(this.article, false)
 				}
 				this.$store.commit('cart/addItem', this.article)
+				/*
+				 * 🔴 El evento sale del llamador y NO de la mutación. cart/addItem es un
+				 * TOGGLE: si el artículo ya estaba en el carrito lo saca. Emitirlo desde la
+				 * mutación produciría un cart_add cuando en realidad se quitó. Acá sí se
+				 * conoce la intención: este método corre desde el botón "Agregar al carrito",
+				 * que solo se muestra cuando el artículo todavía no está en el carrito.
+				 * Además, meter I/O adentro de una mutación de Vuex es justo lo que no se hace.
+				 */
+				let precio_unitario = this.article.pivot.price
+				trackear(TIPOS_EVENTO.CARRITO_AGREGAR, {
+					article_id: this.article.id,
+					category_id: this.article.category_id,
+					sub_category_id: this.article.sub_category_id,
+					quantity: amount,
+					/* Con precios ocultos por configuración el precio viene null: ahí no se manda monto. */
+					amount: precio_unitario != null && isFinite(precio_unitario)
+						? Number(precio_unitario) * amount
+						: null,
+				})
 				if (this.authenticated) {
 
 					this.$bvModal.hide('add-to-cart-modal')
