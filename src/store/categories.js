@@ -290,7 +290,15 @@ export default {
 			commit('setLoadingArticles', true)
 			// commit('setSelectedCategory', {id: -1, is_results: true})
 			// commit('setSelectedSubCategory', {id: -1, name: 'Resultados'})
-			return axios.get(`/api/articles/search/${state.search_query}/${process.env.VUE_APP_COMMERCE_ID}`)
+			/*
+			 * 🔴 El término se captura ACÁ, cuando sale la búsqueda, y no adentro del .then.
+			 * state.search_query es reactivo y el visitante puede escribir otra búsqueda antes
+			 * de que ésta resuelva: leyéndolo a la vuelta, el evento de "zapatillas" saldría
+			 * con search_term "camperas" y el results_count de "zapatillas". Un dato cruzado
+			 * es peor que no tenerlo, porque nadie lo puede detectar después.
+			 */
+			const termino_buscado = state.search_query
+			return axios.get(`/api/articles/search/${termino_buscado}/${process.env.VUE_APP_COMMERCE_ID}`)
 			.then(res => {
 				commit('setLoadingArticles', false)
 				console.log(res)
@@ -313,7 +321,7 @@ export default {
 					? paginador.total
 					: (paginador.data ? paginador.data.length : 0)
 				trackear(TIPOS_EVENTO.BUSQUEDA, {
-					search_term: state.search_query,
+					search_term: termino_buscado,
 					results_count: results_count,
 				})
 			})
