@@ -595,6 +595,20 @@ export default {
 			outline-offset: 2px
 			opacity: .9
 
+// Telefono: el panel es una hoja completa, asi que su contenido va CENTRADO en vertical.
+//
+// 🔴 Medido en la tienda corriendo a 390x844: el contenido terminaba en y=378 y quedaban 466px
+// vacios abajo. La hoja completa es lo correcto en telefono, pero anclada arriba deja media
+// pantalla en blanco y se lee como un error de carga. Centrar es una linea y lo resuelve para
+// tarjetas de cualquier alto (el titulo de un articulo puede ocupar de una a cuatro lineas).
+// Arriba de 768px el panel deja de ser hoja completa y esto no aplica.
+@media screen and (max-width: 767px)
+	.promo
+		.promo__panel
+			display: flex
+			flex-direction: column
+			justify-content: center
+
 // Tablet (768-1024) y el hueco hasta escritorio: panel centrado de 620px.
 @media screen and (min-width: 768px)
 	.promo

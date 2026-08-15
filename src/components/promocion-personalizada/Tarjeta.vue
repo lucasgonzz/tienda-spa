@@ -1,12 +1,15 @@
 <template>
 	<div
-	class="promo-tarjeta">
+	class="promo-tarjeta"
+	:class="{ 'promo-tarjeta--con-imagen': imagen }">
 
 		<!-- Capa 1: la imagen del articulo. Entra junto con el eyebrow. -->
+		<!-- Sin imagen el bloque no se renderiza: si quedara vacio, en escritorio dejaria -->
+		<!-- una columna de 380px en blanco (medido en la tienda corriendo). -->
 		<div
+		v-if="imagen"
 		class="promo-tarjeta__media promo__capa-1">
 			<img
-			v-if="imagen"
 			class="promo-tarjeta__imagen"
 			:src="imagen"
 			:alt="article.name">
@@ -372,8 +375,13 @@ export default {
 			font-size: clamp(1.25rem, 3vw, 1.75rem)
 
 // Escritorio: dos columnas, imagen a la izquierda.
+//
+// 🔴 Las dos columnas SOLO cuando hay imagen (.promo-tarjeta--con-imagen). Medido en la tienda
+// corriendo: un articulo sin imagen dejaba una columna de 380px vacia y medio panel en blanco,
+// justo lo contrario del restraint que se busca. Y en este sistema pasa seguido: el comercio
+// puede no haberle cargado foto al articulo, y el default_article_image_url es opcional.
 @media screen and (min-width: 1366px)
-	.promo-tarjeta
+	.promo-tarjeta--con-imagen
 		display: grid
 		grid-template-columns: 380px 1fr
 		align-items: center
@@ -381,4 +389,10 @@ export default {
 
 		.promo-tarjeta__imagen
 			max-height: 42vh
+
+	// Sin imagen la tarjeta queda en una sola columna, angosta y centrada: una linea de texto
+	// de 880px de ancho no se lee, y ese ancho lo pedia la imagen que no esta.
+	.promo-tarjeta:not(.promo-tarjeta--con-imagen)
+		max-width: 34rem
+		margin: 0 auto
 </style>
