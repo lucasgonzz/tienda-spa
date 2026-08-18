@@ -273,7 +273,7 @@ export default {
 			return (
 				this.commerce &&
 				this.commerce.online_configuration &&
-				this.commerce.online_configuration.enviar_whatsapp_al_terminar_pedido
+				this.flag_activo(this.commerce.online_configuration.enviar_whatsapp_al_terminar_pedido)
 			)
 		},
 		/**

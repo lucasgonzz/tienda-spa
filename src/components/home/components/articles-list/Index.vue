@@ -304,7 +304,7 @@ export default {
 			this.scroll++
 		},
 		infiniteHandler($state) {
-			if (this.online_configuration.scroll_infinito_en_home || (this.page < 3 || this.is_from_search || this.is_from_categories) && this.articles.length >= 12) {
+			if (this.flag_activo(this.online_configuration.scroll_infinito_en_home) || (this.page < 3 || this.is_from_search || this.is_from_categories) && this.articles.length >= 12) {
 				this.$store.commit('categories/incrementPage')
 				let url = 'articles/'
 				if (this.selected_brand) {

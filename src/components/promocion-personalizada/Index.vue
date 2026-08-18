@@ -524,7 +524,7 @@ export default {
 	right: 0
 	bottom: 0
 	left: 0
-	// Por encima de .cont-nav (100), de #buyer-messages (1000) y del modal de Bootstrap (1050).
+	// Por encima de .cont-nav (100) y del modal de Bootstrap (1050).
 	z-index: 1200
 	// 🔴 El scroll vive ACA y no en el panel. En escritorio las flechas se salen del panel a
 	// los costados, y cualquier overflow distinto de visible en el panel las recortaria

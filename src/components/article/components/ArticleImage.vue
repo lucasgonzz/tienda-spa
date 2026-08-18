@@ -34,7 +34,7 @@
 			:adjustableHeight="true">
 				<!-- <img
 				:src="commerce.image_url" 
-				v-if="commerce.online_configuration.show_article_image"
+				v-if="flag_activo(commerce.online_configuration.show_article_image)"
 				class="imagen-logo-empresa"></img> -->
 				<slide
 				:data-index="index"

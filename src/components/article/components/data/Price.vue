@@ -1,7 +1,7 @@
 <template>
 	<div
-	v-if="commerce.online_configuration.online_price_type && article_to_show && (article_to_show.precio_pausado || articlePriceEfectivo(article_to_show))">
-		<template v-if="article_to_show.precio_pausado">
+	v-if="commerce.online_configuration.online_price_type && article_to_show && (flag_activo(article_to_show.precio_pausado) || articlePriceEfectivo(article_to_show))">
+		<template v-if="flag_activo(article_to_show.precio_pausado)">
 			<p class="price">
 				{{ articlePriceEfectivo(article_to_show) }}
 			</p>

@@ -1,6 +1,6 @@
 <template>
 	<div 
-	v-if="article_to_show && !article_to_show.precio_pausado"
+	v-if="article_to_show && !flag_activo(article_to_show.precio_pausado)"
 	class="payment-methods-info">
 		<div 
 		v-for="payment_method in payment_methods_to_show"

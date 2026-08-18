@@ -162,6 +162,20 @@ export default {
 		},
 	},
 	methods: {
+		/**
+		 * Normaliza un flag booleano que viene del API como string.
+		 *
+		 * 🔴 MySQL manda los tinyint como string ("0" / "1"), y en JavaScript el string "0" es
+		 * TRUTHY. Leer `article.precio_pausado` o `commerce.show_buyer_messages` crudo en un v-if
+		 * da siempre true y da vuelta la condicion entera (por eso la tienda dejaba de mostrar
+		 * precios y bloqueaba el boton de carrito). Todo flag del API se lee por aca.
+		 *
+		 * @param {number|string|boolean|null} valor flag tal como llega del API
+		 * @returns {boolean}
+		 */
+		flag_activo(valor) {
+			return Number(valor) === 1
+		},
 		precio_por_unidad(article) {
 			return this.price(article.final_price / article.presentacion) 
 		},
@@ -275,7 +289,7 @@ export default {
 		 */
 		articlePrice(article, formated = true) {
 			let price = this.articlePriceEfectivo(article, formated)
-			if (this.puede_ver_precios() && article.precio_pausado) {
+			if (this.puede_ver_precios() && this.flag_activo(article.precio_pausado)) {
 				return price
 			}
 			return formated ? this.price(price) : price
@@ -290,7 +304,7 @@ export default {
 			}
 
 			// Texto fijo de configuración online en lugar del importe
-			if (article.precio_pausado) {
+			if (this.flag_activo(article.precio_pausado)) {
 				const texto = this.commerce && this.commerce.online_configuration
 					? this.commerce.online_configuration.text_precio_pausado
 					: ''
@@ -466,7 +480,7 @@ export default {
 			}
 			/* Con precio pausado no hay importe: articlePriceEfectivo devuelve el texto de
 			   configuracion, asi que no hay nada contra que tachar. */
-			if (article.precio_pausado) {
+			if (this.flag_activo(article.precio_pausado)) {
 				return null
 			}
 			/* La extension de rangos por cantidad vendida hace que articlePriceEfectivo ignore
@@ -530,7 +544,7 @@ export default {
 			}
 			/* Con precio pausado no hay importe contra que comparar: articlePriceEfectivo
 			   devuelve el texto de configuracion, no un numero. */
-			if (article.precio_pausado) {
+			if (this.flag_activo(article.precio_pausado)) {
 				return null
 			}
 			/* Con la extension de rangos por cantidad vendida el precio grande sale de
@@ -577,7 +591,7 @@ export default {
 			if (oferta.tipo_descuento != 'cantidad' || !Array.isArray(oferta.rangos)) {
 				return null
 			}
-			if (article.precio_pausado) {
+			if (this.flag_activo(article.precio_pausado)) {
 				return null
 			}
 			/* Misma limitacion conocida que en precio_sin_oferta(): con la extension de rangos
@@ -693,7 +707,7 @@ export default {
 			if (!oferta || !oferta.precio_aplicado) {
 				return null
 			}
-			if (!article || article.precio_pausado) {
+			if (!article || this.flag_activo(article.precio_pausado)) {
 				return null
 			}
 			/* Misma limitacion conocida que en precio_sin_oferta(): con la extension de rangos

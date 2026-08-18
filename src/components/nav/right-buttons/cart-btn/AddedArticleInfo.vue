@@ -109,7 +109,7 @@ export default {
 			if (
 				this.commerce
 				&& this.commerce.online_configuration
-				&& this.commerce.online_configuration.register_to_buy
+				&& this.flag_activo(this.commerce.online_configuration.register_to_buy)
 			) {
 				return 'mini-cart-popup--register-to-buy'
 			}

@@ -12,13 +12,13 @@
 				<whats-app-info></whats-app-info>
 
 				<buyer
-				v-if="!commerce.online_configuration.register_to_buy && !authenticated"></buyer>	
+				v-if="!flag_activo(commerce.online_configuration.register_to_buy) && !authenticated"></buyer>	
 				<deliver
 				v-else></deliver>
 
 
 				<deliver
-				v-if="!commerce.online_configuration.register_to_buy"></deliver>
+				v-if="!flag_activo(commerce.online_configuration.register_to_buy)"></deliver>
 
 				<seller-select-client></seller-select-client>
 
@@ -89,7 +89,7 @@ export default {
 	},
 	computed: {
 		show_content() {
-			if (!this.commerce.online_configuration.register_to_buy) {
+			if (!this.flag_activo(this.commerce.online_configuration.register_to_buy)) {
 				if (this.user) {
 					return true 
 				}

@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="commerce.online_configuration.register_to_buy"
+	v-if="flag_activo(commerce.online_configuration.register_to_buy)"
 	class="m-l-15 d-none d-lg-block auth-btn">
 		<div 
 		v-if="authenticated && !is_mobile">

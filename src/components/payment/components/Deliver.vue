@@ -21,14 +21,14 @@ export default {
 	computed: {
 		deliver_options() {
 			let options = []
-			if (this.commerce.online_configuration.has_delivery) {
+			if (this.flag_activo(this.commerce.online_configuration.has_delivery)) {
 				options.push({
 					name: 'Envio a domicilio',
 					icon: 'check',
 					value: 1,
 				})
 			}
-			if (this.commerce.online_configuration.retiro_por_local) {
+			if (this.flag_activo(this.commerce.online_configuration.retiro_por_local)) {
 				options.push({
 					name: 'Retiro por local',
 					icon: 'poniter',

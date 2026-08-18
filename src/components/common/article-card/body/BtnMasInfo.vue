@@ -26,7 +26,7 @@
 			v-if="!is_item_in_cart(article)"
 			class="btn-add-to-cart"
 			@click.stop="add_to_cart"
-			:disabled="article.precio_pausado ? true : false"
+			:disabled="flag_activo(article.precio_pausado)"
 			variant="outline-primary">
 				<i class="bi bi-cart-plus"></i>
 				<span class="btn-cart-label">Agregar</span>

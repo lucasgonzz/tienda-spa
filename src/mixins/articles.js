@@ -49,7 +49,7 @@ export default {
 				console.log('has_stock variants')
 				return !this.selected_article_variant || this.selected_article_variant.stock === null || this.selected_article_variant.stock > 0
 			}
-			if (this.commerce.online_configuration.stock_null_equal_0 && article.stock == null) {
+			if (this.flag_activo(this.commerce.online_configuration.stock_null_equal_0) && article.stock == null) {
 				console.log('NULL es igual a 0 y el stock de '+article.name+' es null')
 				return false 
 			}

@@ -60,7 +60,7 @@ export default {
 					this.$scrollToTop()
 				}
 			} else {
-				if (this.commerce.online_configuration.register_to_buy) {
+				if (this.flag_activo(this.commerce.online_configuration.register_to_buy)) {
 					this.$cookies.set('redirect_to', 'Payment')
 					this.$router.push({name: 'Login'})
 				} else {

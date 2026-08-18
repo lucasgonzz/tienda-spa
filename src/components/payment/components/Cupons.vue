@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="commerce.online_configuration.usar_cupones">
+	v-if="flag_activo(commerce.online_configuration.usar_cupones)">
 		<h5>
 			Cupones
 		</h5>

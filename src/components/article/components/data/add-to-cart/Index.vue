@@ -3,7 +3,7 @@
 	v-if="authenticated || puede_comprar_sin_login">
 		
 		<div
-		v-if="article && !article.precio_pausado && articlePriceEfectivo(article) && hasStock(article)" 
+		v-if="article && !flag_activo(article.precio_pausado) && articlePriceEfectivo(article) && hasStock(article)"
 		class="add-to-cart m-b-20">
 			
 			<notes
@@ -122,7 +122,7 @@ export default {
 		},
 		agregar_al_carrito() {
 			// Si el precio está pausado, no se permite agregar al carrito.
-			if (this.article && this.article.precio_pausado) {
+			if (this.article && this.flag_activo(this.article.precio_pausado)) {
 				this.$toast.warning('Este artículo no está disponible para agregar al carrito')
 				return
 			}
@@ -159,7 +159,7 @@ export default {
 		},
 		saveCart(buy_now = false) {
 			// Doble validación por seguridad para evitar altas al carrito por eventos manuales.
-			if (this.article && this.article.precio_pausado) {
+			if (this.article && this.flag_activo(this.article.precio_pausado)) {
 				this.$toast.warning('Este artículo no está disponible para agregar al carrito')
 				return
 			}

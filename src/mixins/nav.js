@@ -78,7 +78,7 @@ export default {
 		},
 		toCart() {
 			if (this.$route.name == 'Cart') {
-				if (this.commerce.online_configuration.register_to_buy) {
+				if (this.flag_activo(this.commerce.online_configuration.register_to_buy)) {
 					console.log('se llamo getLastCart desde toCart')
 					this.$store.dispatch('cart/getLastCart')
 				}

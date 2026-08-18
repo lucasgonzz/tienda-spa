@@ -8,7 +8,7 @@
             <div
             v-else>
                 <!-- Rutas de autenticacion (login/registro/recuperar clave): pantalla completa, -->
-                <!-- sin navbar, footer, boton de WhatsApp ni buyer-messages (los resuelve AuthLayout). -->
+                <!-- sin navbar, footer ni boton de WhatsApp (los resuelve AuthLayout). -->
                 <router-view
                 v-if="auth_route"/>
                 <div
@@ -22,8 +22,6 @@
                         </transition>
                         <btn-whats-app></btn-whats-app>
                         <footer-component></footer-component>
-
-                        <buyer-messages></buyer-messages>
 
                         <promocion-personalizada></promocion-personalizada>
 
@@ -58,8 +56,6 @@ export default {
         LogoLoading,
         FooterComponent,
 
-        BuyerMessages: () => import('@/components/buyer-messages/Index'),
-
         /* El mensaje de la oferta personalizada. Diferido: solo se descarga cuando el
            comprador llega a una pantalla de tienda (no en login ni registro). */
         PromocionPersonalizada: () => import('@/components/promocion-personalizada/Index'),
@@ -78,8 +74,8 @@ export default {
         /**
          * Indica si la ruta activa es una de autenticacion (login, registro o
          * recuperar clave). En esas rutas AuthLayout ya resuelve su propio chrome
-         * a pantalla completa, asi que el navbar, el footer, el boton de WhatsApp
-         * y buyer-messages no deben renderizarse encima.
+         * a pantalla completa, asi que el navbar, el footer y el boton de WhatsApp
+         * no deben renderizarse encima.
          *
          * @returns {boolean}
          */

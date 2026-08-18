@@ -22,7 +22,7 @@
 		v-model="buyer.ciudad"
 		placeholder="Ciudad"></b-form-input>
 		<b-form-input
-		v-if="commerce.online_configuration.pedir_barrio_al_registrarse"
+		v-if="flag_activo(commerce.online_configuration.pedir_barrio_al_registrarse)"
 		class="m-b-15"
 		v-model="buyer.barrio"
 		placeholder="Barrio"></b-form-input>

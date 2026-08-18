@@ -140,7 +140,7 @@ export default {
 				errors.push('Ciudad')
 			}
 			if (
-				this.commerce.online_configuration.pedir_barrio_al_registrarse
+				this.flag_activo(this.commerce.online_configuration.pedir_barrio_al_registrarse)
 				&& this.is_blank_field(buyer.barrio)
 			) {
 				errors.push('Barrio')

@@ -173,7 +173,7 @@ export default {
 		 * @returns {string|null}
 		 */
 		precio_destacado() {
-			if (this.article.precio_pausado) {
+			if (this.flag_activo(this.article.precio_pausado)) {
 				return null
 			}
 			if (this.es_por_cantidad && this.cantidad_del_mejor_tramo) {

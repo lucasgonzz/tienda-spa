@@ -68,7 +68,7 @@ export default {
 			// Configuracion opcional del comercio: si esta prendida, un stock null se interpreta como 0.
 			let stock_null_equal_0 = this.commerce
 				&& this.commerce.online_configuration
-				&& this.commerce.online_configuration.stock_null_equal_0
+				&& this.flag_activo(this.commerce.online_configuration.stock_null_equal_0)
 
 			if (this.model.article_variants && this.model.article_variants.length) {
 				// Con variantes: hay stock si alguna variante tiene stock disponible.

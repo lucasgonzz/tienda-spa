@@ -113,7 +113,7 @@
 		</div>
 		<!-- Campo condicional: se mantiene exactamente la misma condicion que tenia antes -->
 		<div
-		v-if="commerce.online_configuration.pedir_barrio_al_registrarse"
+		v-if="flag_activo(commerce.online_configuration.pedir_barrio_al_registrarse)"
 		class="login-form__field">
 			<label
 			class="login-form__label"
@@ -267,7 +267,7 @@ export default {
 					this.loading = false
 					if (res.status == 201) {
 
-						if (this.commerce.online_configuration.logear_cliente_al_registrar) {
+						if (this.flag_activo(this.commerce.online_configuration.logear_cliente_al_registrar)) {
 							this.logear_y_redirigir(res)
 						} else {
 							this.notificacion()
