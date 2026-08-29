@@ -1,16 +1,37 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 export default {
 	computed: {
+		/**
+		 * Unidades totales del carrito: la suma de las cantidades, no la cantidad de lineas.
+		 *
+		 * 🔴 Los `Number()` NO son decorativos. `amount` llega como STRING desde la API, asi que
+		 * `0 + "1"` da `"01"` y de ahi en adelante cada vuelta CONCATENA en vez de sumar. Con 20
+		 * productos en el carrito eso mostraba `013445254443565164166 unidades` en la barra de
+		 * navegacion (medido el 29/8/2026 en tienda.comerciocity.store con el comprador
+		 * renata.cabrera@gmail.com). El contador de productos distintos de abajo nunca se rompio
+		 * porque usa `.length`.
+		 *
+		 * El patron correcto ya estaba en este mismo archivo, en `total()`:
+		 * `Number(article.pivot.price) * Number(article.pivot.amount)`. Habia quedado sin aplicar
+		 * justo aca.
+		 *
+		 * ⚠️ El `|| 0` tampoco sobra: `Number(undefined)` da NaN, y un solo renglon sin `amount`
+		 * contagiaria el total entero a `NaN unidades`. Con la concatenacion vieja ese caso salia
+		 * como `...undefined...`, o sea que ya estaba roto — pero NaN es una forma de fallar NUEVA
+		 * que introduce este arreglo, y esta pantalla se filma para la demo comercial.
+		 *
+		 * @returns {number}
+		 */
 		cant_cart_items() {
 			let cant_items = 0
 			let cart = this.$store.state.cart.cart
 			if (cart) {
 				cart.articles.forEach(article => {
-					cant_items += article.amount
+					cant_items += Number(article.amount) || 0
 				})
 
 				cart.promociones_vinoteca.forEach(promo => {
-					cant_items += promo.amount
+					cant_items += Number(promo.amount) || 0
 				})
 			}
 			return cant_items
