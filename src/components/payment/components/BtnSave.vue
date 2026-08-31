@@ -242,12 +242,17 @@ export default {
 			return errors
 		},
 		/**
-		 * Indica si la tienda exige elegir un día de entrega.
+		 * Indica si la tienda exige elegir un día de entrega: hay días configurados Y el
+		 * select tiene sentido para el método de entrega elegido (DeliveryDay.vue solo lo
+		 * muestra con envío a domicilio, deliver === 1 — retiro por local no usa día de
+		 * entrega). Antes solo miraba delivery_day.models.length, así que un comercio con
+		 * días configurados y un comprador que elegía retiro por local quedaba exigiendo
+		 * un campo que la interfaz nunca ofrecía completar.
 		 *
 		 * @returns {boolean}
 		 */
 		must_select_delivery_day() {
-			return this.$store.state.delivery_day.models.length > 0
+			return this.cart.deliver === 1 && this.$store.state.delivery_day.models.length > 0
 		},
 		/**
 		 * Indica si el comprador ya seleccionó un día de entrega válido.
