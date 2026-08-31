@@ -58,7 +58,40 @@ export default {
 				this.$router.push({name: 'PaymentCard'})
 			}
 		},
+		/**
+		 * Manda al login al comprador que no tiene sesion en una tienda que exige registro,
+		 * que es el tercer caso que el if/else de ready() no cubria.
+		 *
+		 * SON TRES CASOS, NO DOS: la negacion de (!autenticado && invitado_permitido) NO es
+		 * "autenticado" -- tambien entra "sin sesion y con registro obligatorio". Hasta el
+		 * 31/8/2026 ese caso caia en el else de ready(), rotulado "Flujo autenticado", que
+		 * desreferencia this.user. Con this.user en null eso tira un TypeError DENTRO del
+		 * handler del click, y una excepcion ahi no produce ninguna senial: sin pedido, sin
+		 * request, sin toast y sin cambio de URL. Medido en la demo el 31/8/2026.
+		 *
+		 * Vive en un metodo propio, y no adentro de ready(), porque hay DOS botones que
+		 * arrancan el checkout -- "Finalizar Compra" (ready) e "Ir a pagar" de Payway
+		 * (check) -- y los dos tienen que aplicar la misma politica. Poner el guard solo en
+		 * ready() dejaba a Payway navegando a /pagar sin sesion.
+		 *
+		 * @returns {boolean} true si redirigio; el que llama tiene que cortar ahi
+		 */
+		redirect_to_login_if_no_session() {
+			if (this.authenticated || this.puede_comprar_sin_login) {
+				return false
+			}
+			// Misma politica que ya aplica CartFooter.next() al entrar al checkout: misma
+			// cookie, mismo valor y misma ruta destino.
+			this.$cookies.set('redirect_to', 'Payment')
+			this.$toast.error('Iniciá sesión para completar tu compra')
+			this.$router.push({name: 'Login'})
+			return true
+		},
 		ready() {
+			if (this.redirect_to_login_if_no_session()) {
+				return
+			}
+
 			// Flujo guest: identificar comprador antes de crear el pedido
 			if (!this.authenticated && this.puede_comprar_sin_login) {
 				// Errores de validación acumulados del checkout invitado
@@ -189,6 +222,16 @@ export default {
 			if (this.cart.deliver && this.delivery_zones.length && !this.cart_delivery_zone) {
 				errors.push('Precio de envio')
 			}
+			// 🔴 Este this.user.seller_id NO lleva guarda a proposito, aunque su hermana de
+			// la Direccion de entrega si la tenga. Se le puso el 31/8/2026 y se revirtio:
+			// sin sesion, esta linea es lo unico que frena a un invitado de una tienda
+			// register_to_buy=0 que elige Payway. Guardandola, check() devuelve true,
+			// payway() navega a /pagar, el comprador TOKENIZA LA TARJETA y recien ahi falla,
+			// en una pantalla donde no existe ningun formulario para completar sus datos.
+			// El caso "sin sesion y con registro obligatorio" -- el que dejaba el boton mudo
+			// -- ya lo cortan ready() y check() antes de llegar aca, con
+			// redirect_to_login_if_no_session(). Sacar esta nota solo cuando el checkout de
+			// invitado valide sus propios datos en check(), como ya hace ready().
 			if (this.user.seller_id && !this.buyer_id) {
 				errors.push('Cliente del pedido')
 			}
@@ -233,6 +276,12 @@ export default {
 			this.$toast.error('Completá los siguientes campos: ' + errors.join(', '))
 		},
 		check() {
+			// Payway entra por aca, no por ready(). Sin esto, un comprador sin sesion en una
+			// tienda con registro obligatorio navegaba a /pagar y terminaba llamando a
+			// makeOrder() desde Payway.vue.
+			if (this.redirect_to_login_if_no_session()) {
+				return false
+			}
 			const checkout_errors = this.collect_authenticated_checkout_errors()
 			if (checkout_errors.length) {
 				this.show_checkout_validation_errors(checkout_errors)

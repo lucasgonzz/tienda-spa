@@ -1,6 +1,14 @@
 <template>
+	<!--
+		El "user &&" no sobra: Payment.vue monta este componente SIN condicion, asi que se
+		renderiza tambien cuando no hay sesion (navegacion directa a /confirmar-compra, o
+		sesion caida). Con user en null esto tiraba un TypeError en tiempo de RENDER, con el
+		mismo mensaje que el del boton -- "Cannot read properties of null (reading
+		'seller_id')" --, y Vue se comia el componente sin romper la pagina, asi que el
+		defecto quedaba solo como una linea roja en la consola.
+	-->
 	<div
-	v-if="user.seller_id"
+	v-if="user && user.seller_id"
 	class="background">
 		<h5>
 			Asignar Cliente para este Pedido

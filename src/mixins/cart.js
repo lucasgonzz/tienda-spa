@@ -392,6 +392,16 @@ export default {
 				})
 			} 
 		},
+		// 🔴 NO convertir esto en un porton que devuelva false sin frenar tambien a los
+		// llamadores. Se intento el 31/8/2026 y se revirtio: makeOrder() se alcanza desde
+		// CardPaymentMethod.setSelected(), que llama makeOrder(true) e INMEDIATAMENTE
+		// despues initMp(), sin mirar el resultado. Hoy, con un invitado sin identificar, la
+		// cadena revienta en this.user.seller_id y el overlay de carga queda prendido
+		// tapando el boton de MercadoPago que initMp() acaba de dibujar. Es un bug feo, pero
+		// tapa el pago. Si canMakeOrder() devuelve false y limpia el overlay sin frenar a
+		// initMp(), el boton de MercadoPago queda vivo y el comprador PUEDE PAGAR sin que
+		// exista ningun pedido de este lado. Arreglar esto de verdad es cerrar la identidad
+		// del comprador en los cuatro caminos de pago, no poner un guard aca.
 		canMakeOrder() {
 			return true
 		},
