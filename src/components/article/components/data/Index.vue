@@ -13,9 +13,6 @@
 	v-if="article_to_show">
 		<name-heart></name-heart>
 
-		
-		<discounts></discounts>	
-
 		<price></price>
 		<vinoteca></vinoteca>
 		
@@ -39,7 +36,6 @@
 </template>
 <script>
 import NameHeart from '@/components/article/components/data/NameHeart'
-import Discounts from '@/components/article/components/data/Discounts'
 import PaymentMethodsInfo from '@/components/article/components/data/PaymentMethodsInfo'
 import Price from '@/components/article/components/data/Price'
 import Condition from '@/components/article/components/data/Condition'
@@ -54,7 +50,6 @@ export default {
 	components: {
 		NameHeart,
 		Vinoteca: () => import('@/components/article/components/data/Vinoteca'),
-		Discounts,
 		PaymentMethodsInfo,
 		Price,
 		Condition,

@@ -733,6 +733,180 @@ export default {
 			}
 			return this.price(base)
 		},
+		/**
+		 * ¿Ese porcentaje sirve para descontar algo?
+		 *
+		 * Mismo criterio que ClientOfferHelper::porcentajeUsable() del lado del servidor:
+		 * numerico, mayor a 0 y hasta 100. Un descuento cargado con un porcentaje invalido
+		 * (null, 0, texto, negativo, 250) no suma al calculo NI muestra badge.
+		 *
+		 * @param {number|string|null} porcentaje
+		 * @returns {boolean}
+		 */
+		porcentaje_de_descuento_usable(porcentaje) {
+			if (porcentaje === null || typeof porcentaje == 'undefined' || porcentaje === '') {
+				return false
+			}
+			let numero = Number(porcentaje)
+			if (isNaN(numero)) {
+				return false
+			}
+			return numero > 0 && numero <= 100
+		},
+		/**
+		 * ¿Ese monto fijo sirve para descontar algo?
+		 *
+		 * `article_discounts` admite dos tipos excluyentes por fila (igual que
+		 * ArticlePricesHelper::aplicar_descuentos() del lado del servidor: `if
+		 * percentage ... else if amount`): porcentual o monto fijo en pesos. Un monto en 0,
+		 * negativo o invalido no descuenta nada.
+		 *
+		 * @param {number|string|null} monto
+		 * @returns {boolean}
+		 */
+		monto_de_descuento_usable(monto) {
+			if (monto === null || typeof monto == 'undefined' || monto === '') {
+				return false
+			}
+			let numero = Number(monto)
+			if (isNaN(numero)) {
+				return false
+			}
+			return numero > 0
+		},
+		/**
+		 * Los descuentos del articulo que hay que mostrarle a ESTE comprador, o [].
+		 *
+		 * 🔴 Es la UNICA puerta de lectura de article.discounts en todo el SPA, y el gate
+		 * unico del tachado nuevo Y de los badges: si esto devuelve [], no se dibuja ninguna
+		 * de las dos cosas.
+		 *
+		 * 🔴 NO IMPORTA SI EL ARTICULO TIENE OTROS DESCUENTOS U OTROS AJUSTES QUE NO ESTAN
+		 * ACA (decision de Lucas, 3/9/2026). `final_price` es SIEMPRE el precio real, lo
+		 * calcule como lo calcule el sistema de gestion por dentro (otros descuentos ocultos,
+		 * recargos de articulo, en el orden que sea). La tienda no reconstruye ESE calculo
+		 * completo: arma un precio tachado "como si" solo hubieran existido los descuentos
+		 * VISIBLES, tal que aplicandoselos a mano da el precio final. Es una cuenta propia y
+		 * autosuficiente de la tienda, no un espejo del calculo interno del ERP — por eso no
+		 * hace falta (ni se puede, no llega el dato) saber si hay otros descuentos u otros
+		 * recargos por fuera de estos.
+		 *
+		 * 🔴 La OFERTA PERSONALIZADA GANA (regla de Lucas, 1/9/2026): si el comprador tiene
+		 * una oferta sobre este articulo, los descuentos generales se apagan enteros. Se corta
+		 * contra oferta_personalizada() a secas y NO contra oferta.precio_aplicado, a
+		 * proposito: con tipo_descuento 'cantidad' el servidor no toca final_price y la ficha
+		 * ya dibuja su propio tachado por tramo (precio_base_de_oferta) mas la linea de
+		 * price-tramo. Un solo relato de descuento por articulo, siempre.
+		 *
+		 * El contrato con la API es ADITIVO, igual que el de oferta_personalizada: un articulo
+		 * que llego por un camino sin withAll() no trae el campo y aca sale [].
+		 *
+		 * @param {object} article
+		 * @returns {Array}
+		 */
+		descuentos_visibles(article) {
+			if (!this.puede_ver_precios()) {
+				return []
+			}
+			if (!article || !Array.isArray(article.discounts) || !article.discounts.length) {
+				return []
+			}
+			if (this.oferta_personalizada(article)) {
+				return []
+			}
+			if (this.flag_activo(article.precio_pausado)) {
+				return []
+			}
+			/* La extension de rangos por cantidad vendida hace que articlePriceEfectivo ignore
+			   final_price y use article.ranges[].price, que no tiene por que venir neto de
+			   estos descuentos. Misma limitacion que ya cortan precio_sin_oferta() y hermanas. */
+			if (this.commerce_has_extencion('lista_de_precios_por_rango_de_cantidad_vendida')) {
+				return []
+			}
+			return article.discounts.filter(descuento => {
+				if (!this.flag_activo(descuento.show_in_online)) {
+					return false
+				}
+				return this.porcentaje_de_descuento_usable(descuento.percentage)
+					|| this.monto_de_descuento_usable(descuento.amount)
+			})
+		},
+		/**
+		 * El precio ORIGINAL del articulo, para tacharlo ARRIBA del precio con descuentos.
+		 * null cuando no hay descuentos que mostrar.
+		 *
+		 * 🔴 Se RECONSTRUYE, no llega del backend: es la cuenta INVERSA de la que pediria
+		 * Lucas para armar la promocion — "aplicandole los descuentos visibles a este precio
+		 * tachado, da el precio final". Se arranca del precio YA RECARGADO
+		 * (articlePriceEfectivo con formated=false, que ya trae el online_price_surchage y su
+		 * Math.round) y se le suman de vuelta los montos fijos visibles, y ese resultado se
+		 * divide por el factor combinado de los porcentajes visibles — el orden inverso al
+		 * que se aplicarian de adelante para atras (primero los porcentajes, despues los
+		 * montos fijos: precio_final = precio_tachado * factor - suma_montos).
+		 *
+		 * 🔴 COMPOSICION EN CASCADA para los porcentajes (decision de Lucas, 1/9/2026): con
+		 * mas de un descuento porcentual, cada uno se aplica sobre lo que dejo el anterior
+		 * (20% y 10% = 28% total, no 30%).
+		 *
+		 * 🔴 El unico error posible es de REDONDEO, nunca estructural: articlePriceEfectivo
+		 * ya redondeo el precio grande al peso antes de que esta funcion lo use de base, y
+		 * Math.round redondea para el lado mas cercano (no siempre para abajo) — el tachado
+		 * puede quedar un peso de mas o de menos, nunca varios ni en una direccion fija.
+		 *
+		 * @param {object} article
+		 * @param {boolean} formated
+		 * @returns {string|number|null}
+		 */
+		precio_sin_descuentos(article, formated = true) {
+			let descuentos = this.descuentos_visibles(article)
+			if (!descuentos.length) {
+				return null
+			}
+			let base = this.articlePriceEfectivo(article, false)
+			if (base === null || typeof base == 'undefined' || isNaN(Number(base)) || Number(base) <= 0) {
+				return null
+			}
+			base = Number(base)
+			let factor = 1
+			let suma_montos = 0
+			descuentos.forEach(descuento => {
+				if (this.porcentaje_de_descuento_usable(descuento.percentage)) {
+					factor *= (1 - Number(descuento.percentage) / 100)
+				} else if (this.monto_de_descuento_usable(descuento.amount)) {
+					suma_montos += Number(descuento.amount)
+				}
+			})
+			if (!(factor > 0) || factor > 1) {
+				return null
+			}
+			let original = Math.round((base + suma_montos) / factor)
+			/* La regla que no se negocia, la misma que precio_base_de_oferta() y llamadores:
+			   nunca mostrar un tachado igual o menor al precio de al lado. */
+			if (original <= base) {
+				return null
+			}
+			return formated ? this.price(original) : original
+		},
+		/**
+		 * El texto del badge de UN descuento: "20% de descuento" o "$100 de descuento" segun
+		 * el tipo. Mismo texto porcentual que ya mostraba Discounts.vue — lo unico que cambia
+		 * es DONDE se dibuja — mas el caso nuevo de monto fijo, que antes no se contemplaba.
+		 *
+		 * @param {object} descuento
+		 * @returns {string}
+		 */
+		texto_de_descuento(descuento) {
+			if (this.porcentaje_de_descuento_usable(descuento.percentage)) {
+				return this.formatDecimals(String(descuento.percentage)) + '% de descuento'
+			}
+			if (this.monto_de_descuento_usable(descuento.amount)) {
+				/* price(monto, false) recorta los decimales SOLO cuando son ".00", igual
+				   criterio que formatDecimals() ya aplica al porcentaje de arriba: "$100 de
+				   descuento", no "$100.00 de descuento", para un monto redondo. */
+				return this.price(Number(descuento.amount), false) + ' de descuento'
+			}
+			return ''
+		},
 		checkAuth() {
 			if (this.authenticated) {
 				return true

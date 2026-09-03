@@ -47,6 +47,17 @@
 				<p
 				class="product-price"
 				v-else>
+					<!--
+						El precio ORIGINAL tachado, en su propio renglon ARRIBA del precio con
+						los descuentos generales del articulo. Excluyente con el tachado de
+						oferta personalizada de abajo: descuentos_visibles() devuelve [] apenas
+						hay una oferta personalizada activa.
+					-->
+					<span
+					v-if="precio_original_con_descuentos"
+					class="price__original-arriba">
+						{{ precio_original_con_descuentos }}
+					</span>
 					{{ articlePriceEfectivo(article) }}
 					<!--
 						El precio original, tachado al lado del descontado. Solo aparece cuando la
@@ -59,6 +70,14 @@
 					class="price__tachado">
 						{{ precio_sin_oferta(article) }}
 					</span>
+					<!-- Un badge por descuento general, con SU propio porcentaje, a la derecha del precio. -->
+					<b-badge
+					v-for="(descuento, index) in badges_de_descuento"
+					:key="'descuento-'+index"
+					variant="danger"
+					class="price__badge-descuento">
+						{{ texto_de_descuento(descuento) }}
+					</b-badge>
 				</p>
 
 			</div>
@@ -105,6 +124,27 @@ export default {
 			}
 			return this.precio_base_de_linea(this.article)
 		},
+		/**
+		 * El precio original a tachar arriba, por los descuentos generales visibles del
+		 * articulo. null en cualquier otro caso, incluido el del comprador con oferta
+		 * personalizada, donde manda el tachado chico de al lado.
+		 *
+		 * @returns {string|null}
+		 */
+		precio_original_con_descuentos() {
+			return this.precio_sin_descuentos(this.article)
+		},
+		/**
+		 * Los badges de descuento, atados al tachado de arriba: sin tachado no hay badges.
+		 *
+		 * @returns {Array}
+		 */
+		badges_de_descuento() {
+			if (!this.precio_original_con_descuentos) {
+				return []
+			}
+			return this.descuentos_visibles(this.article)
+		},
 	},
 	methods: {
 		toLogin() {
@@ -131,4 +171,29 @@ export default {
 	@media screen and (max-width: 576px)
 		font-size: .78em
 		margin-left: .25em
+
+// El precio ORIGINAL tachado, en el renglon de ARRIBA del precio con descuentos. Un escalon
+// mas chico que el precio de la tarjeta y bajado de opacidad: informacion, no alarma.
+.price__original-arriba
+	display: block
+	font-size: .62em
+	font-weight: 400
+	line-height: 1.15
+	opacity: .5
+	text-decoration: line-through
+	white-space: nowrap
+	@media screen and (max-width: 576px)
+		font-size: .68em
+
+// Un badge por descuento, a la derecha del precio nuevo. Inline a proposito: si no entran en
+// el ancho de la tarjeta bajan de renglon ENTEROS, nunca se recortan ni se parten.
+.price__badge-descuento
+	font-size: .48em
+	font-weight: 600
+	margin-left: .4em
+	vertical-align: middle
+	white-space: nowrap
+	@media screen and (max-width: 576px)
+		font-size: .55em
+		margin-left: .3em
 </style>

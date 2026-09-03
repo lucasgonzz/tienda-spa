@@ -14,6 +14,17 @@
 			<template
 			v-if="!article_to_show.ranges">
 				<p class="price">
+					<!--
+						El precio ORIGINAL tachado, en su propio renglon ARRIBA del precio con
+						los descuentos generales del articulo. Excluyente con precio_tachado (la
+						oferta personalizada): descuentos_visibles() devuelve [] apenas hay una
+						oferta personalizada activa, asi que los dos nunca se dibujan juntos.
+					-->
+					<span
+					v-if="precio_original_con_descuentos"
+					class="price__original-arriba">
+						{{ precio_original_con_descuentos }}
+					</span>
 					{{ precio_mostrado }}
 					<!--
 						El precio original, tachado al lado del que se paga. Sale de un computed y
@@ -26,6 +37,18 @@
 					class="price__tachado">
 						{{ precio_tachado }}
 					</span>
+					<!--
+						Un badge por descuento general del articulo, a la derecha del precio.
+						Reemplaza a Discounts.vue, que dibujaba estos mismos badges ARRIBA del
+						precio y sin ninguna relacion con el.
+					-->
+					<b-badge
+					v-for="(descuento, index) in badges_de_descuento"
+					:key="'descuento-'+index"
+					variant="danger"
+					class="price__badge-descuento">
+						{{ texto_de_descuento(descuento) }}
+					</b-badge>
 				</p>
 				<!--
 					Por que el precio cambia al mover la cantidad. Sin esta linea el comprador ve
@@ -140,6 +163,34 @@ export default {
 		texto_del_tramo() {
 			return this.texto_del_mejor_tramo(this.article_to_show)
 		},
+		/**
+		 * El precio original tachado ARRIBA, por los descuentos generales del articulo.
+		 *
+		 * 🔴 Es EXCLUYENTE con precio_tachado, que es el de la oferta personalizada: cuando el
+		 * comprador tiene oferta, descuentos_visibles() devuelve [] y esto es null; cuando no
+		 * la tiene, precio_tachado es null salvo que exista una oferta con precio aplicado.
+		 * Nunca se dibujan los dos.
+		 *
+		 * 🔴 Aca no hay tramos que atender: article.discounts es un porcentaje simple por fila,
+		 * sin tipo 'unidad'/'cantidad' ni rangos, asi que la ficha se comporta igual que un
+		 * listado y el mixin resuelve solo.
+		 *
+		 * @returns {string|null}
+		 */
+		precio_original_con_descuentos() {
+			return this.precio_sin_descuentos(this.article_to_show)
+		},
+		/**
+		 * Los badges de descuento, atados al tachado de arriba: sin tachado no hay badges.
+		 *
+		 * @returns {Array}
+		 */
+		badges_de_descuento() {
+			if (!this.precio_original_con_descuentos) {
+				return []
+			}
+			return this.descuentos_visibles(this.article_to_show)
+		},
 	},
 }
 </script>
@@ -161,6 +212,28 @@ export default {
 		white-space: nowrap
 		@media screen and (max-width: 576px)
 			font-size: .55em
+			margin-left: .3em
+	// El precio ORIGINAL tachado, en el renglon de ARRIBA del precio con descuentos.
+	.price__original-arriba
+		display: block
+		font-size: .5em
+		font-weight: 400
+		line-height: 1.15
+		opacity: .5
+		text-decoration: line-through
+		white-space: nowrap
+		@media screen and (max-width: 576px)
+			font-size: .55em
+	// Un badge por descuento, a la derecha del precio. Si no entran, bajan de renglon
+	// enteros, nunca se recortan ni se parten.
+	.price__badge-descuento
+		font-size: .34em
+		font-weight: 600
+		margin-left: .4em
+		vertical-align: middle
+		white-space: nowrap
+		@media screen and (max-width: 576px)
+			font-size: .4em
 			margin-left: .3em
 
 // La linea que explica a partir de cuantas unidades mejora el precio. Va a media voz: una
