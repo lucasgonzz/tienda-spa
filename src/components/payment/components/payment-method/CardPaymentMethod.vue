@@ -70,7 +70,11 @@ export default {
 				payment_method: this.cart_payment_method,
 				cupon: this.cupon,
 				delivery_zone: this.cart_delivery_zone,
-				articles: this.articles
+				articles: this.articles,
+				// El carrito que se esta pagando: la API lo escribe como external_reference de la
+				// preferencia, y con eso el webhook de Mercado Pago sabe a que pedido atarle el pago
+				// aunque el comprador nunca vuelva a la tienda. Una API vieja lo ignora.
+				cart_id: this.cart ? this.cart.id : null,
 			})
 			.then(res => {
 				// Inicializa el checkout
