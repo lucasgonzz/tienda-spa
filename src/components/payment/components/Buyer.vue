@@ -11,7 +11,7 @@
 			</label>
 			<b-form-input
 			v-model="buyer.name"
-			placeholder="Como figura en tu documento"></b-form-input>
+			placeholder="Nombre y apellido"></b-form-input>
 		</div>
 
 		<div class="checkout-field">
@@ -27,11 +27,14 @@
 			<label class="checkout-field__label">
 				Correo electrónico
 			</label>
+			<p class="checkout-field__hint">
+				Ahí te mandamos la confirmación del pedido.
+			</p>
 			<b-form-input
 			v-model="buyer.email"
 			@blur="buscar_direccion_guardada"
 			@keyup.enter="buscar_direccion_guardada"
-			placeholder="Te mandamos ahí la confirmación"></b-form-input>
+			placeholder="tunombre@correo.com"></b-form-input>
 		</div>
 
 		<div class="checkout-field">

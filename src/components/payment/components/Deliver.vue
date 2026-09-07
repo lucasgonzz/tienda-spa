@@ -13,7 +13,7 @@
 			:key="deliver_option.value"
 			@click="deliver = deliver_option.value"
 			@keyup.enter="deliver = deliver_option.value"
-			@keyup.space="deliver = deliver_option.value"
+			@keyup.space.prevent="deliver = deliver_option.value"
 			:class="{'checkout-option--selected': deliver === deliver_option.value}"
 			class="checkout-option"
 			role="radio"
@@ -67,6 +67,16 @@ export default {
 			},
 			set(value) {
 				this.$store.commit('cart/setDeliver', value)
+
+				// 🔴 Pasar a retiro por el local SUELTA la zona de envio que hubiera elegido antes.
+				// `setDeliver` no la limpia, el bloque de zonas solo se esconde, y del otro lado
+				// OnlinePaymentHelper::setPrices() agrega el item "Envio" con que la zona no sea
+				// null, sin mirar `deliver`: el comprador que se arrepentia del envio pagaba un
+				// envio que la pantalla ya no le mostraba, y el pedido llegaba al ERP con zona y
+				// deliver = 0 a la vez.
+				if (!value) {
+					this.$store.commit('cart/setDeliveryZone', null)
+				}
 			}
 		}
 	}

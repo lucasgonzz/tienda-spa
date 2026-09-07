@@ -1,13 +1,12 @@
 <template>
 	<div
 	v-if="!cupon">
-		<b-form-group
-		label="Busca un cupon para obtener tu descuento">
+		<div class="checkout-field">
 			<b-form-input
 			v-model="code"
 			@keyup.enter="searchCupon"
-			placeholder="Ingrese el codigo del cupon"></b-form-input>
-		</b-form-group>
+			placeholder="Escribí tu código de cupón"></b-form-input>
+		</div>
 		<b-button
 		block 
 		variant="primary"

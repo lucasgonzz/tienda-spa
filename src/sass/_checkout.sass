@@ -10,10 +10,12 @@ $checkout-borde-fuerte: rgba(0, 0, 0, .14)
 $checkout-tenue: rgba(0, 0, 0, .55)
 
 .checkout
-	padding: 110px 0 60px
+	// 130px arriba es lo que ya usaba esta pantalla: el navbar es fijo y en algunos temas pasa
+	// de 110px, y ahi el titulo se meteria abajo del nav.
+	padding: 130px 0 60px
 
 	@media screen and (max-width: 767px)
-		padding: 90px 0 40px
+		padding: 110px 0 40px
 
 .checkout__header
 	margin-bottom: 1.5rem
@@ -212,6 +214,12 @@ $checkout-tenue: rgba(0, 0, 0, .55)
 	text-align: left
 	margin-bottom: .3rem
 
+.checkout-field__hint
+	font-size: .78rem
+	color: $checkout-tenue
+	text-align: left
+	margin: -.15rem 0 .35rem
+
 .checkout-section .form-control,
 .checkout-section .custom-select
 	border-radius: 10px
@@ -321,7 +329,10 @@ $checkout-tenue: rgba(0, 0, 0, .55)
 // ── Vuelta del pago (exitoso / pendiente / rechazado) ─────────────────────────────────────────
 
 .payment-result
-	padding: 130px 0 60px
+	padding: 150px 0 60px
+
+	@media screen and (max-width: 767px)
+		padding: 120px 0 40px
 
 .payment-result__card
 	background: #FFF

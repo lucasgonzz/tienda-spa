@@ -20,7 +20,7 @@
 			<b-form-input
 			@keyup.enter="search_buyer"
 			v-model="query"
-			placeholder="Buscar perfil de Cliente"></b-form-input>
+			placeholder="Buscá el cliente por nombre o correo"></b-form-input>
 
 			<b-button
 			@click="search_buyer"

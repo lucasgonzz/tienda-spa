@@ -2,7 +2,7 @@
 	<div
 	@click="setSelected"
 	@keyup.enter="setSelected"
-	@keyup.space="setSelected"
+	@keyup.space.prevent="setSelected"
 	:class="{'checkout-option--selected': esta_elegido}"
 	class="checkout-option"
 	role="radio"
@@ -31,7 +31,7 @@
 			<p
 			v-else-if="es_mercado_pago"
 			class="checkout-option__description">
-				Tarjeta de crédito o débito, dinero en cuenta o QR
+				Tarjeta de crédito o débito, o dinero en tu cuenta de Mercado Pago
 			</p>
 
 			<div

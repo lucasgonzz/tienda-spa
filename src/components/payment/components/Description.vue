@@ -20,7 +20,7 @@ export default {
 			if (this.commerce.online_configuration.order_description) {
 				return this.commerce.online_configuration.order_description
 			}
-			return 'Ingrese notas para el pedido'
+			return 'Contanos lo que necesitemos saber para prepararlo o entregarlo'
 		},
 		description: {
 			get() {

@@ -183,10 +183,10 @@ export default {
 
 				this.procesando = true
 
-				this.$store.dispatch('cart/save')
-				.then(function() {
-					return self.confirmar_pedido()
-				})
+				// Sin `cart/save` acá: los dos caminos de `confirmar_pedido()` lo hacen igual
+				// (`pagar_con_mercado_pago()` antes de la preferencia, `makeOrder()` antes del
+				// pedido). El que había guardaba el carrito una tercera vez, para nada.
+				this.confirmar_pedido()
 				.catch(function(err) {
 					console.log(err)
 					self.procesando = false
@@ -247,7 +247,11 @@ export default {
 				return self.$api.post('mercado-pago/preference', {
 					payment_method: self.cart_payment_method,
 					cupon: self.cupon,
-					delivery_zone: self.cart_delivery_zone,
+					// 🔴 La zona SOLO viaja si el pedido se envia. OnlinePaymentHelper::setPrices()
+					// agrega el item "Envio" con que la zona no sea null, sin mirar `deliver`, asi
+					// que un comprador que elegia envio, elegia zona y despues se pasaba a retiro
+					// por el local pagaba un envio que la pantalla no le mostraba en ningun lado.
+					delivery_zone: self.cart.deliver ? self.cart_delivery_zone : null,
 					articles: self.articles,
 					cart_id: self.cart ? self.cart.id : null,
 				})
@@ -284,12 +288,15 @@ export default {
 				})
 			})
 			.catch(function(err) {
+				// 🔴 El mensaje de la API NO se le muestra al comprador, y no es por prolijidad. Los
+				// dos que puede devolver `MercadoPagoController@preference` son "El comercio no tiene
+				// una cuenta de Mercado Pago conectada" —un problema del NEGOCIO, que el comprador no
+				// puede resolver ni entender— y el detalle crudo que devuelve Mercado Pago, que viene
+				// en inglés. Al comprador se le dice qué puede hacer él; el detalle queda en la
+				// consola y en el log de la API, que es donde lo busca quien lo puede arreglar.
 				console.log(err)
 				self.procesando = false
-				const mensaje = err.response && err.response.data && err.response.data.message
-					? err.response.data.message
-					: 'No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.'
-				self.$toast.error(mensaje)
+				self.$toast.error('No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.')
 			})
 		},
 		/**
@@ -315,6 +322,12 @@ export default {
 				},
 				autoOpen: true,
 			})
+
+			// El comprador ya esta adentro del checkout de Mercado Pago, y este camino NO se va del
+			// SPA. Si cierra el modal sin pagar, el boton tiene que estar vivo para que pueda
+			// reintentar: sin esto quedaba deshabilitado con el spinner para siempre, y encima con
+			// el pedido ya creado.
+			this.procesando = false
 		},
 		/**
 		 * Indica si un valor de formulario está vacío o solo contiene espacios.
@@ -338,10 +351,10 @@ export default {
 				errors.push('Nombre y apellido')
 			}
 			if (this.is_blank_field(buyer.phone)) {
-				errors.push('Telefono')
+				errors.push('Teléfono')
 			}
 			if (this.is_blank_field(buyer.email)) {
-				errors.push('Correo electronico')
+				errors.push('Correo electrónico')
 			}
 			if (this.is_blank_field(buyer.ciudad)) {
 				errors.push('Ciudad')
@@ -355,16 +368,16 @@ export default {
 			// La direccion solo es obligatoria si el comprador eligio envio a domicilio
 			// (deliver == 1). Con retiro por local (deliver == 0) no hace falta.
 			if (this.cart.deliver == 1 && this.is_blank_field(buyer.address)) {
-				errors.push('Direccion')
+				errors.push('Dirección')
 			}
 			if (this.cart.deliver == null) {
-				errors.push('Metodo de entrega')
+				errors.push('Cómo lo recibís')
 			}
 			if (!this.cart_payment_method && this.payment_methods.length) {
-				errors.push('Forma de pago')
+				errors.push('Cómo pagás')
 			}
 			if (this.must_select_delivery_day() && !this.has_selected_delivery_day()) {
-				errors.push('Dia de entrega')
+				errors.push('Qué día te lo llevamos')
 			}
 
 			return errors
@@ -378,10 +391,10 @@ export default {
 			const errors = []
 
 			if (this.cart.deliver == null) {
-				errors.push('Metodo de entrega')
+				errors.push('Cómo lo recibís')
 			}
 			if (!this.cart_payment_method && this.payment_methods.length) {
-				errors.push('Forma de pago')
+				errors.push('Cómo pagás')
 			}
 			if (
 				this.cart.deliver
@@ -391,10 +404,10 @@ export default {
 					&& (this.user.address == '')
 				)
 			) {
-				errors.push('Direccion de entrega')
+				errors.push('Dónde te lo llevamos')
 			}
 			if (this.cart.deliver && this.delivery_zones.length && !this.cart_delivery_zone) {
-				errors.push('Precio de envio')
+				errors.push('Costo del envío')
 			}
 			// 🔴 Este this.user.seller_id NO lleva guarda a proposito, aunque su hermana de
 			// la Direccion de entrega si la tenga. Se le puso el 31/8/2026 y se revirtio:
@@ -407,10 +420,10 @@ export default {
 			// redirect_to_login_if_no_session(). Sacar esta nota solo cuando el checkout de
 			// invitado valide sus propios datos en check(), como ya hace ready().
 			if (this.user.seller_id && !this.buyer_id) {
-				errors.push('Cliente del pedido')
+				errors.push('Cliente de este pedido')
 			}
 			if (this.must_select_delivery_day() && !this.has_selected_delivery_day()) {
-				errors.push('Dia de entrega')
+				errors.push('Qué día te lo llevamos')
 			}
 
 			return errors
@@ -438,7 +451,12 @@ export default {
 			return fecha_entrega && Number(fecha_entrega) !== 0
 		},
 		/**
-		 * Muestra al usuario todos los campos faltantes en una sola notificación.
+		 * Muestra al comprador todo lo que le falta completar, en una sola notificación.
+		 *
+		 * 🔴 Los nombres que se listan acá son los TÍTULOS DE LAS SECCIONES que el comprador está
+		 * viendo, no los del modelo. Antes decían "Metodo de entrega" o "Precio de envio" mientras
+		 * la pantalla mostraba "¿Cómo lo recibís?" y "Costo del envío": el comprador leía el aviso
+		 * y no tenía a dónde ir. Si se renombra una sección, se renombra también acá.
 		 *
 		 * @param {string[]} errors
 		 */
@@ -448,11 +466,11 @@ export default {
 			}
 
 			if (errors.length === 1) {
-				this.$toast.error('Completá el campo: ' + errors[0])
+				this.$toast.error('Te falta completar: ' + errors[0])
 				return
 			}
 
-			this.$toast.error('Completá los siguientes campos: ' + errors.join(', '))
+			this.$toast.error('Te falta completar: ' + errors.join(', '))
 		},
 		check() {
 			// Payway entra por aca, no por ready(). Sin esto, un comprador sin sesion en una

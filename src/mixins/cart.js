@@ -130,7 +130,24 @@ export default {
 		total() {
 			let cart_total = this.$store.state.cart.cart.total
 			if (cart_total != null && cart_total !== undefined) {
-				return cart_total
+				/*
+				 * 🔴 El Number() NO es decorativo, es el mismo bug que ya se pago en cant_cart_items.
+				 * `carts.total` es decimal(20,2) y PDO lo devuelve como STRING ("10000.00"), asi que
+				 * todo lo que sume sobre este valor CONCATENA en vez de sumar:
+				 *
+				 *   "10000.00" + 2000  ->  "10000.002000"   (el envio desaparece del total)
+				 *   "10000.00" + 1000  ->  "10000.001000"   (el recargo desaparece, y su linea da $0)
+				 *
+				 * price() formatea eso como $10.000,00, o sea que la pantalla muestra un total menor
+				 * que el que efectivamente cobra la API (OnlinePaymentHelper si suma bien). Se nota
+				 * recien con el carrito YA GUARDADO: con el carrito local el total se calcula abajo
+				 * con Number() y da bien, que es por lo que esto sobrevivio tanto.
+				 *
+				 * Las restas y multiplicaciones (descuentos, cupon) nunca se rompieron: `-` y `*`
+				 * fuerzan el numero. Solo el `+` concatena.
+				 */
+				let numero = Number(cart_total)
+				return isFinite(numero) ? numero : 0
 			}
 			// Calcular localmente para guest (cart no persistido aun)
 			let total = 0

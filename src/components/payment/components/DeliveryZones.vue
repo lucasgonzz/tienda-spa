@@ -18,7 +18,7 @@
 			:key="delivery_zone.id"
 			@click="cart_delivery_zone = delivery_zone"
 			@keyup.enter="cart_delivery_zone = delivery_zone"
-			@keyup.space="cart_delivery_zone = delivery_zone"
+			@keyup.space.prevent="cart_delivery_zone = delivery_zone"
 			:class="{'checkout-option--selected': esta_elegida(delivery_zone)}"
 			class="checkout-option"
 			role="radio"

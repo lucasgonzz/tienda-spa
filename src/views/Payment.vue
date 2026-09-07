@@ -43,9 +43,16 @@
 
 						<delivery-day></delivery-day>
 
-						<payment-method></payment-method>
-
+						<!--
+							El cupon va ANTES de la forma de pago, y no es indistinto: aplicarlo
+							limpia la forma de pago elegida (el total cambio y hay que volver a
+							elegir sobre el precio nuevo). Con el cupon abajo, el comprador elegia
+							Mercado Pago, bajaba, aplicaba el cupon, y el bloque de pago se le
+							deseleccionaba arriba, fuera de la vista.
+						-->
 						<cupon></cupon>
+
+						<payment-method></payment-method>
 
 						<description></description>
 

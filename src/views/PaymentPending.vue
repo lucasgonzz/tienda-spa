@@ -10,7 +10,7 @@
 				Mercado Pago todavía está verificando la operación. Tu pedido ya quedó registrado y lo vamos a preparar igual.
 			</p>
 			<p class="payment-result__text">
-				Te avisamos apenas se acredite. No hace falta que hagas nada más.
+				No hace falta que hagas nada más: el pago se registra solo cuando Mercado Pago lo resuelve, aunque cierres esta ventana.
 			</p>
 
 			<div class="payment-result__actions">

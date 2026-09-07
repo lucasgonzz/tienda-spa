@@ -7,7 +7,7 @@
 				¡Listo! Recibimos tu pago
 			</h1>
 			<p class="payment-result__text">
-				Tu pedido ya está confirmado. Te vamos a avisar por correo o WhatsApp cuando esté en camino.
+				Tu pedido ya quedó registrado con el pago. El negocio se pone en contacto si hace falta.
 			</p>
 
 			<div class="payment-result__actions">
