@@ -1,61 +1,50 @@
 <template>
-	<div class="view">
-		<b-row>
-			<b-col
-			md="5"
-			lg="4"
-			cols="12">
-				<div class="cont-center">
-					<div
-					class="shadow-1 b-w b-r-1 p-15">
-						<h4 class="text-with-icon text-success">
-							<i class="bi bi-hourglass-split"></i>
-							Tu pago esta pendiente
-						</h4>
-						<p class="text-success">
-							Es posible que MercadoPago este verificando tu información.
-						</p>
-						<p class="text-success">
-							De todas formas, puedes continuar con tu pedido, nos pondremos en contacto ante cualquier eventualidad.
-						</p>
-						<p class="text-success">
-							Estamos preperando tu pedido para ser enviado.
-						</p>
-						<p class="text-success">
-							<strong>
-								NO CIERRES ESTA VENTANA.
-							</strong>
-						</p>
-						<b-progress variant="success" :value="progress" :max="100" show-progress animated></b-progress>
-						<div
-						class="m-t-15"
-						v-if="save_error">
-							<p class="text-danger">
-								<strong>
-									Hubo un problema al confirmar tu pedido.
-								</strong>
-							</p>
-							<p class="text-danger">
-								Por favor contactanos y contanos lo sucedido antes de cerrar esta ventana.
-							</p>
-						</div>
-					</div>
-				</div>
-			</b-col>
-		</b-row>
+	<div class="payment-result">
+		<div class="payment-result__card">
+			<i class="bi bi-hourglass-split payment-result__icon payment-result__icon--wait"></i>
+
+			<h1 class="payment-result__title">
+				Tu pago está en revisión
+			</h1>
+			<p class="payment-result__text">
+				Mercado Pago todavía está verificando la operación. Tu pedido ya quedó registrado y lo vamos a preparar igual.
+			</p>
+			<p class="payment-result__text">
+				Te avisamos apenas se acredite. No hace falta que hagas nada más.
+			</p>
+
+			<div class="payment-result__actions">
+				<b-button
+				v-if="authenticated"
+				block
+				variant="success"
+				:to="{name: 'Orders'}">
+					Ver mis pedidos
+				</b-button>
+				<b-button
+				block
+				variant="outline-secondary"
+				:to="{name: 'Home'}">
+					Volver a la tienda
+				</b-button>
+			</div>
+		</div>
 	</div>
 </template>
 <script>
-import BtnLoader from '@/components/common/BtnLoader'
-
 import payment from '@/mixins/payment'
+
+/**
+ * Vuelta de Mercado Pago con el pago pendiente de acreditación.
+ *
+ * Igual que `PaymentSuccess`: no guarda nada. El estado real del pago lo escribe el webhook cuando
+ * Mercado Pago lo resuelve, que puede ser bastante después de que el comprador cierre esta pantalla
+ * — que es exactamente por lo que el "NO CIERRES ESTA VENTANA" que había acá no tenía sentido.
+ */
 export default {
 	mixins: [payment],
-	components: {
-		BtnLoader,
+	metaInfo: {
+		title: 'Pago pendiente',
 	},
-    metaInfo: {
-        title: 'Pago Pendiente',
-    },
-}	
+}
 </script>

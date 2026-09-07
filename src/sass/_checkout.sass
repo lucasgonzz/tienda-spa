@@ -1,0 +1,365 @@
+// Checkout (confirmar pedido) — rediseño del 7/9/2026.
+//
+// Todo el color sale de las variables de tema del comercio (--primary-color, --secondary-color,
+// --text-color), que se aplican en runtime desde online_configuration (helpers/online_configuration_theme.js).
+// 🔴 Nada de colores fijos de marca acá: cada cliente tiene los suyos y esta pantalla es la que
+// más se mira. Los `var(--x, fallback)` son para el instante previo a que el tema se aplique.
+
+$checkout-borde: rgba(0, 0, 0, .08)
+$checkout-borde-fuerte: rgba(0, 0, 0, .14)
+$checkout-tenue: rgba(0, 0, 0, .55)
+
+.checkout
+	padding: 110px 0 60px
+
+	@media screen and (max-width: 767px)
+		padding: 90px 0 40px
+
+.checkout__header
+	margin-bottom: 1.5rem
+
+.checkout__title
+	font-size: 1.75rem
+	font-weight: 700
+	line-height: 1.2
+	margin: 0 0 .35rem
+	text-align: left
+	color: #1a1a1a
+
+	@media screen and (max-width: 767px)
+		font-size: 1.4rem
+
+.checkout__subtitle
+	font-size: .95rem
+	color: $checkout-tenue
+	text-align: left
+	margin: 0
+
+// ── Secciones ────────────────────────────────────────────────────────────────────────────────
+
+.checkout-section
+	background: #FFF
+	border: 1px solid $checkout-borde
+	border-radius: 14px
+	padding: 1.15rem 1.25rem
+	margin-bottom: 1rem
+
+	@media screen and (max-width: 767px)
+		padding: 1rem
+
+.checkout-section__title
+	display: flex
+	align-items: center
+	gap: .55rem
+	font-size: 1.02rem
+	font-weight: 700
+	color: #1a1a1a
+	text-align: left
+	margin: 0 0 .9rem
+
+	i
+		color: var(--secondary-color, #0d6efd)
+		font-size: 1.15rem
+		line-height: 1
+
+.checkout-section__hint
+	font-size: .85rem
+	color: $checkout-tenue
+	text-align: left
+	margin: -.55rem 0 .9rem
+
+// ── Opción elegible (entrega, forma de pago, zona de envío) ───────────────────────────────────
+
+.checkout-option
+	display: flex
+	align-items: flex-start
+	gap: .8rem
+	width: 100%
+	padding: .9rem 1rem
+	margin-bottom: .6rem
+	background: #FFF
+	border: 1px solid $checkout-borde-fuerte
+	border-radius: 12px
+	cursor: pointer
+	transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease
+
+	&:last-child
+		margin-bottom: 0
+
+	&:hover
+		border-color: var(--secondary-color, #0d6efd)
+
+	&:focus
+		outline: none
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary-color, #0d6efd) 25%, transparent)
+
+.checkout-option--selected
+	border-color: var(--secondary-color, #0d6efd)
+	background: color-mix(in srgb, var(--secondary-color, #0d6efd) 5%, #fff)
+	box-shadow: 0 0 0 1px var(--secondary-color, #0d6efd) inset
+
+.checkout-option__radio
+	flex: 0 0 auto
+	width: 20px
+	height: 20px
+	margin-top: 2px
+	border: 2px solid $checkout-borde-fuerte
+	border-radius: 50%
+	position: relative
+	transition: border-color .15s ease
+
+	.checkout-option--selected &
+		border-color: var(--secondary-color, #0d6efd)
+
+		&::after
+			content: ''
+			position: absolute
+			top: 3px
+			left: 3px
+			width: 10px
+			height: 10px
+			border-radius: 50%
+			background: var(--secondary-color, #0d6efd)
+
+.checkout-option__icon
+	flex: 0 0 auto
+	font-size: 1.4rem
+	line-height: 1
+	margin-top: 1px
+	color: var(--secondary-color, #0d6efd)
+
+.checkout-option__body
+	flex: 1 1 auto
+	min-width: 0
+
+.checkout-option__name
+	display: flex
+	align-items: center
+	flex-wrap: wrap
+	gap: .45rem
+	font-size: .98rem
+	font-weight: 600
+	color: #1a1a1a
+	text-align: left
+	margin: 0
+
+.checkout-option__description
+	font-size: .86rem
+	color: $checkout-tenue
+	text-align: left
+	margin: .2rem 0 0
+	line-height: 1.4
+
+.checkout-option__price
+	font-size: .95rem
+	font-weight: 700
+	color: #1a1a1a
+	white-space: nowrap
+	margin: 0
+	padding-left: .5rem
+
+// Chip de la marca que cobra online. Es el único color fijo del archivo: identifica a Mercado
+// Pago, no al comercio, y por eso no sale del tema.
+.checkout-option__brand
+	display: inline-flex
+	align-items: center
+	gap: .3rem
+	font-size: .72rem
+	font-weight: 700
+	text-transform: uppercase
+	letter-spacing: .02em
+	color: #FFF
+	background: #009EE3
+	border-radius: 999px
+	padding: .16rem .55rem
+
+// ── Etiquetas de descuento / recargo ──────────────────────────────────────────────────────────
+
+.checkout-option__tags
+	display: flex
+	flex-wrap: wrap
+	gap: .4rem
+	margin-top: .5rem
+
+.checkout-tag
+	display: inline-block
+	font-size: .76rem
+	font-weight: 700
+	border-radius: 999px
+	padding: .18rem .6rem
+
+.checkout-tag--good
+	color: #1b7a3d
+	background: rgba(27, 122, 61, .12)
+
+.checkout-tag--warn
+	color: #96591a
+	background: rgba(150, 89, 26, .12)
+
+// ── Formularios de la columna izquierda ───────────────────────────────────────────────────────
+
+.checkout-field
+	margin-bottom: .75rem
+
+	&:last-child
+		margin-bottom: 0
+
+.checkout-field__label
+	display: block
+	font-size: .82rem
+	font-weight: 600
+	color: $checkout-tenue
+	text-align: left
+	margin-bottom: .3rem
+
+.checkout-section .form-control,
+.checkout-section .custom-select
+	border-radius: 10px
+	border-color: $checkout-borde-fuerte
+	padding: .6rem .8rem
+	height: auto
+
+	&:focus
+		border-color: var(--secondary-color, #0d6efd)
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary-color, #0d6efd) 18%, transparent)
+
+// ── Resumen ───────────────────────────────────────────────────────────────────────────────────
+
+.checkout-summary
+	background: #FFF
+	border: 1px solid $checkout-borde
+	border-radius: 14px
+	padding: 1.15rem 1.25rem
+
+	@media screen and (min-width: 992px)
+		position: sticky
+		top: 100px
+
+.checkout-summary__items
+	margin-bottom: .9rem
+
+	@media screen and (min-width: 992px)
+		max-height: 40vh
+		overflow-y: auto
+
+.checkout-summary__lines
+	border-top: 1px solid $checkout-borde
+	padding-top: .8rem
+
+.checkout-summary__line
+	display: flex
+	justify-content: space-between
+	align-items: baseline
+	gap: 1rem
+	font-size: .9rem
+	color: $checkout-tenue
+	text-align: left
+	margin: 0 0 .45rem
+
+	span
+		white-space: nowrap
+		color: #1a1a1a
+		font-weight: 600
+
+.checkout-summary__line--good
+	color: #1b7a3d
+
+	span
+		color: #1b7a3d
+
+.checkout-summary__total
+	display: flex
+	justify-content: space-between
+	align-items: baseline
+	gap: 1rem
+	border-top: 1px solid $checkout-borde
+	margin: .8rem 0 0
+	padding-top: .8rem
+	font-size: 1.05rem
+	font-weight: 700
+	color: #1a1a1a
+
+	span
+		font-size: 1.35rem
+		white-space: nowrap
+
+// ── Botón de confirmar ────────────────────────────────────────────────────────────────────────
+
+.checkout-confirm
+	margin-top: 1rem
+
+.checkout-confirm__btn
+	border-radius: 12px !important
+	padding: .85rem 1rem !important
+	font-size: 1.05rem !important
+	font-weight: 700 !important
+	border: none !important
+	color: #FFF !important
+	background: var(--primary-color, #269e24) !important
+	transition: filter .15s ease
+
+	&:hover:not(:disabled)
+		filter: brightness(.94)
+
+	&:disabled
+		opacity: .75
+
+	i
+		margin-right: .4rem
+
+// Mercado Pago cobra con su propia identidad: el comprador tiene que reconocer a dónde va antes
+// de apretar, y ahí el color del comercio no ayuda.
+.checkout-confirm__btn--mp
+	background: #009EE3 !important
+
+.checkout-confirm__hint
+	font-size: .82rem
+	color: $checkout-tenue
+	text-align: center
+	margin: .55rem 0 0
+
+// ── Vuelta del pago (exitoso / pendiente / rechazado) ─────────────────────────────────────────
+
+.payment-result
+	padding: 130px 0 60px
+
+.payment-result__card
+	background: #FFF
+	border: 1px solid $checkout-borde
+	border-radius: 16px
+	padding: 2rem 1.5rem
+	text-align: center
+	max-width: 480px
+	margin: 0 auto
+
+.payment-result__icon
+	font-size: 3.2rem
+	line-height: 1
+	margin-bottom: .8rem
+
+.payment-result__icon--ok
+	color: #1b7a3d
+
+.payment-result__icon--wait
+	color: #96591a
+
+.payment-result__icon--error
+	color: #c0392b
+
+.payment-result__title
+	font-size: 1.4rem
+	font-weight: 700
+	color: #1a1a1a
+	margin: 0 0 .5rem
+
+.payment-result__text
+	font-size: .95rem
+	color: $checkout-tenue
+	line-height: 1.5
+	margin: 0 0 .5rem
+
+.payment-result__actions
+	display: flex
+	flex-direction: column
+	gap: .5rem
+	margin-top: 1.4rem

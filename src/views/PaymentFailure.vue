@@ -1,39 +1,46 @@
 <template>
-	<div class="view">
-		<b-row>
-			<b-col
-			md="5"
-			lg="4"
-			cols="12">
-				<div class="cont-center">
-					<div
-					class="shadow-1 b-w b-r-1 p-15">
-						<h4 class="text-with-icon text-success">
-							<i class="bi bi-exclamation-triangle-fill"></i>
-							No pudimos procesar tu pago
-						</h4>
-						<p class="text-success">
-							MercadoPago no pudo realizar la transacción.
-						</p>
-						<p class="text-success">
-							Prueba con escoger otro metodo de pago.
-						</p>
-						<b-button
-						block
-						:to="{name: 'Payment'}"
-						variant="success">
-							Cambiar metodo de pago
-						</b-button>
-					</div>
-				</div>
-			</b-col>
-		</b-row>
+	<div class="payment-result">
+		<div class="payment-result__card">
+			<i class="bi bi-exclamation-triangle-fill payment-result__icon payment-result__icon--error"></i>
+
+			<h1 class="payment-result__title">
+				No se pudo completar el pago
+			</h1>
+			<p class="payment-result__text">
+				Mercado Pago no procesó la operación. No te cobramos nada.
+			</p>
+			<p class="payment-result__text">
+				Podés intentarlo de nuevo o elegir otra forma de pago.
+			</p>
+
+			<div class="payment-result__actions">
+				<b-button
+				block
+				variant="success"
+				:to="{name: 'Payment'}">
+					Elegir otra forma de pago
+				</b-button>
+				<b-button
+				block
+				variant="outline-secondary"
+				:to="{name: 'Home'}">
+					Volver a la tienda
+				</b-button>
+			</div>
+		</div>
 	</div>
 </template>
 <script>
+
+/**
+ * Vuelta de Mercado Pago con el pago rechazado.
+ *
+ * No usa el mixin de pago a propósito: el carrito NO se limpia, porque el comprador vuelve al
+ * checkout a elegir otra forma de pago y necesita tener su pedido a mano.
+ */
 export default {
-    metaInfo: {
-        title: 'Pago Exitoso',
-    },
-}	
+	metaInfo: {
+		title: 'Pago rechazado',
+	},
+}
 </script>

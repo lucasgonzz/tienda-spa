@@ -244,24 +244,6 @@ export default {
 		},
 	},
 	methods: {
-		setBtnMpVisible(set_visible) {
-			let btn = document.getElementsByClassName('mp-btn')
-			console.log(btn)
-			if (btn.length) {
-				if (set_visible) {
-					btn[0].style.display = 'block'
-					console.log('se hizo visible')
-				} else {
-					btn[0].style.display = 'none'
-					let child = document.getElementsByClassName('mercadopago-button')
-					console.log('se hizo no visible')
-					if (child.length) {
-						child[0].remove()
-						console.log('se removio btn')
-					}
-				}
-			}
-		},
 		discountCupon(total) {
 			if (this.cupon) {
 				if (this.cupon.amount) {
@@ -272,125 +254,153 @@ export default {
 			}
 			return total
 		},
-		makeOrder(from_mercadopago = false) {
-			if (this.canMakeOrder()) {
+		/**
+		 * Crea el pedido a partir del carrito.
+		 *
+		 * Devuelve SIEMPRE una promesa, y resuelve con `true` si el pedido quedo creado o con `null`
+		 * si algo fallo. Antes no devolvia nada, y por eso el checkout no tenia forma de encadenar
+		 * nada despues del pedido: el camino de Mercado Pago pedia la preferencia EN PARALELO, sin
+		 * mirar si el pedido se habia creado.
+		 *
+		 * No rechaza nunca: los llamadores viejos (Payway, el modal del carrito, el gateway) la
+		 * invocan sin `.catch`, y una promesa rechazada ahi solo ensuciaria la consola.
+		 *
+		 * @param {boolean} from_mercadopago El pago sigue en Mercado Pago: no se limpia el carrito ni
+		 *                                   se navega a la pagina de gracias, eso pasa al volver.
+		 * @param {boolean} mostrar_overlay Prender el cartel de carga a pantalla completa. El checkout
+		 *                                  pasa `false` porque muestra el estado adentro del boton;
+		 *                                  los demas llamadores no tienen boton propio y lo dejan en
+		 *                                  `true`.
+		 * @returns {Promise<boolean|null>}
+		 */
+		makeOrder(from_mercadopago = false, mostrar_overlay = true) {
+			if (!this.canMakeOrder()) {
+				return Promise.resolve(null)
+			}
+
+			let self = this
+
+			if (mostrar_overlay) {
 				this.$store.commit('auth/setLoading', true)
-				if (from_mercadopago) {
-					this.$store.commit('auth/setMessage', 'Guardando pedido para luego pagar con Mercado Pago')
-				} else {
-					this.$store.commit('auth/setMessage', 'Enviando pedido')
+				this.$store.commit('auth/setMessage', 'Enviando pedido')
+			}
+
+			let apagar_overlay = function() {
+				if (mostrar_overlay) {
+					self.$store.commit('auth/setLoading', false)
+					self.$store.commit('auth/setMessage', '')
 				}
-				this.$store.dispatch('cart/save')
-				.then(() => {
-					return this.$api.post('/orders', {
-						commerce_id 	: process.env.VUE_APP_COMMERCE_ID,
-						cart_id         : this.cart.id,
-						dolar_blue      : this.dolar_blue,
-						buyer_id		: this.buyer_id,
-						seller_id		: this.user.seller_id,
-						buyer 			: this.user,
-						selected_buyer 	: this.selected_buyer,
-						fecha_entrega 	: this.fecha_entrega,
-						// Direccion explicita: la que el comprador VIO en el formulario y acepto al
-						// confirmar. OrderController@get_address le da prioridad sobre cualquier
-						// direccion guardada en buyer/selected_buyer (ver prompt 402).
-						address         : this.order_address,
-					})
-					.then(res => {
-						if (from_mercadopago) {
-							// El pedido YA quedo creado (el POST devolvio 201): lo que falta es el
-							// pago en MercadoPago. Se trackea igual porque checkout_complete
-							// significa "pedido creado", no "pedido pagado", y este camino nunca
-							// vuelve a pasar por aca.
-							//
-							// El order_id sale del cuerpo del 201, que OrderController@store ahora
-							// devuelve como {"order_id": N}. En esta rama el SPA nunca llama a
-							// getCurrentOrder, asi que es la unica forma de conocerlo — y MercadoPago
-							// es el medio dominante, o sea que sin esto el grueso de los
-							// checkout_complete quedaria sin poder atarse a la venta.
-							//
-							// 🔴 El fallback a null NO es defensivo por las dudas: los dos lados nunca
-							// se despliegan juntos, asi que este SPA va a correr un tiempo contra la
-							// API vieja, que responde 201 con cuerpo VACIO. Ahi order_id queda null y
-							// el evento igual se manda (armar_evento saltea los null).
-							let order_id = res.data && res.data.order_id ? res.data.order_id : null
-							trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
-								order_id: order_id,
-								amount: this.total,
-							})
-							// Vaciado inmediato: esta rama se va del SPA enseguida (redirect a
-							// MercadoPago) y los 5 segundos del temporizador de la cola no llegan.
-							// Ver el comentario largo de la rama de abajo para el otro motivo.
-							enviar_cola()
-							this.$store.commit('auth/setLoading', false)
-							this.$store.commit('auth/setMessage', '')
-							return
-						}
+			}
 
-						// Se guarda el id ANTES de limpiar el carrito del store: despues this.cart es null.
-						const cart_id = this.cart.id
-						// Mismo motivo que cart_id: el total del carrito hay que leerlo antes de vaciarlo.
-						const total_del_pedido = this.total
-
-						this.$store.commit('cart/setCart', null)
-						this.$store.commit('cart/set_buyer_id', null)
-						this.$store.commit('cart/set_selected_buyer', null)
-						localStorage.cart = null
-
-						// Secuencia obligatoria. El orden ES el fix: OrderController@current resuelve el
-						// comprador leyendo del guard 'buyer', asi que si la sesion se invalida antes,
-						// el pedido no se puede recuperar nunca mas y la pagina de gracias queda vacia.
-						// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion -> 4) navegar.
-						this.$store.dispatch('orders/getCurrentOrder')
-						.then(() => {
-							// El tracking se SUMA a la secuencia, no la altera: sigue siendo
-							// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion ->
-							// 4) navegar. Va aca y no antes porque el order_id recien se conoce
-							// despues de getCurrentOrder (POST /orders responde 201 sin cuerpo).
-							let pedido = this.$store.state.orders.order
-							trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
-								order_id: pedido ? pedido.id : null,
-								amount: pedido && pedido.total != null ? pedido.total : total_del_pedido,
-							})
-							/*
-							 * 🔴 Vaciado INMEDIATO, y esto no es una optimizacion: es lo unico que
-							 * le da una chance al buyer_id.
-							 *
-							 * trackear() solo encola — el envio real sale 5 segundos despues, por
-							 * temporizador. Mientras tanto esta misma cadena sigue y llega a
-							 * logoutGuestAfterOrder(), que hace POST buyer/logout y es el camino
-							 * NORMAL del checkout de invitado. Cuando el lote finalmente saliera, la
-							 * sesion ya no existe, y BuyerTrackingController resuelve el comprador
-							 * desde el guard en el momento de la ingesta: buyer_id llegaria null.
-							 * Peor que perderlo siempre: si el temporizador casualmente disparaba
-							 * antes del logout, si lo llevaba. Sin esto la atribucion de las compras
-							 * queda librada a una carrera, sin patron.
-							 *
-							 * ⚠️ Esto REDUCE la carrera, no la elimina: el envio del tracking y el
-							 * del logout son dos requests independientes y el orden en que llegan al
-							 * servidor no esta garantizado. La atribucion igual es recuperable por
-							 * order_id -> orders.buyer_id, que es la via confiable cuando el
-							 * buyer_id del evento viene null.
-							 */
-							enviar_cola()
-							return this.deleteCartAfterOrder(cart_id)
-						})
-						.then(() => {
-							return this.logoutGuestAfterOrder()
-						})
-						.then(() => {
-							this.$store.commit('auth/setLoading', false)
-							this.$store.commit('auth/setMessage', '')
-							this.$router.push({name: 'Thanks'})
-						})
-					})
-					.catch(err => {
-						this.$store.commit('auth/setLoading', false)
-						this.$store.commit('auth/setMessage', '')
-						console.log(err)
-					})
+			return this.$store.dispatch('cart/save')
+			.then(function() {
+				return self.$api.post('/orders', {
+					commerce_id 	: process.env.VUE_APP_COMMERCE_ID,
+					cart_id         : self.cart.id,
+					dolar_blue      : self.dolar_blue,
+					buyer_id		: self.buyer_id,
+					seller_id		: self.user.seller_id,
+					buyer 			: self.user,
+					selected_buyer 	: self.selected_buyer,
+					fecha_entrega 	: self.fecha_entrega,
+					// Direccion explicita: la que el comprador VIO en el formulario y acepto al
+					// confirmar. OrderController@get_address le da prioridad sobre cualquier
+					// direccion guardada en buyer/selected_buyer (ver prompt 402).
+					address         : self.order_address,
 				})
-			} 
+			})
+			.then(function(res) {
+				if (from_mercadopago) {
+					// El pedido YA quedo creado (el POST devolvio 201): lo que falta es el
+					// pago en MercadoPago. Se trackea igual porque checkout_complete
+					// significa "pedido creado", no "pedido pagado", y este camino nunca
+					// vuelve a pasar por aca.
+					//
+					// El order_id sale del cuerpo del 201, que OrderController@store ahora
+					// devuelve como {"order_id": N}. En esta rama el SPA nunca llama a
+					// getCurrentOrder, asi que es la unica forma de conocerlo — y MercadoPago
+					// es el medio dominante, o sea que sin esto el grueso de los
+					// checkout_complete quedaria sin poder atarse a la venta.
+					//
+					// 🔴 El fallback a null NO es defensivo por las dudas: los dos lados nunca
+					// se despliegan juntos, asi que este SPA va a correr un tiempo contra la
+					// API vieja, que responde 201 con cuerpo VACIO. Ahi order_id queda null y
+					// el evento igual se manda (armar_evento saltea los null).
+					let order_id = res.data && res.data.order_id ? res.data.order_id : null
+					trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
+						order_id: order_id,
+						amount: self.total,
+					})
+					// Vaciado inmediato: esta rama se va del SPA enseguida (redirect a
+					// MercadoPago) y los 5 segundos del temporizador de la cola no llegan.
+					// Ver el comentario largo de la rama de abajo para el otro motivo.
+					enviar_cola()
+					apagar_overlay()
+					return true
+				}
+
+				// Se guarda el id ANTES de limpiar el carrito del store: despues self.cart es null.
+				let cart_id = self.cart.id
+				// Mismo motivo que cart_id: el total del carrito hay que leerlo antes de vaciarlo.
+				let total_del_pedido = self.total
+
+				self.$store.commit('cart/setCart', null)
+				self.$store.commit('cart/set_buyer_id', null)
+				self.$store.commit('cart/set_selected_buyer', null)
+				localStorage.cart = null
+
+				// Secuencia obligatoria. El orden ES el fix: OrderController@current resuelve el
+				// comprador leyendo del guard 'buyer', asi que si la sesion se invalida antes,
+				// el pedido no se puede recuperar nunca mas y la pagina de gracias queda vacia.
+				// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion -> 4) navegar.
+				return self.$store.dispatch('orders/getCurrentOrder')
+				.then(function() {
+					// El tracking se SUMA a la secuencia, no la altera: sigue siendo
+					// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion ->
+					// 4) navegar. Va aca y no antes porque el order_id recien se conoce
+					// despues de getCurrentOrder (POST /orders responde 201 sin cuerpo).
+					let pedido = self.$store.state.orders.order
+					trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
+						order_id: pedido ? pedido.id : null,
+						amount: pedido && pedido.total != null ? pedido.total : total_del_pedido,
+					})
+					/*
+					 * 🔴 Vaciado INMEDIATO, y esto no es una optimizacion: es lo unico que
+					 * le da una chance al buyer_id.
+					 *
+					 * trackear() solo encola — el envio real sale 5 segundos despues, por
+					 * temporizador. Mientras tanto esta misma cadena sigue y llega a
+					 * logoutGuestAfterOrder(), que hace POST buyer/logout y es el camino
+					 * NORMAL del checkout de invitado. Cuando el lote finalmente saliera, la
+					 * sesion ya no existe, y BuyerTrackingController resuelve el comprador
+					 * desde el guard en el momento de la ingesta: buyer_id llegaria null.
+					 * Peor que perderlo siempre: si el temporizador casualmente disparaba
+					 * antes del logout, si lo llevaba. Sin esto la atribucion de las compras
+					 * queda librada a una carrera, sin patron.
+					 *
+					 * ⚠️ Esto REDUCE la carrera, no la elimina: el envio del tracking y el
+					 * del logout son dos requests independientes y el orden en que llegan al
+					 * servidor no esta garantizado. La atribucion igual es recuperable por
+					 * order_id -> orders.buyer_id, que es la via confiable cuando el
+					 * buyer_id del evento viene null.
+					 */
+					enviar_cola()
+					return self.deleteCartAfterOrder(cart_id)
+				})
+				.then(function() {
+					return self.logoutGuestAfterOrder()
+				})
+				.then(function() {
+					apagar_overlay()
+					self.$router.push({name: 'Thanks'})
+					return true
+				})
+			})
+			.catch(function(err) {
+				apagar_overlay()
+				console.log(err)
+				return null
+			})
 		},
 		// 🔴 NO convertir esto en un porton que devuelva false sin frenar tambien a los
 		// llamadores. Se intento el 31/8/2026 y se revirtio: makeOrder() se alcanza desde

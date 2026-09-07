@@ -1,24 +1,30 @@
 <template>
-	<div
-	class="background">
-		<div class="cart-resume">
-			<h5>
-				Resumen de la compra
-			</h5>
-			<last-article 
+	<div class="checkout-summary">
+		<h2 class="checkout-section__title">
+			<i class="bi bi-bag-check"></i>
+			Tu pedido
+		</h2>
+
+		<div class="checkout-summary__items">
+			<last-article
 			class="m-b-10"
 			v-for="article in cart.articles"
+			:key="'art-' + article.id"
 			:show_added_info="false"
 			:article="article"></last-article>
 
-			<last-article 
+			<last-article
 			class="m-b-10"
 			v-for="promo in cart.promociones_vinoteca"
+			:key="'promo-' + promo.id"
 			:show_added_info="false"
 			:article="promo"></last-article>
 		</div>
-		<BeforeConfirmNotice></BeforeConfirmNotice>
-		<total></total>	
+
+		<total></total>
+
+		<before-confirm-notice></before-confirm-notice>
+
 		<btn-save></btn-save>
 	</div>
 </template>
@@ -39,10 +45,3 @@ export default {
 	}
 }
 </script>
-<style lang="sass">
-.cart-resume
-	@media screen and (min-width: 768px)
-		max-height: 70vh 
-		// max-height: 55vh 
-		overflow-y: auto	
-</style>

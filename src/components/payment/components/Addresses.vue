@@ -1,59 +1,32 @@
 <template>
 	<div
-	class="addresses background m-b-30"
+	class="checkout-section"
 	v-if="deliver && user">
-		<h5>
-			Direccion
-		</h5>
+		<h2 class="checkout-section__title">
+			<i class="bi bi-geo-alt"></i>
+			¿Dónde te lo llevamos?
+		</h2>
 
-		<b-form-input
-		v-if="user.seller_id && selected_buyer"
-		v-model="selected_buyer.comercio_city_client.address"
-		placeholder="Ingrerse Direccion para el envio"></b-form-input>
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Dirección de entrega
+			</label>
 
-		<b-form-input
-		v-else-if="user.address"
-		v-model="user.address"
-		placeholder="Ingrerse Direccion para el envio"></b-form-input>
+			<b-form-input
+			v-if="user.seller_id && selected_buyer"
+			v-model="selected_buyer.comercio_city_client.address"
+			placeholder="Calle, número, piso o departamento"></b-form-input>
 
-		<b-form-input
-		v-else-if="user.comercio_city_client"
-		v-model="user.comercio_city_client.address"
-		placeholder="Ingrerse Direccion para el envio"></b-form-input>
-		<!-- <div
-		v-if="user.addresses.length">
-			<div 
-			class="address b-r s"
-			v-for="address in user.addresses"
-			:key="address.id">
-				<b-form-radio
-				v-model="address_id"
-				:value="address.id">
-					<p class="street">
-						{{ address.street }} {{ address.street_number }}
-					</p>	
-					<p class="details">
-						{{ address.city }}, {{ address.province }}
-					</p>
-				</b-form-radio>
-			</div>
+			<b-form-input
+			v-else-if="user.address"
+			v-model="user.address"
+			placeholder="Calle, número, piso o departamento"></b-form-input>
+
+			<b-form-input
+			v-else-if="user.comercio_city_client"
+			v-model="user.comercio_city_client.address"
+			placeholder="Calle, número, piso o departamento"></b-form-input>
 		</div>
-		<div
-		v-else>
-			<div class="text-muted">
-				No tenes ninguna direccion
-			</div>			
-		</div>
-		<b-form-group
-		class="m-t-15">
-			<b-button
-			block
-			size="sm"
-			variant="success"
-			:to="{name: 'Maps'}">
-				Agregar una direccion
-			</b-button>
-		</b-form-group> -->
 	</div>
 </template>
 <script>
@@ -76,15 +49,3 @@ export default {
 	}
 }
 </script>
-<style lang="sass">
-@import '@/sass/_custom'
-.address
-	margin-bottom: 1em
-	padding: 1em 
-	background: color-mix(in srgb, $green 80%, white 20%)
-	.street 
-		font-weight: bold
-		margin-bottom: .5em
-	.details 
-		color: rgba(0,0,0,.7)
-</style>

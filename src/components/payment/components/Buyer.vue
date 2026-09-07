@@ -1,47 +1,78 @@
 <template>
-	<div class="background">
-		<h5>
-			Identificación
-		</h5>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.name"
-		placeholder="Nombre y apellido"></b-form-input>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.phone"
-		placeholder="Telefono sin 0 ni 15. Ej: 3444622139"></b-form-input>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.email"
-		@blur="buscar_direccion_guardada"
-		@keyup.enter="buscar_direccion_guardada"
-		placeholder="Correo electronico"></b-form-input>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.ciudad"
-		placeholder="Ciudad"></b-form-input>
-		<b-form-input
-		v-if="flag_activo(commerce.online_configuration.pedir_barrio_al_registrarse)"
-		class="m-b-15"
-		v-model="buyer.barrio"
-		placeholder="Barrio"></b-form-input>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.address"
-		@input="direccion_autocompletada = false"
-		placeholder="Direccion"></b-form-input>
-		<div
-		v-if="buscando_direccion"
-		class="text-muted"
-		style="font-size: 0.85rem; margin-top: -10px; margin-bottom: 15px;">
-			Buscando tus datos...
+	<div class="checkout-section">
+		<h2 class="checkout-section__title">
+			<i class="bi bi-person"></i>
+			¿Quién hace la compra?
+		</h2>
+
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Nombre y apellido
+			</label>
+			<b-form-input
+			v-model="buyer.name"
+			placeholder="Como figura en tu documento"></b-form-input>
 		</div>
+
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Teléfono
+			</label>
+			<b-form-input
+			v-model="buyer.phone"
+			placeholder="Sin 0 ni 15. Ej: 3444622139"></b-form-input>
+		</div>
+
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Correo electrónico
+			</label>
+			<b-form-input
+			v-model="buyer.email"
+			@blur="buscar_direccion_guardada"
+			@keyup.enter="buscar_direccion_guardada"
+			placeholder="Te mandamos ahí la confirmación"></b-form-input>
+		</div>
+
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Ciudad
+			</label>
+			<b-form-input
+			v-model="buyer.ciudad"
+			placeholder="Ciudad"></b-form-input>
+		</div>
+
 		<div
-		v-else-if="direccion_autocompletada"
-		class="text-muted"
-		style="font-size: 0.85rem; margin-top: -10px; margin-bottom: 15px;">
-			Usamos la dirección de tu última compra. Si querés que te lo enviemos a otro lado, cambiala acá.
+		v-if="flag_activo(commerce.online_configuration.pedir_barrio_al_registrarse)"
+		class="checkout-field">
+			<label class="checkout-field__label">
+				Barrio
+			</label>
+			<b-form-input
+			v-model="buyer.barrio"
+			placeholder="Barrio"></b-form-input>
+		</div>
+
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Dirección
+			</label>
+			<b-form-input
+			v-model="buyer.address"
+			@input="direccion_autocompletada = false"
+			placeholder="Calle, número, piso o departamento"></b-form-input>
+
+			<p
+			v-if="buscando_direccion"
+			class="checkout-section__hint m-t-5 m-b-0">
+				Buscando tus datos...
+			</p>
+			<p
+			v-else-if="direccion_autocompletada"
+			class="checkout-section__hint m-t-5 m-b-0">
+				Usamos la dirección de tu última compra. Si querés que te lo enviemos a otro lado, cambiala acá.
+			</p>
 		</div>
 	</div>
 </template>

@@ -1,17 +1,17 @@
 <template>
 	<div
 	v-if="deliver === 1 && delivery_days.length"
-	class="background">
-		<h5>
-			Seleccione el dia de entrega para su pedido
-		</h5>
-		<b-select 
-		:options="options"
-		v-model="fecha_entrega">
-			<option v-for="date in delivery_days" :key="date.value" :value="date.value">
-				{{ date.label }}
-			</option>
-		</b-select>
+	class="checkout-section">
+		<h2 class="checkout-section__title">
+			<i class="bi bi-calendar-event"></i>
+			¿Qué día te lo llevamos?
+		</h2>
+
+		<div class="checkout-field">
+			<b-select
+			:options="options"
+			v-model="fecha_entrega"></b-select>
+		</div>
 	</div>
 </template>
 <script>

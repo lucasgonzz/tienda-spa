@@ -1,69 +1,50 @@
 <template>
-	<div class="view">
-		<b-row>
-			<b-col
-			md="5"
-			lg="4"
-			cols="12">
-				<div class="cont-center">
-					<div
-					class="shadow-1 b-w b-r-1 p-15">
-						<h4 class="text-with-icon text-success m-0">
-							<i class="bi bi-check-circle-fill"></i>
-							Recibimos tu pago
-						</h4>
-						<p class="text-success">
-							<strong>
-								Estamos actualizando la información del pago de tu pedido.
-							</strong>
-						</p>
-						<p class="text-success">
-							<strong>
-								NO CIERRES ESTA VENTANA.
-							</strong>
-						</p>
-						<b-progress variant="success" :value="progress" :max="100" show-progress animated></b-progress>
-						<div
-						class="m-t-15"
-						v-if="save_error">
-							<p class="text-danger">
-								<strong>
-									Recibimos tu pago, pero hubo un problema al confirmar tu pedido.
-								</strong>
-							</p>
-							<p class="text-danger">
-								Por favor contactanos y contanos lo sucedido antes de cerrar esta ventana.
-							</p>
-						</div>
-						<div
-						class="m-t-15"
-						v-else-if="cart_updated">
-							<p>
-								<strong>
-									Información actualizada correctamente
-								</strong>
-							</p>
-							<p>
-								Seras redirigido en <strong>{{ redirect_time }}</strong>...
-							</p>
-						</div>
-					</div>
-				</div>
-			</b-col>
-		</b-row>
+	<div class="payment-result">
+		<div class="payment-result__card">
+			<i class="bi bi-check-circle-fill payment-result__icon payment-result__icon--ok"></i>
+
+			<h1 class="payment-result__title">
+				¡Listo! Recibimos tu pago
+			</h1>
+			<p class="payment-result__text">
+				Tu pedido ya está confirmado. Te vamos a avisar por correo o WhatsApp cuando esté en camino.
+			</p>
+
+			<div class="payment-result__actions">
+				<b-button
+				v-if="authenticated"
+				block
+				variant="success"
+				:to="{name: 'Orders'}">
+					Ver mis pedidos
+				</b-button>
+				<b-button
+				block
+				variant="outline-secondary"
+				:to="{name: 'Home'}">
+					Volver a la tienda
+				</b-button>
+			</div>
+		</div>
 	</div>
 </template>
 <script>
-import BtnLoader from '@/components/common/BtnLoader'
-
 import payment from '@/mixins/payment'
+
+/**
+ * Vuelta de Mercado Pago con el pago aprobado.
+ *
+ * 🔴 No hace ningún request. El pedido se creó ANTES de salir a pagar y el pago lo registra el
+ * webhook de Mercado Pago (`MercadoPagoController@webhook`), que no depende de que el comprador
+ * vuelva a la tienda. Lo único que pasa acá es local: vaciar el carrito de esta pestaña, y eso lo
+ * hace el mixin. Hasta el 7/9/2026 esta pantalla mostraba una barra de progreso de 5 segundos, un
+ * "NO CIERRES ESTA VENTANA" y una cuenta regresiva de 7 — y por el camino creaba un carrito
+ * huérfano en cada pago.
+ */
 export default {
 	mixins: [payment],
-	components: {
-		BtnLoader,
+	metaInfo: {
+		title: 'Pago exitoso',
 	},
-    metaInfo: {
-        title: 'Pago Exitoso',
-    },
-}	
+}
 </script>

@@ -1,54 +1,63 @@
 <template>
-	<div
-	class="payment-view">
+	<div class="checkout">
 		<b-row>
 			<b-col
-			id="first-col"
-			md="7"
-			xl="6"
-			offset-xl="1"
-			cols="12">
+			cols="12"
+			lg="11"
+			xl="10"
+			offset-lg="0"
+			offset-xl="1">
 
-				<whats-app-info></whats-app-info>
+				<div class="checkout__header">
+					<h1 class="checkout__title">
+						Confirmá tu pedido
+					</h1>
+					<p class="checkout__subtitle">
+						Revisá los datos y elegí cómo lo recibís y cómo lo pagás.
+					</p>
+				</div>
 
-				<buyer
-				v-if="!flag_activo(commerce.online_configuration.register_to_buy) && !authenticated"></buyer>	
-				<deliver
-				v-else></deliver>
+				<b-row>
+					<b-col
+					cols="12"
+					lg="7">
 
+						<whats-app-info></whats-app-info>
 
-				<deliver
-				v-if="!flag_activo(commerce.online_configuration.register_to_buy)"></deliver>
+						<deliver></deliver>
 
-				<seller-select-client></seller-select-client>
+						<!--
+							El formulario de identificación es solo para el comprador que compra sin
+							registrarse. Hasta el 7/9/2026 acá había un `v-if/v-else` más un
+							`v-if` suelto que, con una tienda que permite comprar sin registro y un
+							comprador YA logueado, montaba el bloque de entrega DOS veces.
+						-->
+						<buyer
+						v-if="comprador_invitado"></buyer>
 
-				<addresses></addresses>
-				<delivery-zones></delivery-zones>
-				<cupon></cupon>
-				<payment-method></payment-method>
+						<seller-select-client></seller-select-client>
 
-				<delivery-day></delivery-day>
+						<addresses></addresses>
 
-				<description></description>
+						<delivery-zones></delivery-zones>
 
-			</b-col> 
+						<delivery-day></delivery-day>
 
+						<payment-method></payment-method>
 
-			<b-col
-			id="col-cart-resum"
-			v-if="!is_mobile"
-			class="col-cart-articles"
-			md="5"
-			xl="4"
-			cols="12">
-				<cart-resume></cart-resume>
-			</b-col>
-			
+						<cupon></cupon>
 
-			<b-col
-			v-if="is_mobile"
-			cols="12">
-				<cart-resume></cart-resume>
+						<description></description>
+
+					</b-col>
+
+					<b-col
+					cols="12"
+					lg="5">
+						<cart-resume></cart-resume>
+					</b-col>
+				</b-row>
+
 			</b-col>
 		</b-row>
 	</div>
@@ -60,11 +69,8 @@ import Addresses from '@/components/payment/components/Addresses'
 import DeliveryZones from '@/components/payment/components/DeliveryZones'
 import Cupon from '@/components/payment/components/cupon/Index'
 import Description from '@/components/payment/components/Description'
-import BtnSave from '@/components/payment/components/BtnSave'
-import payment_set_height from '@/mixins/payment_set_height'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 export default {
-	mixins: [payment_set_height],
 	components: {
 		WhatsAppInfo: () => import('@/components/payment/components/WhatsAppInfo'),
 		CartResume: () => import('@/components/payment/components/CartResume'),
@@ -77,7 +83,6 @@ export default {
 		DeliveryZones,
 		Cupon,
 		Description,
-		BtnSave,
 	},
 	created() {
 		this.setTitle('Pedido')
@@ -85,43 +90,20 @@ export default {
 		/* El comprador entró a confirmar la compra. El par con checkout_complete es lo que
 		   deja medir el abandono del checkout. */
 		trackear(TIPOS_EVENTO.CHECKOUT_INICIO)
-		// this.setFirstColHeigth()
 	},
 	computed: {
-		show_content() {
-			if (!this.flag_activo(this.commerce.online_configuration.register_to_buy)) {
-				if (this.user) {
-					return true 
-				}
-				return false
-			} 
-			return true 
+		/**
+		 * Comprador que está comprando sin cuenta, en una tienda que lo permite: es el único que
+		 * ve el formulario de identificación del checkout.
+		 *
+		 * @returns {boolean}
+		 */
+		comprador_invitado() {
+			return !this.flag_activo(this.commerce.online_configuration.register_to_buy) && !this.authenticated
 		},
 		cart_buyer() {
-			return this.$store.state.cart.buyer 
+			return this.$store.state.cart.buyer
 		},
 	},
-	methods: {
-	}
-	
-}	
+}
 </script>
-<style lang="sass">
-.payment-view
-	padding: 130px 0
-	.row 
-		justify-content: flex-start
-	.col-cart-articles
-		// z-index: 100
-	h5
-		text-align: left !important
-		margin: 10px 0 25px !important
-		font-weight: bold
-
-	.background 
-		background: #FFF
-		border-radius: 5px
-		padding: 15px
-		width: 100%
-		margin-bottom: 15px
-</style>

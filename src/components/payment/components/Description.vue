@@ -1,14 +1,16 @@
 <template>
-	<div
-	class="background">
-		<h5>
-			Notas para el pedido
-		</h5>
-		<b-form-group>
+	<div class="checkout-section">
+		<h2 class="checkout-section__title">
+			<i class="bi bi-chat-left-text"></i>
+			¿Algo que tengamos que saber?
+		</h2>
+
+		<div class="checkout-field">
 			<b-form-textarea
+			rows="3"
 			:placeholder="placeholder"
 			v-model="description"></b-form-textarea>
-		</b-form-group>
+		</div>
 	</div>
 </template>
 <script>

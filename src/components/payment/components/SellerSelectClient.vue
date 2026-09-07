@@ -9,10 +9,11 @@
 	-->
 	<div
 	v-if="user && user.seller_id"
-	class="background">
-		<h5>
-			Asignar Cliente para este Pedido
-		</h5>
+	class="checkout-section">
+		<h2 class="checkout-section__title">
+			<i class="bi bi-person-badge"></i>
+			Cliente de este pedido
+		</h2>
 
 		<div class="j-between">
 			

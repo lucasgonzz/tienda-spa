@@ -1,11 +1,12 @@
 <template>
 	<div
 	v-if="flag_activo(commerce.online_configuration.usar_cupones)"
-	class="background">
-		<h5>
-			Cupones
-		</h5>
-		<search-component></search-component>	
+	class="checkout-section">
+		<h2 class="checkout-section__title">
+			<i class="bi bi-ticket-perforated"></i>
+			¿Tenés un cupón?
+		</h2>
+		<search-component></search-component>
 		<cupon-card
 		v-if="cupon"
 		:cupon="cupon"></cupon-card>

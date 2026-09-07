@@ -50,8 +50,15 @@ export default {
 				if (cupon) {
 					if (this.checkMinAmount(cupon)) {
 						this.$store.commit('cart/setCupon', cupon)
+						// Se limpia la forma de pago porque el cupon cambia el total y el
+						// comprador tiene que volver a elegir sobre el precio nuevo.
+						//
+						// Antes aca tambien se escondia a mano el boton que dibujaba el SDK de
+						// Mercado Pago (setBtnMpVisible(false)): ese boton pedia su preferencia al
+						// elegir la forma de pago, o sea ANTES del cupon, y quedaba con el precio
+						// viejo. Desde el 7/9/2026 la preferencia se pide recien al confirmar, con
+						// el total que el comprador esta viendo, asi que no hay nada que esconder.
 						this.$store.commit('cart/setPaymentMethod', null)
-						this.setBtnMpVisible(false)
 						this.$toast.success('Cupon agregado')
 					}
 				} else {
