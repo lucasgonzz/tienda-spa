@@ -234,12 +234,23 @@ export default {
 		pagar_con_mercado_pago() {
 			let self = this
 
-			return this.$api.post('mercado-pago/preference', {
-				payment_method: this.cart_payment_method,
-				cupon: this.cupon,
-				delivery_zone: this.cart_delivery_zone,
-				articles: this.articles,
-				cart_id: this.cart ? this.cart.id : null,
+			// 🔴 El carrito se guarda ANTES de pedir la preferencia, y no alcanza con que
+			// makeOrder() lo guarde después: la API escribe `carts.id` como `external_reference` de
+			// la preferencia, y ese es el ÚNICO dato con el que el webhook sabe a qué pedido
+			// atarle el pago. En el checkout de invitado el carrito todavía no existe a esta
+			// altura (recién se identificó al comprador), así que sin este save la preferencia
+			// viajaba con `cart_id: null` y el pago quedaba sin registrar en el pedido — en
+			// silencio, porque la compra igual se completa. Medido el 7/9/2026 mirando el orden de
+			// los requests: buyer, preference, carts, orders.
+			return this.$store.dispatch('cart/save')
+			.then(function() {
+				return self.$api.post('mercado-pago/preference', {
+					payment_method: self.cart_payment_method,
+					cupon: self.cupon,
+					delivery_zone: self.cart_delivery_zone,
+					articles: self.articles,
+					cart_id: self.cart ? self.cart.id : null,
+				})
 			})
 			.then(function(res) {
 				const init_point = res.data && res.data.init_point ? res.data.init_point : null

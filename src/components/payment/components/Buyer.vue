@@ -54,7 +54,14 @@
 			placeholder="Barrio"></b-form-input>
 		</div>
 
-		<div class="checkout-field">
+		<!--
+			La direccion solo se pide con envio a domicilio, que es exactamente cuando la valida
+			collect_guest_checkout_errors(). Con retiro por el local se mostraba igual y el comprador
+			no tenia forma de saber que era opcional.
+		-->
+		<div
+		v-if="pide_direccion"
+		class="checkout-field">
 			<label class="checkout-field__label">
 				Dirección
 			</label>
@@ -100,6 +107,14 @@ export default {
 		 */
 		buyer() {
 			return this.$store.state.cart.buyer
+		},
+		/**
+		 * Si hay que pedirle la direccion: solo con envio a domicilio (deliver == 1).
+		 *
+		 * @returns {boolean}
+		 */
+		pide_direccion() {
+			return this.$store.state.cart.cart.deliver == 1
 		},
 	},
 	methods: {

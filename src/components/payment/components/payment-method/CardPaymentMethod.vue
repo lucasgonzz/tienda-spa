@@ -15,7 +15,7 @@
 			<p class="checkout-option__name">
 				{{ payment_method.name }}
 				<span
-				v-if="es_mercado_pago"
+				v-if="mostrar_chip_de_marca"
 				class="checkout-option__brand">
 					<i class="bi bi-wallet2"></i>
 					Mercado Pago
@@ -40,12 +40,12 @@
 				<span
 				v-if="payment_method.discount"
 				class="checkout-tag checkout-tag--good">
-					{{ payment_method.discount }}% de descuento
+					{{ porcentaje(payment_method.discount) }}% de descuento
 				</span>
 				<span
 				v-if="payment_method.surchage"
 				class="checkout-tag checkout-tag--warn">
-					{{ payment_method.surchage }}% de recargo
+					{{ porcentaje(payment_method.surchage) }}% de recargo
 				</span>
 			</div>
 		</div>
@@ -85,6 +85,19 @@ export default {
 		es_mercado_pago() {
 			return !!(this.payment_method.type && this.payment_method.type.name == 'MercadoPago')
 		},
+		/**
+		 * El chip de la marca solo si el nombre que le puso el comercio no lo dice ya. El nombre de
+		 * la forma de pago lo escribe cada comercio en el ERP, asi que "MercadoPago" con el chip al
+		 * lado se leia dos veces.
+		 *
+		 * @returns {boolean}
+		 */
+		mostrar_chip_de_marca() {
+			if (!this.es_mercado_pago) {
+				return false
+			}
+			return String(this.payment_method.name || '').toLowerCase().replace(/\s+/g, '').indexOf('mercadopago') === -1
+		},
 	},
 	methods: {
 		setSelected() {
@@ -92,6 +105,20 @@ export default {
 				return
 			}
 			this.$store.commit('cart/setPaymentMethod', this.payment_method)
+		},
+		/**
+		 * Porcentaje legible: la columna es decimal(12,2) y llega como "10.00", que en pantalla se
+		 * lee como un dato de sistema y no como "10%".
+		 *
+		 * @param {string|number} valor
+		 * @returns {string}
+		 */
+		porcentaje(valor) {
+			const numero = Number(valor)
+			if (!isFinite(numero)) {
+				return String(valor)
+			}
+			return String(Number(numero.toFixed(2)))
 		},
 	}
 }

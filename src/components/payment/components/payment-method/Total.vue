@@ -8,14 +8,14 @@
 		<p
 		v-if="cart_payment_method && cart_payment_method.discount"
 		class="checkout-summary__line checkout-summary__line--good">
-			Descuento por {{ cart_payment_method.name }} ({{ cart_payment_method.discount }}%)
+			Descuento por {{ cart_payment_method.name }} ({{ porcentaje(cart_payment_method.discount) }}%)
 			<span>- {{ price(total - total_with_payment_method_discount) }}</span>
 		</p>
 
 		<p
 		v-if="cart_payment_method && cart_payment_method.surchage"
 		class="checkout-summary__line">
-			Recargo por {{ cart_payment_method.name }} ({{ cart_payment_method.surchage }}%)
+			Recargo por {{ cart_payment_method.name }} ({{ porcentaje(cart_payment_method.surchage) }}%)
 			<span>+ {{ price(total_with_payment_method_surchage - total) }}</span>
 		</p>
 
@@ -30,7 +30,7 @@
 			<span
 			v-else
 			class="checkout-summary__concept">
-				Cupón del {{ cupon.percentage }}%
+				Cupón del {{ porcentaje(cupon.percentage) }}%
 			</span>
 			<span>- {{ price(total_with_payment_method - total_with_cupon) }}</span>
 		</p>
@@ -53,11 +53,14 @@ import cart from '@/mixins/cart'
 export default {
 	mixins: [cart],
 	computed: {
+		/**
+		 * Cuantas unidades lleva el pedido. Antes decia "productos" contando UNIDADES, asi que dos
+		 * productos con tres unidades se leia "3 productos".
+		 *
+		 * @returns {string}
+		 */
 		cant_articles_text() {
-			if (this.cant_cart_items == 1) {
-				return '1 producto'
-			}
-			return this.cant_cart_items+' productos'
+			return this.cant_cart_items + ' ' + this.cart_units_label
 		},
 		/**
 		 * Lo que el comprador va a pagar, con todo aplicado.
@@ -80,6 +83,21 @@ export default {
 			}
 			return total
 		},
-	}
+	},
+	methods: {
+		/**
+		 * Porcentaje legible: la columna es decimal(12,2) y llega como "5.00".
+		 *
+		 * @param {string|number} valor
+		 * @returns {string}
+		 */
+		porcentaje(valor) {
+			const numero = Number(valor)
+			if (!isFinite(numero)) {
+				return String(valor)
+			}
+			return String(Number(numero.toFixed(2)))
+		},
+	},
 }
 </script>
