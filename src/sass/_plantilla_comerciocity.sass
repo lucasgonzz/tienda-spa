@@ -57,10 +57,12 @@
 				box-shadow: var(--cc-shadow-hover) !important
 				border: 1px solid rgba(0, 0, 0, .12)
 
-		// Proporción fija 1:1 y la foto entera adentro (`contain`), sobre un fondo neutro. Las fotos
-		// de catálogo de una ferretería o una distribuidora vienen de cualquier proporción:
-		// enmarcarlas es mejor que recortarlas, y además deja todos los precios de la fila a la
-		// misma altura, que con el `max-height: 500px` de `_article_card.sass` no pasaba.
+		// Proporción fija 1:1, sobre un fondo neutro que solo se ve mientras la imagen carga o si
+		// falla (`vue-load-image` renderiza el spinner/el texto de error contra este mismo fondo).
+		// Antes la foto iba con `object-fit: contain` + `padding: 10%` para entrar entera sin
+		// recortar, a costa de dejar ese 10% de fondo neutro asomando como marco alrededor de la
+		// foto. Lucas pidió sacar ese margen: la imagen ahora ocupa el recuadro completo con
+		// `cover`, recortando lo que sobre de una foto que no sea cuadrada.
 		.cont-images
 			position: relative
 			// Anula el `max-height: 500px` de `_article_card.sass`. Sin esto el `aspect-ratio`
@@ -80,10 +82,7 @@
 				img
 					width: 100%
 					height: 100%
-					object-fit: contain
-					// El padding va en la `img` y no en el contenedor para que el `scale` del hover
-					// llegue a ocupar el cuadro completo.
-					padding: 10%
+					object-fit: cover
 					// El redondeo lo hace el `overflow: hidden` de la tarjeta. Redondear también acá
 					// —como hace `_article_card.sass` por breakpoint— deja un halo entre los dos radios.
 					border-radius: 0
