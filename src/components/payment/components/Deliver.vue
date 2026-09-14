@@ -76,6 +76,9 @@ export default {
 				// deliver = 0 a la vez.
 				if (!value) {
 					this.$store.commit('cart/setDeliveryZone', null)
+					// Mismo criterio para la opcion de correo (Zipnova): sin envio a domicilio no
+					// hay forma de envio elegida, y el `save` del store ya no la manda.
+					this.$store.commit('cart/set_envio_opcion_key', null)
 				}
 			}
 		}

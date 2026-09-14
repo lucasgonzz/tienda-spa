@@ -61,6 +61,9 @@
 			La direccion solo se pide con envio a domicilio, que es exactamente cuando la valida
 			collect_guest_checkout_errors(). Con retiro por el local se mostraba igual y el comprador
 			no tenia forma de saber que era opcional.
+
+			Con envio por correo (opcion de Zipnova elegida) tampoco: la direccion completa la pide
+			DireccionEnvio.vue, con calle, numero, localidad y provincia por separado.
 		-->
 		<div
 		v-if="pide_direccion"
@@ -88,8 +91,9 @@
 </template>
 <script>
 import payment_set_height from '@/mixins/payment_set_height'
+import cart from '@/mixins/cart'
 export default {
-	mixins: [payment_set_height],
+	mixins: [payment_set_height, cart],
 	data() {
 		return {
 			// Ultimo email consultado contra el endpoint de prefill, para no repetir
@@ -112,12 +116,13 @@ export default {
 			return this.$store.state.cart.buyer
 		},
 		/**
-		 * Si hay que pedirle la direccion: solo con envio a domicilio (deliver == 1).
+		 * Si hay que pedirle la direccion: solo con envio a domicilio (deliver == 1) y si el envio
+		 * NO es por correo (ahi la pide DireccionEnvio.vue, con todos los campos).
 		 *
 		 * @returns {boolean}
 		 */
 		pide_direccion() {
-			return this.$store.state.cart.cart.deliver == 1
+			return this.$store.state.cart.cart.deliver == 1 && !this.envio_zipnova_elegido
 		},
 	},
 	methods: {

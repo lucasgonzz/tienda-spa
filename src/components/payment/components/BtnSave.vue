@@ -154,9 +154,19 @@ export default {
 				// Datos del comprador invitado a enviar al endpoint de identificación
 				const buyer = this.$store.state.cart.buyer
 
+				// Con envio por correo (Zipnova) el input "Direccion" de una linea esta oculto: la
+				// direccion que se guarda en la ficha del comprador es el destino completo, en texto.
+				let datos_buyer = { ...buyer, commerce_id: this.commerce.id }
+				if (this.envio_zipnova_elegido) {
+					datos_buyer.address = this.envio_destino_texto()
+					if (!datos_buyer.ciudad) {
+						datos_buyer.ciudad = this.envio_destino_valor('localidad')
+					}
+				}
+
 				this.procesando = true
 
-				this.$api.post('buyer', { ...buyer, commerce_id: this.commerce.id })
+				this.$api.post('buyer', datos_buyer)
 				.then(function(res) {
 					// El modelo que devuelve POST buyer viene con la direccion ya actualizada
 					// (el backend la persiste al reconocer el email, prompt 400). Aun asi, la
@@ -190,6 +200,9 @@ export default {
 				.catch(function(err) {
 					console.log(err)
 					self.procesando = false
+					if (self.manejar_error_de_envio(err)) {
+						return
+					}
 					self.$toast.error('No pudimos guardar tu pedido. Probá de nuevo.')
 				})
 			}
@@ -212,6 +225,11 @@ export default {
 			return this.makeOrder(false, false)
 			.then(function(ok) {
 				self.procesando = false
+				// `false`: el PUT /carts rechazo el envio por correo y makeOrder ya le dijo al
+				// comprador que hacer (volver a cotizar o corregir el destino). Sin aviso generico.
+				if (ok === false) {
+					return
+				}
 				if (!ok) {
 					self.$toast.error('No pudimos guardar tu pedido. Probá de nuevo.')
 				}
@@ -268,6 +286,11 @@ export default {
 
 				return self.makeOrder(true, false)
 				.then(function(ok) {
+					if (ok === false) {
+						// 422 del envio por correo, ya avisado por makeOrder.
+						self.procesando = false
+						return
+					}
 					if (!ok) {
 						self.procesando = false
 						self.$toast.error('No pudimos guardar tu pedido. Probá de nuevo.')
@@ -296,6 +319,11 @@ export default {
 				// consola y en el log de la API, que es donde lo busca quien lo puede arreglar.
 				console.log(err)
 				self.procesando = false
+				// El `cart/save` del principio puede rechazar el envio por correo (422): ese aviso
+				// es especifico y no es un problema de Mercado Pago.
+				if (self.manejar_error_de_envio(err)) {
+					return
+				}
 				self.$toast.error('No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.')
 			})
 		},
@@ -366,13 +394,17 @@ export default {
 				errors.push('Barrio')
 			}
 			// La direccion solo es obligatoria si el comprador eligio envio a domicilio
-			// (deliver == 1). Con retiro por local (deliver == 0) no hace falta.
-			if (this.cart.deliver == 1 && this.is_blank_field(buyer.address)) {
+			// (deliver == 1). Con retiro por local (deliver == 0) no hace falta, y con envio por
+			// correo (Zipnova) la valida collect_envio_errors() campo por campo.
+			if (this.cart.deliver == 1 && !this.envio_zipnova_elegido && this.is_blank_field(buyer.address)) {
 				errors.push('Dirección')
 			}
 			if (this.cart.deliver == null) {
 				errors.push('Cómo lo recibís')
 			}
+			this.collect_envio_errors().forEach(error => {
+				errors.push(error)
+			})
 			if (!this.cart_payment_method && this.payment_methods.length) {
 				errors.push('Cómo pagás')
 			}
@@ -380,6 +412,43 @@ export default {
 				errors.push('Qué día te lo llevamos')
 			}
 
+			return errors
+		},
+		/**
+		 * Lo que falta de la forma de envio, para los dos flujos (invitado y autenticado):
+		 *
+		 *   - con envio a domicilio y alguna forma de envio disponible (zonas del negocio o
+		 *     Zipnova), hay que elegir una: "¿Cómo te lo enviamos?";
+		 *   - si la elegida es de Zipnova, el destino tiene que estar completo (mismas reglas que
+		 *     el servidor, ver envio_destino_faltantes) y con sucursal si es retiro en sucursal.
+		 *
+		 * Los textos son los titulos de las secciones que el comprador ve, con los campos que
+		 * faltan entre parentesis.
+		 *
+		 * @returns {string[]}
+		 */
+		collect_envio_errors() {
+			const errors = []
+			if (this.cart.deliver != 1) {
+				return errors
+			}
+			let hay_formas = this.delivery_zones.length > 0 || !!this.commerce.envios_zipnova
+			if (hay_formas && !this.cart_delivery_zone && !this.cart_envio_opcion) {
+				errors.push('¿Cómo te lo enviamos?')
+				return errors
+			}
+			if (this.envio_zipnova_elegido) {
+				let faltantes = this.envio_destino_faltantes()
+				if (faltantes.length) {
+					let etiquetas = []
+					faltantes.forEach(clave => {
+						etiquetas.push(this.envio_destino_etiqueta(clave))
+					})
+					this.$store.commit('cart/set_envio_errores_destino', faltantes)
+					let titulo = this.cart_envio_opcion.es_punto_de_retiro ? '¿Quién lo retira en la sucursal?' : '¿A dónde te lo enviamos?'
+					errors.push(titulo + ' (' + etiquetas.join(', ') + ')')
+				}
+			}
 			return errors
 		},
 		/**
@@ -393,11 +462,9 @@ export default {
 			if (this.cart.deliver == null) {
 				errors.push('Cómo lo recibís')
 			}
-			if (!this.cart_payment_method && this.payment_methods.length) {
-				errors.push('Cómo pagás')
-			}
 			if (
 				this.cart.deliver
+				&& !this.envio_zipnova_elegido
 				&& this.user
 				&& (
 					(this.user.comercio_city_client && this.user.comercio_city_client.address == '')
@@ -406,8 +473,15 @@ export default {
 			) {
 				errors.push('Dónde te lo llevamos')
 			}
-			if (this.cart.deliver && this.delivery_zones.length && !this.cart_delivery_zone) {
-				errors.push('Costo del envío')
+			// Forma de envio (zona del negocio u opcion de Zipnova) y destino del correo. Hasta el
+			// 14/9/2026 aca decia 'Costo del envío', que era el titulo de la seccion vieja.
+			this.collect_envio_errors().forEach(error => {
+				errors.push(error)
+			})
+			// Va despues del envio porque en la pantalla "¿Cómo pagás?" esta debajo de las
+			// secciones de envio: el aviso lista lo que falta en el orden en que se ve.
+			if (!this.cart_payment_method && this.payment_methods.length) {
+				errors.push('Cómo pagás')
 			}
 			// 🔴 Este this.user.seller_id NO lleva guarda a proposito, aunque su hermana de
 			// la Direccion de entrega si la tenga. Se le puso el 31/8/2026 y se revirtio:

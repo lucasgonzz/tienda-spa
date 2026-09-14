@@ -1,7 +1,11 @@
 <template>
+	<!--
+		Con envio por correo (opcion de Zipnova elegida) este bloque no se muestra: la direccion
+		completa la pide DireccionEnvio.vue, con calle, numero, localidad y provincia por separado.
+	-->
 	<div
 	class="checkout-section"
-	v-if="deliver && user">
+	v-if="deliver && user && !envio_zipnova_elegido">
 		<h2 class="checkout-section__title">
 			<i class="bi bi-geo-alt"></i>
 			¿Dónde te lo llevamos?
@@ -30,7 +34,9 @@
 	</div>
 </template>
 <script>
+import cart from '@/mixins/cart'
 export default {
+	mixins: [cart],
 	computed: {
 		address_id: {
 			get() {

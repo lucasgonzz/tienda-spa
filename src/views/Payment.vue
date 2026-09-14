@@ -39,7 +39,14 @@
 
 						<addresses></addresses>
 
-						<delivery-zones></delivery-zones>
+						<!--
+							Formas de envio en una sola lista (zonas del negocio + correo por Zipnova)
+							y, si eligio correo, el formulario completo del destino. Reemplazan a
+							<delivery-zones> desde el 14/9/2026 (el archivo queda, sin montar).
+						-->
+						<formas-de-envio></formas-de-envio>
+
+						<direccion-envio></direccion-envio>
 
 						<delivery-day></delivery-day>
 
@@ -73,7 +80,8 @@
 import Deliver from '@/components/payment/components/Deliver'
 import PaymentMethod from '@/components/payment/components/payment-method/Index'
 import Addresses from '@/components/payment/components/Addresses'
-import DeliveryZones from '@/components/payment/components/DeliveryZones'
+import FormasDeEnvio from '@/components/payment/components/FormasDeEnvio'
+import DireccionEnvio from '@/components/payment/components/DireccionEnvio'
 import Cupon from '@/components/payment/components/cupon/Index'
 import Description from '@/components/payment/components/Description'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
@@ -87,7 +95,8 @@ export default {
 		Deliver,
 		PaymentMethod,
 		Addresses,
-		DeliveryZones,
+		FormasDeEnvio,
+		DireccionEnvio,
 		Cupon,
 		Description,
 	},

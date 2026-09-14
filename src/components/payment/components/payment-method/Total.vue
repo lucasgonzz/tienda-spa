@@ -42,6 +42,21 @@
 			<span>+ {{ price(cart_delivery_zone.price) }}</span>
 		</p>
 
+		<!--
+			Envío por correo (Zipnova). El precio es el de la opción cotizada por el servidor
+			(`precio`, con la regla de envío gratis ya aplicada): la pantalla nunca lo calcula.
+		-->
+		<p
+		v-else-if="cart.deliver && cart_envio_opcion"
+		class="checkout-summary__line"
+		:class="{'checkout-summary__line--good': envio_es_gratis}">
+			<span class="checkout-summary__concept">
+				Envío ({{ cart_envio_opcion.carrier_name }} · {{ cart_envio_opcion.service_name }})
+			</span>
+			<span v-if="envio_es_gratis">Gratis</span>
+			<span v-else>+ {{ price(cart_envio_opcion.precio) }}</span>
+		</p>
+
 		<p class="checkout-summary__total">
 			Total
 			<span>{{ price(total_a_pagar) }}</span>
@@ -65,23 +80,29 @@ export default {
 		/**
 		 * Lo que el comprador va a pagar, con todo aplicado.
 		 *
-		 * 🔴 No se usa `total_final` del mixin: ese hace `Number(this.cart_delivery_zone.price)`
-		 * sin guarda y revienta con `cart_delivery_zone` en null, que es el estado normal cuando
-		 * el comprador eligió retiro por local o todavía no eligió zona. Acá el envío se suma solo
-		 * si hay envío Y zona elegida — exactamente el mismo `v-if` con el que se muestra la línea
-		 * de arriba, así que el total mostrado siempre cierra con el desglose que está a la vista.
+		 * El envío sale de `envio_precio_elegido` del mixin, que suma la zona propia o la opción
+		 * de Zipnova SOLO con envío a domicilio — las mismas condiciones con las que se muestran
+		 * las líneas de arriba, así que el total mostrado siempre cierra con el desglose que está a
+		 * la vista. (Hasta el 14/9/2026 se calculaba acá porque `total_final` del mixin reventaba
+		 * con la zona en null; eso ya se arregló en el mixin.)
 		 *
 		 * Es un cálculo de PANTALLA: lo que efectivamente se cobra lo resuelve la API
-		 * (OnlinePaymentHelper), y esto no lo cambia.
+		 * (OnlinePaymentHelper con `carts.envio_precio` / la zona guardada), y esto no lo cambia.
 		 *
 		 * @returns {number}
 		 */
 		total_a_pagar() {
-			let total = this.total_with_cupon
-			if (this.cart.deliver && this.cart_delivery_zone) {
-				total += Number(this.cart_delivery_zone.price)
-			}
-			return total
+			return this.total_with_deliver
+		},
+		/**
+		 * Si la opción de correo elegida sale gratis para el comprador (regla de envío gratis del
+		 * comercio, o precio cero).
+		 *
+		 * @returns {boolean}
+		 */
+		envio_es_gratis() {
+			let opcion = this.cart_envio_opcion
+			return !!(opcion && (opcion.envio_gratis || Number(opcion.precio) === 0))
 		},
 	},
 	methods: {
