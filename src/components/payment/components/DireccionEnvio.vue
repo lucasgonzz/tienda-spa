@@ -319,18 +319,13 @@ export default {
 	}, computed_campos),
 	watch: {
 		/**
-		 * El invitado completa "¿Quién hace la compra?" arriba de este bloque: lo que escribe ahí
-		 * se copia a los campos de acá que sigan vacíos, para no pedírselo dos veces.
+		 * Se precarga cuando el formulario APARECE (el comprador eligió una opción de correo), y
+		 * no antes: el componente se instancia siempre (el v-if está en el div raíz) y hasta el
+		 * 14/9/2026 un watcher `deep` sobre `cart_buyer` copiaba la primera tecla que el invitado
+		 * escribía en "¿Quién hace la compra?" ("J") a `destino.nombre`, y como ya no estaba
+		 * vacío, `completar()` nunca lo pisaba: quedaba nombre "J", apellido "P", email "t".
+		 * Para cuando la opción se elige, el bloque del comprador ya está completo.
 		 */
-		cart_buyer: {
-			deep: true,
-			handler() {
-				this.precargar()
-			},
-		},
-		user() {
-			this.precargar()
-		},
 		mostrar(value) {
 			if (value) {
 				this.precargar()
@@ -380,20 +375,25 @@ export default {
 				this.completar('apellido', apellido)
 				this.completar('email', origen.email)
 				this.completar('telefono', origen.phone)
-				this.completar('localidad', origen.ciudad)
 			}
 
 			this.completar('codigo_postal', this.envio.zipcode)
+			// La localidad que Zipnova resolvió para el CP va primero: es la del destino del envío.
+			// La ciudad del perfil puede ser otra (el comprador manda a la casa de un familiar).
 			this.completar('localidad', this.envio.city)
+			if (origen) {
+				this.completar('localidad', origen.ciudad)
+			}
 		},
 		/**
-		 * Setea un campo del destino solo si está vacío y hay algo con qué llenarlo.
+		 * Setea un campo del destino solo si está vacío y hay algo con qué llenarlo. Un valor de
+		 * un solo carácter no cuenta: es alguien a mitad de tipeo, no un dato.
 		 *
 		 * @param {string} campo
 		 * @param {string} valor
 		 */
 		completar(campo, valor) {
-			if (!valor) {
+			if (!valor || String(valor).trim().length < 2) {
 				return
 			}
 			let actual = this.$store.state.cart.envio.destino[campo]
