@@ -29,9 +29,9 @@ hide-footer>
 				· {{ Number(order.envio_precio) === 0 ? 'Gratis' : price(order.envio_precio) }}
 			</span>
 		</p>
-		<p v-if="order.envio && order.envio.status_name">
-			Estado: <strong>{{ order.envio.status_name }}</strong>
-			<span v-if="order.envio.substatus_name">({{ order.envio.substatus_name }})</span>
+		<p v-if="estado_envio">
+			Estado: <strong>{{ estado_envio }}</strong>
+			<span v-if="order.envio.status != 'error' && order.envio.substatus_name">({{ order.envio.substatus_name }})</span>
 		</p>
 		<p v-if="order.envio && order.envio.carrier_tracking_id">
 			N° de seguimiento: {{ order.envio.carrier_tracking_id }}
@@ -62,6 +62,24 @@ export default {
 	computed: {
 		order() {
 			return this.$store.state.orders.details
+		},
+		/**
+		 * Estado del envío para el comprador. Misma regla que la tarjeta de "Mis pedidos"
+		 * (OrderComponent.vue): el `status_name` que manda Zipnova, salvo `error`, que es un
+		 * problema del negocio al generar el envío y no un estado que el comprador tenga que ver
+		 * ("No se pudo generar" asusta y no le da nada que hacer).
+		 *
+		 * @returns {string}
+		 */
+		estado_envio() {
+			let envio = this.order ? this.order.envio : null
+			if (!envio) {
+				return ''
+			}
+			if (envio.status == 'error') {
+				return 'El negocio está gestionando el envío'
+			}
+			return envio.status_name ? envio.status_name : ''
 		},
 	},
 }
