@@ -18,6 +18,15 @@
 		
 		<payment-methods-info></payment-methods-info>
 
+		<!--
+			Envío por correo (Zipnova): el comprador ve cuánto sale y cuánto tarda con su código
+			postal antes de agregar al carrito. Solo si el comercio lo tiene conectado. Se ve
+			también en el modal de agregar al carrito (mismo componente).
+		-->
+		<cotizador-envio
+		v-if="commerce.envios_zipnova"
+		:articulos="[{ id: article_to_show.id, amount: 1 }]"></cotizador-envio>
+
 		<condition></condition>	
 
 		<!-- <notes></notes> -->
@@ -43,6 +52,7 @@ import Condition from '@/components/article/components/data/Condition'
 import AddToCart from '@/components/article/components/data/add-to-cart/Index'
 import Compartir from '@/components/article/components/data/Compartir'
 import WhatsappLink from '@/components/article/components/data/WhatsappLink'
+import CotizadorEnvio from '@/components/common/envio/Cotizador'
 
 import BtnLoader from '@/components/common/BtnLoader'
 export default {
@@ -57,6 +67,7 @@ export default {
 		AddToCart,
 		Compartir,
 		WhatsappLink,
+		CotizadorEnvio,
 
 		BtnLoader,
 	},

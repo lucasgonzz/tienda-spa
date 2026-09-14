@@ -23,6 +23,15 @@
 			<span class="cart-summary__total-value">{{ price(total) }}</span>
 		</div>
 
+		<!--
+			Envío por correo (Zipnova): cotiza el carrito entero con el código postal. Este pie se
+			monta DOS veces (arriba en el teléfono, a la derecha en escritorio): el cotizador no
+			guarda nada en su data(), todo vive en el store, así que las dos copias muestran lo mismo.
+		-->
+		<cotizador-envio
+		v-if="commerce.envios_zipnova"
+		usar_carrito></cotizador-envio>
+
 		<!-- Acción principal -->
 		<b-button
 		block
@@ -59,6 +68,7 @@
 </template>
 <script>
 import cart from '@/mixins/cart'
+import CotizadorEnvio from '@/components/common/envio/Cotizador'
 
 /**
  * Pie del carrito: resumen con contadores, total y acciones de compra/navegación.
@@ -66,6 +76,9 @@ import cart from '@/mixins/cart'
 export default {
 	name: 'CartFooter',
 	mixins: [cart],
+	components: {
+		CotizadorEnvio,
+	},
 	methods: {
 		/**
 		 * Avanza al checkout o redirige a login si la tienda exige registro.
