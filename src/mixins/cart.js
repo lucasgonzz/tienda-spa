@@ -158,6 +158,22 @@ export default {
 					total += Number(article.pivot.price) * Number(article.pivot.amount)
 				}
 			})
+			/*
+			 * 🔴 Sin este forEach el total de un combo/promo vinoteca queda afuera de la cuenta:
+			 * medido en produccion (truvaribebidas.com.ar, 14/9/2026) con un combo solo en el
+			 * carrito el TOTAL daba "-" (price() de 0), y con un combo + un articulo normal daba
+			 * solo el precio del articulo. Esta rama de `total()` nunca contemplo
+			 * `promociones_vinoteca` desde que existe, mientras que sus hermanas de mas arriba
+			 * en este mismo archivo -- `cant_cart_items()` y `cart_unique_products_count()` --
+			 * ya suman/cuentan articles Y promociones_vinoteca por separado. Mismo patron que
+			 * ellas, no una novedad.
+			 */
+			let promociones_vinoteca = this.$store.state.cart.cart.promociones_vinoteca || []
+			promociones_vinoteca.forEach(function(promo) {
+				if (promo.pivot && promo.pivot.price != null && promo.pivot.price !== undefined) {
+					total += Number(promo.pivot.price) * Number(promo.pivot.amount)
+				}
+			})
 			return total
 		},
 		total_with_payment_method_discount() {
