@@ -37,6 +37,7 @@
 				id="envio-nombre"
 				v-model="nombre"
 				:state="estado('nombre')"
+				maxlength="80"
 				autocomplete="given-name"
 				placeholder="Como figura en tu DNI"></b-form-input>
 			</div>
@@ -48,6 +49,7 @@
 				id="envio-apellido"
 				v-model="apellido"
 				:state="estado('apellido')"
+				maxlength="80"
 				autocomplete="family-name"
 				placeholder="Apellido"></b-form-input>
 			</div>
@@ -77,6 +79,7 @@
 				:state="estado('telefono')"
 				type="tel"
 				inputmode="tel"
+				maxlength="30"
 				autocomplete="tel"
 				placeholder="Con código de área. Ej: 3444622139"></b-form-input>
 			</div>
@@ -92,6 +95,7 @@
 			:state="estado('email')"
 			type="email"
 			inputmode="email"
+			maxlength="120"
 			autocomplete="email"
 			placeholder="tunombre@correo.com"></b-form-input>
 		</div>
@@ -107,6 +111,7 @@
 				id="envio-calle"
 				v-model="calle"
 				:state="estado('calle')"
+				maxlength="120"
 				autocomplete="address-line1"
 				placeholder="Calle o avenida"></b-form-input>
 			</div>
@@ -119,6 +124,7 @@
 				v-model="numero"
 				:state="estado('numero')"
 				inputmode="numeric"
+				maxlength="20"
 				placeholder="1234"
 				@blur="geocodificar"></b-form-input>
 			</div>
@@ -133,6 +139,7 @@
 			<b-form-input
 			id="envio-piso"
 			v-model="piso_depto"
+			maxlength="40"
 			autocomplete="address-line2"
 			placeholder="Ej: 4 B, casa del fondo"></b-form-input>
 		</div>
@@ -146,6 +153,7 @@
 				id="envio-localidad"
 				v-model="localidad"
 				:state="estado('localidad')"
+				maxlength="80"
 				autocomplete="address-level2"
 				placeholder="Localidad"></b-form-input>
 			</div>
@@ -195,6 +203,7 @@
 			v-model="referencia"
 			rows="2"
 			max-rows="3"
+			maxlength="200"
 			:placeholder="es_punto_de_retiro ? 'Ej: lo retira otra persona' : 'Ej: portón negro, timbre del fondo, dejar con el portero'"></b-form-textarea>
 		</div>
 	</div>
@@ -245,7 +254,8 @@ CAMPOS.forEach(campo => {
  * localidad/provincia van de a dos.
  *
  * Todo el estado vive en el store (`cart.envio.destino`): el `PUT /api/carts` lo manda tal cual y
- * el servidor lo valida (422 `codigo: 'destino'` marca acá los campos rechazados).
+ * el servidor lo valida (422 `codigo: 'destino'` marca acá los campos rechazados). Los `maxlength`
+ * son los largos con los que el servidor recorta cada campo (EnvioDestinoHelper::LARGOS).
  */
 export default {
 	name: 'DireccionEnvio',

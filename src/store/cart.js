@@ -151,7 +151,10 @@ function hidratar_envio(state, cart) {
 	}
 	state.envio.opciones = cotizacion.opciones
 	state.envio.items_firma = firma_de_lineas(lineas_del_carrito(cart))
-	state.envio.envio_gratis = !!(cart.envio_opcion && cart.envio_opcion.envio_gratis)
+	// El snapshot trae `envio_gratis`; si es viejo y no lo trae, vale lo que diga la opción elegida.
+	state.envio.envio_gratis = cotizacion.envio_gratis !== undefined
+		? !!cotizacion.envio_gratis
+		: !!(cart.envio_opcion && cart.envio_opcion.envio_gratis)
 	if (cotizacion.zipcode) {
 		state.envio.zipcode = String(cotizacion.zipcode)
 		guardar_zipcode(state.envio.zipcode)
