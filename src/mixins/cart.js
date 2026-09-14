@@ -1,5 +1,5 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
-import { lineas_del_carrito } from '@/store/cart'
+import { firma_de_lineas, lineas_del_carrito } from '@/store/cart'
 export default {
 	computed: {
 		/**
@@ -465,7 +465,9 @@ export default {
 				}
 			})
 
-			let documento = this.envio_destino_valor('documento').replace(/\s+/g, '')
+			// Mismo recorte que hace el servidor al normalizar: espacios, puntos y guiones afuera,
+			// así "30.111.222" vale acá igual que allá.
+			let documento = this.envio_destino_valor('documento').replace(/[\s.\-]/g, '')
 			if (documento !== '' && !/^\d{7,11}$/.test(documento)) {
 				faltan.push('documento')
 			}
@@ -486,28 +488,61 @@ export default {
 			})
 		},
 		/**
-		 * Atiende los 422 del `PUT /api/carts` que son del envío por correo, y le dice al
-		 * comprador qué hacer:
+		 * Lleva la pantalla a una sección del checkout, solo si existe. `makeOrder` corre también
+		 * desde Payway y el modal del carrito, donde no hay ninguna sección de envío, y el
+		 * `_scrollTo` del mixin general reintenta cada 500 ms para siempre si el id no está.
 		 *
-		 *   - `codigo: 'opcion_envio'`: la opción elegida ya no está (cambió el carrito, venció la
-		 *     cotización). Se suelta la elección y se vuelve a cotizar para que elija de nuevo.
-		 *   - `codigo: 'destino'`: faltan datos del destinatario. Se marcan los campos que el
-		 *     servidor rechazó (`errors`) y se lleva al comprador al formulario.
+		 * @param {string} id
+		 */
+		scroll_a_seccion(id) {
+			if (document.getElementById(id)) {
+				this.scrollTo(id)
+			}
+		},
+		/**
+		 * Atiende los errores del envío por correo que devuelven el `PUT /api/carts` y el
+		 * `POST /api/orders`, y le dice al comprador qué hacer:
+		 *
+		 *   - 422 `opcion_envio`: la opción elegida ya no está (cambió el carrito, venció la
+		 *     cotización). Se suelta la elección; si el servidor mandó `opciones` frescas se
+		 *     muestran esas (ya re-cotizó él), si no se vuelve a cotizar.
+		 *   - 422 `destino`: faltan datos del destinatario. Se marcan los campos que el servidor
+		 *     rechazó (`errors`) y se lleva al comprador al formulario.
+		 *   - 422 `sin_zipnova` / `sin_articulos`: el negocio ya no cotiza por correo o no hay
+		 *     nada que enviar. Se suelta la opción para que elija otra forma de envío.
+		 *   - 422 `ubicacion`: Zipnova no reconoció el destino. Se suelta la opción y el cotizador
+		 *     pide localidad y provincia.
+		 *   - 502 `zipnova`: Zipnova no respondió. Se avisa y la opción queda: es reintentable.
 		 *
 		 * @param {object} err Error de axios.
 		 * @returns {boolean} true si el error era del envío y ya se le avisó al comprador.
 		 */
 		manejar_error_de_envio(err) {
-			if (!err || !err.response || err.response.status != 422 || !err.response.data) {
+			if (!err || !err.response || !err.response.data) {
 				return false
 			}
+			let status = err.response.status
 			let data = err.response.data
+			if ((status != 422 && status != 502) || !data.codigo) {
+				return false
+			}
 			let self = this
 
 			if (data.codigo == 'opcion_envio') {
 				this.$toast.error(data.message || 'Esa forma de envío ya no está disponible, volvé a cotizar')
 				this.$store.commit('cart/set_envio_opcion_key', null)
-				if (this.$store.state.cart.envio.zipcode) {
+				if (Array.isArray(data.opciones)) {
+					// El servidor ya re-cotizó: son las opciones vigentes para este carrito y este
+					// CP, no hace falta pedirlas de nuevo (y sería otra consulta a Zipnova).
+					this.$store.commit('cart/set_envio_opciones', {
+						opciones: data.opciones,
+						zipcode: this.$store.state.cart.envio.zipcode,
+						city: data.city,
+						state: data.state,
+						envio_gratis: data.opciones.length ? !!data.opciones[0].envio_gratis : false,
+						items_firma: firma_de_lineas(lineas_del_carrito(this.$store.state.cart.cart)),
+					})
+				} else if (this.$store.state.cart.envio.zipcode) {
 					this.$store.dispatch('cart/cotizar_envio', {
 						articles: lineas_del_carrito(this.$store.state.cart.cart),
 						cart_id: this.cart && this.cart.id ? this.cart.id : null,
@@ -516,7 +551,7 @@ export default {
 						// El mensaje ya quedó en envio.error y el cotizador lo muestra.
 					})
 				}
-				this.scrollTo('formas-de-envio')
+				this.scroll_a_seccion('formas-de-envio')
 				return true
 			}
 
@@ -537,7 +572,22 @@ export default {
 				} else {
 					this.$toast.error(data.message || 'Revisá los datos del envío')
 				}
-				this.scrollTo('direccion-envio')
+				this.scroll_a_seccion('direccion-envio')
+				return true
+			}
+
+			if (data.codigo == 'sin_zipnova' || data.codigo == 'sin_articulos' || data.codigo == 'ubicacion') {
+				this.$toast.error(data.message || 'No pudimos cotizar el envío. Elegí otra forma de envío.')
+				this.$store.commit('cart/set_envio_opcion_key', null)
+				if (data.codigo == 'ubicacion') {
+					this.$store.commit('cart/set_envio_needs_location', true)
+				}
+				this.scroll_a_seccion('formas-de-envio')
+				return true
+			}
+
+			if (data.codigo == 'zipnova') {
+				this.$toast.error(data.message || 'No pudimos cotizar el envío en este momento. Probá de nuevo en un rato.')
 				return true
 			}
 
@@ -551,8 +601,9 @@ export default {
 		 * nada despues del pedido: el camino de Mercado Pago pedia la preferencia EN PARALELO, sin
 		 * mirar si el pedido se habia creado.
 		 *
-		 * Desde el 14/9/2026 tambien puede resolver con `false`: el `PUT /carts` rechazo el envio
-		 * por correo (422 `opcion_envio` / `destino`) y `manejar_error_de_envio` YA le dijo al
+		 * Desde el 14/9/2026 tambien puede resolver con `false`: el `PUT /carts` o el `POST /orders`
+		 * rechazaron el envio por correo (422 `opcion_envio` / `destino` / `sin_zipnova` /
+		 * `sin_articulos` / `ubicacion`, o 502 `zipnova`) y `manejar_error_de_envio` YA le dijo al
 		 * comprador que hacer. El llamador no tiene que mostrar el aviso generico en ese caso.
 		 *
 		 * No rechaza nunca: los llamadores viejos (Payway, el modal del carrito, el gateway) la
