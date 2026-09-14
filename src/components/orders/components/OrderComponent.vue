@@ -10,6 +10,27 @@
 				{{ order.order_status.name }}
 			</p>
 			<p>{{ cantArticles }}</p>
+
+			<!-- Envío por correo (Zipnova): estado del envío y seguimiento -->
+			<div
+			v-if="order.envio || order.envio_opcion"
+			class="order-envio">
+				<p class="order-envio__estado">
+					<i class="bi bi-truck"></i>
+					{{ texto_envio }}
+				</p>
+				<a
+				v-if="order.envio && order.envio.tracking_url"
+				:href="order.envio.tracking_url"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="order-envio__link"
+				@click.stop>
+					Seguir el envío
+					<i class="bi bi-box-arrow-up-right"></i>
+				</a>
+			</div>
+
 			<p
 			class="total-order">Total: {{ price(total(order)) }}</p>
 			<p class="since">
@@ -37,6 +58,27 @@ export default {
 			El `|| 0` cubre el renglon sin `amount`: `Number(undefined)` da NaN y contagiaria el
 			total a "NaN productos".
 		*/
+		/**
+		 * "Andreani · En camino" si el ERP ya generó el envío en Zipnova; si todavía no, el correo
+		 * elegido y "en preparación". El estado es el `status_name` que manda Zipnova, sin traducir.
+		 *
+		 * @returns {string}
+		 */
+		texto_envio() {
+			let envio = this.order.envio
+			if (envio) {
+				let correo = envio.carrier_name ? envio.carrier_name : 'Envío por correo'
+				if (envio.status == 'error') {
+					return correo + ' · el negocio está gestionando el envío'
+				}
+				return correo + (envio.status_name ? ' · ' + envio.status_name : '')
+			}
+			let opcion = this.order.envio_opcion
+			if (opcion) {
+				return (opcion.carrier_name ? opcion.carrier_name : 'Envío por correo') + ' · en preparación'
+			}
+			return ''
+		},
 		cantArticles() {
 			if (this.order.articles) {
 				let cant_articles = 0
@@ -75,5 +117,29 @@ export default {
 			width: 100%
 			color: rgba(0,0,0,.7)
 			text-align: right
+		.order-envio
+			width: 100%
+			margin-bottom: 1em
+			padding: .6em .8em
+			border-radius: 8px
+			background: rgba(0,0,0,.04)
+			text-align: left
+			p
+				margin-bottom: 0
+		.order-envio__estado
+			font-size: .92em
+			i
+				margin-right: .35em
+				color: var(--secondary-color, #0d6efd)
+		.order-envio__link
+			display: inline-block
+			margin-top: .35em
+			font-size: .9em
+			font-weight: 600
+			color: var(--secondary-color, #0d6efd)
+			text-decoration: underline
+			i
+				font-size: .85em
+				margin-left: .2em
 
 </style>

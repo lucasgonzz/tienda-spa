@@ -252,6 +252,14 @@ export default {
 			if (!this.order) {
 				return lines
 			}
+			// Envío por correo (Zipnova): correo, servicio y fecha estimada. La dirección va en
+			// la línea de "Entrega" de abajo (order.address ya es el destino en texto).
+			if (this.order.envio_opcion) {
+				lines.push(this.texto_envio_zipnova)
+				if (this.sucursal_de_retiro) {
+					lines.push('Sucursal de retiro: ' + this.sucursal_de_retiro)
+				}
+			}
 			if (this.order.deliver && this.order.address) {
 				lines.push('Entrega: ' + this.order.address)
 			} else if (!this.order.deliver) {
@@ -264,6 +272,48 @@ export default {
 				lines.push('Observaciones: ' + this.order.description)
 			}
 			return lines
+		},
+		/**
+		 * "Envío: Andreani · Envío a domicilio · llega aprox. el 18/09 · $ 6.473,50" para un pedido
+		 * con envío por correo (Zipnova). El precio es el que guardó el servidor (`envio_precio`).
+		 * @returns {string}
+		 */
+		texto_envio_zipnova() {
+			let opcion = this.order ? this.order.envio_opcion : null
+			if (!opcion) {
+				return ''
+			}
+			let texto = 'Envío: ' + opcion.carrier_name + ' · ' + opcion.service_name
+			if (opcion.estimated_delivery) {
+				let fecha = new Date(opcion.estimated_delivery)
+				if (!isNaN(fecha.getTime())) {
+					texto += ' · llega aprox. el ' + String(fecha.getDate()).padStart(2, '0') + '/' + String(fecha.getMonth() + 1).padStart(2, '0')
+				}
+			}
+			let precio = Number(this.order.envio_precio)
+			if (this.order.envio_precio !== null && this.order.envio_precio !== undefined && isFinite(precio)) {
+				texto += ' · ' + (precio === 0 ? 'Gratis' : this.price(precio))
+			}
+			return texto
+		},
+		/**
+		 * La sucursal del correo elegida, si el envío es con retiro en sucursal.
+		 * @returns {string}
+		 */
+		sucursal_de_retiro() {
+			let opcion = this.order ? this.order.envio_opcion : null
+			let destino = this.order ? this.order.envio_destino : null
+			if (!opcion || !opcion.es_punto_de_retiro || !destino || !destino.point_id || !opcion.puntos_de_retiro) {
+				return ''
+			}
+			let sucursal = opcion.puntos_de_retiro.find(punto => {
+				return punto.point_id == destino.point_id
+			})
+			if (!sucursal) {
+				return ''
+			}
+			let direccion = (sucursal.street + ' ' + sucursal.street_number).trim()
+			return sucursal.description + (direccion ? ' — ' + direccion : '') + (sucursal.city ? ', ' + sucursal.city : '')
 		},
 		/**
 		 * Si la tienda dispara WhatsApp al finalizar el pedido.
@@ -397,6 +447,9 @@ export default {
 
 			if (this.order.deliver) {
 				message += '*Direccion de entrega:* ' + this.order.address + ' \n \n'
+				if (this.order.envio_opcion) {
+					message += '*' + this.texto_envio_zipnova + '* \n \n'
+				}
 			} else {
 				message += '*Retiro por el local* \n \n'
 			}
