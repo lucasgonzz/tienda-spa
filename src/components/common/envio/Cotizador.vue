@@ -3,10 +3,14 @@
 	class="envio-cotizador"
 	:class="{'envio-cotizador--seleccionable': seleccionable}">
 
-		<p class="envio-cotizador__label">
+		<!-- Es un <label> y no un <p>: apunta al input del CP (el id lleva _uid porque el pie del
+		     carrito monta este componente dos veces y los ids tienen que ser únicos). -->
+		<label
+		:for="'envio-cp-' + _uid"
+		class="envio-cotizador__label">
 			<i class="bi bi-truck"></i>
 			{{ titulo }}
-		</p>
+		</label>
 
 		<p
 		v-if="hint_envio_gratis"
@@ -19,12 +23,12 @@
 		class="envio-cotizador__form"
 		@submit.prevent="cotizar">
 			<b-form-input
+			:id="'envio-cp-' + _uid"
 			v-model="zipcode"
 			inputmode="numeric"
 			autocomplete="postal-code"
 			maxlength="8"
 			placeholder="Tu código postal"
-			aria-label="Código postal"
 			:disabled="cotizando"
 			class="envio-cotizador__input"></b-form-input>
 
@@ -161,15 +165,18 @@
 					<div
 					v-if="seleccionable && esta_elegida(opcion) && opcion.es_punto_de_retiro"
 					class="envio-opcion__sucursales"
-					@click.stop>
-						<label class="checkout-field__label">
+					@click.stop
+					@keyup.stop>
+						<label
+						:for="'envio-sucursal-' + _uid"
+						class="checkout-field__label">
 							¿En qué sucursal lo retirás?
 						</label>
 						<b-form-select
 						v-if="opcion.puntos_de_retiro && opcion.puntos_de_retiro.length"
+						:id="'envio-sucursal-' + _uid"
 						v-model="point_id"
 						:options="opciones_sucursal(opcion)"
-						aria-label="Sucursal de retiro"
 						class="envio-cotizador__select"></b-form-select>
 						<p
 						v-else

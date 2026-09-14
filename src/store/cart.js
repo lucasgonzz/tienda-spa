@@ -399,10 +399,17 @@ export default {
 		 * Opción de Zipnova elegida por su `key`. Suelta la zona propia (§0.6) y la sucursal,
 		 * salvo que la opción nueva tenga UNA sola sucursal, que se elige sola.
 		 *
+		 * Volver a elegir la que YA está elegida no hace nada: la tarjeta entera es clickeable y
+		 * el comprador la toca de nuevo al elegir la sucursal o al corregir un campo, y eso no
+		 * puede borrarle la sucursal ni las marcas de error.
+		 *
 		 * @param {object} state
 		 * @param {string|null} key
 		 */
 		set_envio_opcion_key(state, key) {
+			if (key && key === state.envio.opcion_key) {
+				return
+			}
 			state.envio.opcion_key = key || null
 			state.envio.point_id = null
 			state.envio.errores_destino = []
@@ -433,6 +440,12 @@ export default {
 			let index = state.envio.errores_destino.indexOf(payload.field)
 			if (index !== -1) {
 				state.envio.errores_destino.splice(index, 1)
+			}
+			// La ubicación geocodificada era de OTRA dirección: si cambia la calle, el número, la
+			// localidad o la provincia, lat/lng dejan de valer hasta que se vuelva a geocodificar.
+			if (['calle', 'numero', 'localidad', 'provincia'].indexOf(payload.field) !== -1) {
+				Vue.set(state.envio.destino, 'lat', null)
+				Vue.set(state.envio.destino, 'lng', null)
 			}
 		},
 		set_envio_cotizando(state, value) {
