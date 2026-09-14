@@ -1,7 +1,215 @@
  import Vue from 'vue'
 import axios from 'axios'
+import { normalizar_provincia } from '@/constants/provincias'
 axios.defaults.baseURL = process.env.VUE_APP_API_URL
 axios.defaults.withCredentials = true
+
+/**
+ * Código postal con el que el comprador cotizó la última vez, guardado en el navegador para
+ * que no lo vuelva a escribir en cada visita. Lo único que se persiste del envío es esto:
+ * las opciones y el destino se piden de nuevo, porque cambian con el carrito.
+ *
+ * El try/catch no sobra: en modo privado o con el almacenamiento bloqueado `localStorage`
+ * tira, y un cotizador roto por eso sería un envío que nadie cotiza.
+ *
+ * @returns {string}
+ */
+function leer_zipcode_guardado() {
+	try {
+		return localStorage.getItem('envio_zipcode') || ''
+	} catch (e) {
+		return ''
+	}
+}
+
+/**
+ * Guarda el código postal en el navegador. Ver `leer_zipcode_guardado`.
+ *
+ * @param {string} zipcode
+ */
+function guardar_zipcode(zipcode) {
+	try {
+		if (zipcode) {
+			localStorage.setItem('envio_zipcode', zipcode)
+		} else {
+			localStorage.removeItem('envio_zipcode')
+		}
+	} catch (e) {
+		// Sin almacenamiento: el comprador lo escribe de nuevo la próxima vez, nada más.
+	}
+}
+
+/**
+ * Destinatario y dirección vacíos, con TODAS las claves que la API espera en
+ * `carts.envio_destino` (EnvioDestinoHelper::CLAVES). Se crea con una función y no con un
+ * objeto compartido para que resetear el envío no deje referencias viejas colgadas.
+ *
+ * @returns {object}
+ */
+function destino_vacio() {
+	return {
+		nombre: '',
+		apellido: '',
+		documento: '',
+		email: '',
+		telefono: '',
+		calle: '',
+		numero: '',
+		piso_depto: '',
+		localidad: '',
+		provincia: '',
+		codigo_postal: '',
+		referencia: '',
+		lat: null,
+		lng: null,
+	}
+}
+
+/**
+ * Estado inicial del envío por correo (Zipnova). Es UNO solo para toda la tienda: el
+ * cotizador de la página del artículo, el del carrito (que se monta dos veces) y el del
+ * checkout leen y escriben acá, nunca en su `data()`.
+ *
+ * @returns {object}
+ */
+function envio_inicial() {
+	return {
+		zipcode: leer_zipcode_guardado(),
+		city: '',
+		state: '',
+		opciones: [],
+		opcion_key: null,
+		point_id: null,
+		/*
+		 * Firma de las líneas con las que se cotizaron `opciones` ("id|cantidad" ordenadas).
+		 * Cada cotizador la compara con la de lo que está mostrando: si difiere, las opciones
+		 * son de OTRO carrito (o de un artículo suelto) y hay que volver a cotizar. Es el
+		 * espejo del `items_hash` con el que el servidor decide si re-cotiza.
+		 */
+		items_firma: null,
+		envio_gratis: false,
+		destino: destino_vacio(),
+		cotizando: false,
+		error: null,
+		needs_location: false,
+		/* Claves del destino que el servidor rechazó (422 `codigo: 'destino'`), para marcarlas. */
+		errores_destino: [],
+	}
+}
+
+/**
+ * Firma de un conjunto de líneas a cotizar: "id|cantidad" ordenadas y unidas con ";".
+ *
+ * @param {Array} lineas [{id, amount}, ...]
+ * @returns {string}
+ */
+export function firma_de_lineas(lineas) {
+	let partes = []
+	;(lineas || []).forEach(linea => {
+		partes.push(String(linea.id) + '|' + String(Number(linea.amount) || 0))
+	})
+	partes.sort()
+	return partes.join(';')
+}
+
+/**
+ * Líneas a cotizar a partir de los artículos del carrito, en la forma que pide
+ * `POST /api/envios/cotizar` (`articles: [{id, amount}]`). Las promociones de vinoteca quedan
+ * afuera: no son artículos y no tienen peso ni medidas propias.
+ *
+ * @param {object} cart
+ * @returns {Array}
+ */
+export function lineas_del_carrito(cart) {
+	let lineas = []
+	if (!cart || !cart.articles) {
+		return lineas
+	}
+	cart.articles.forEach(article => {
+		let amount = article.amount
+		if ((amount === undefined || amount === null) && article.pivot) {
+			amount = article.pivot.amount
+		}
+		lineas.push({
+			id: article.id,
+			amount: Number(amount) || 0,
+		})
+	})
+	return lineas
+}
+
+/**
+ * Ver la mutación `hidratar_envio_desde_cart`.
+ *
+ * @param {object} state Estado del módulo.
+ * @param {object} cart Carrito tal como lo devuelve la API.
+ */
+function hidratar_envio(state, cart) {
+	let cotizacion = cart ? cart.envio_cotizacion : null
+	if (!cotizacion || !Array.isArray(cotizacion.opciones)) {
+		return
+	}
+	state.envio.opciones = cotizacion.opciones
+	state.envio.items_firma = firma_de_lineas(lineas_del_carrito(cart))
+	state.envio.envio_gratis = !!(cart.envio_opcion && cart.envio_opcion.envio_gratis)
+	if (cotizacion.zipcode) {
+		state.envio.zipcode = String(cotizacion.zipcode)
+		guardar_zipcode(state.envio.zipcode)
+	}
+	state.envio.city = cotizacion.city || ''
+	state.envio.state = cotizacion.state || ''
+	state.envio.opcion_key = cart.envio_opcion && cart.envio_opcion.key ? cart.envio_opcion.key : null
+	state.envio.point_id = cart.envio_opcion && cart.envio_opcion.point_id ? cart.envio_opcion.point_id : null
+	if (cart.envio_destino && typeof cart.envio_destino === 'object') {
+		// `point_id` vive en `envio.point_id`, no dentro del destino (se agrega al mandar).
+		let destino = Object.assign(destino_vacio(), cart.envio_destino)
+		delete destino.point_id
+		state.envio.destino = destino
+	}
+	state.envio.error = null
+	state.envio.needs_location = false
+	state.envio.errores_destino = []
+}
+
+/**
+ * Ver la mutación `reset_envio`.
+ *
+ * @param {object} state Estado del módulo.
+ */
+function resetear_envio(state) {
+	let zipcode = state.envio.zipcode
+	state.envio = envio_inicial()
+	state.envio.zipcode = zipcode
+}
+
+/**
+ * Lo que viaja al servidor dentro del carrito como `envio` (EnvioCartHelper::sincronizar).
+ *
+ * 🔴 NUNCA lleva precio. El SPA manda la `opcion_key` que el comprador eligió y el destino; el
+ * precio que se cobra lo re-cotiza y guarda el servidor en `carts.envio_precio`. Sin envío a
+ * domicilio o sin opción elegida va `null`, y el servidor limpia las columnas.
+ *
+ * @param {object} state Estado del módulo.
+ * @returns {object|null}
+ */
+function payload_envio(state) {
+	if (Number(state.cart.deliver) !== 1 || !state.envio.opcion_key) {
+		return null
+	}
+	return {
+		zipcode: state.envio.zipcode,
+		city: state.envio.city || null,
+		state: state.envio.state || null,
+		opcion_key: state.envio.opcion_key,
+		point_id: state.envio.point_id,
+		destino: Object.assign({}, state.envio.destino, {
+			// El CP del destino es SIEMPRE el cotizado: es para ese código postal que vale el precio.
+			codigo_postal: state.envio.zipcode,
+			point_id: state.envio.point_id,
+		}),
+	}
+}
+
 export default {
 	namespaced: true,
 	state: {
@@ -15,7 +223,10 @@ export default {
 			address_id: '',
 			payment_card_info_id: null,
 			fecha_entrega: 0,
+			envio: null,
 		},
+		/* Envío por correo (Zipnova): cotización, opción elegida y destino. Ver envio_inicial(). */
+		envio: envio_inicial(),
 		buyer: {
 			name: '',
 			email: '',
@@ -85,6 +296,179 @@ export default {
 		},
 		setDeliveryZone(state, value) {
 			state.delivery_zone = value
+			// Zona propia del negocio y opción de Zipnova nunca conviven (decisión §0.6 del plan):
+			// elegir una zona suelta la opción de correo que hubiera elegida.
+			if (value) {
+				state.envio.opcion_key = null
+				state.envio.point_id = null
+			}
+		},
+
+		// ── Envío por correo (Zipnova) ─────────────────────────────────────────────────────
+
+		/**
+		 * Código postal a cotizar. Cambiarlo invalida lo cotizado: las opciones eran para OTRO
+		 * destino, así que se vacían junto con la localidad resuelta y la opción elegida.
+		 *
+		 * @param {object} state
+		 * @param {string} value
+		 */
+		set_envio_zipcode(state, value) {
+			let zipcode = String(value || '').replace(/\s+/g, '').substring(0, 8)
+			if (zipcode === state.envio.zipcode) {
+				return
+			}
+			state.envio.zipcode = zipcode
+			state.envio.city = ''
+			state.envio.state = ''
+			state.envio.opciones = []
+			state.envio.opcion_key = null
+			state.envio.point_id = null
+			state.envio.items_firma = null
+			state.envio.envio_gratis = false
+			state.envio.error = null
+			state.envio.needs_location = false
+			guardar_zipcode(zipcode)
+		},
+		/**
+		 * Localidad y provincia del destino, cuando el código postal solo no alcanza
+		 * (`needs_location`) o cuando Zipnova las devuelve resueltas.
+		 *
+		 * @param {object} state
+		 * @param {object} payload { city, state }
+		 */
+		set_envio_localidad(state, payload) {
+			if (payload.city !== undefined) {
+				state.envio.city = payload.city || ''
+			}
+			if (payload.state !== undefined) {
+				state.envio.state = payload.state || ''
+			}
+		},
+		/**
+		 * Resultado de una cotización. Además de las opciones guarda para QUÉ líneas se cotizó
+		 * (`items_firma`) y precarga en el destino lo que ya se sabe (CP, localidad, provincia)
+		 * sin pisar lo que el comprador haya escrito.
+		 *
+		 * Si la opción que estaba elegida sigue existiendo se conserva (re-cotización por cambio
+		 * de cantidades); si desapareció, se suelta para que la vuelva a elegir.
+		 *
+		 * @param {object} state
+		 * @param {object} payload { opciones, zipcode, city, state, envio_gratis, items_firma }
+		 */
+		set_envio_opciones(state, payload) {
+			state.envio.opciones = payload.opciones || []
+			state.envio.items_firma = payload.items_firma || null
+			state.envio.envio_gratis = !!payload.envio_gratis
+			if (payload.zipcode) {
+				state.envio.zipcode = String(payload.zipcode)
+				guardar_zipcode(state.envio.zipcode)
+			}
+			if (payload.city) {
+				state.envio.city = payload.city
+			}
+			if (payload.state) {
+				state.envio.state = payload.state
+			}
+			state.envio.error = null
+			state.envio.needs_location = false
+
+			let sigue = state.envio.opciones.find(opcion => {
+				return opcion.key == state.envio.opcion_key
+			})
+			if (!sigue) {
+				state.envio.opcion_key = null
+				state.envio.point_id = null
+			}
+
+			let destino = state.envio.destino
+			if (state.envio.zipcode) {
+				destino.codigo_postal = state.envio.zipcode
+			}
+			if (!destino.localidad && state.envio.city) {
+				destino.localidad = state.envio.city
+			}
+			if (!destino.provincia && state.envio.state) {
+				destino.provincia = normalizar_provincia(state.envio.state)
+			}
+		},
+		/**
+		 * Opción de Zipnova elegida por su `key`. Suelta la zona propia (§0.6) y la sucursal,
+		 * salvo que la opción nueva tenga UNA sola sucursal, que se elige sola.
+		 *
+		 * @param {object} state
+		 * @param {string|null} key
+		 */
+		set_envio_opcion_key(state, key) {
+			state.envio.opcion_key = key || null
+			state.envio.point_id = null
+			state.envio.errores_destino = []
+			if (!key) {
+				return
+			}
+			state.delivery_zone = null
+			let opcion = state.envio.opciones.find(opcion => {
+				return opcion.key == key
+			})
+			if (opcion && opcion.es_punto_de_retiro && opcion.puntos_de_retiro && opcion.puntos_de_retiro.length === 1) {
+				state.envio.point_id = opcion.puntos_de_retiro[0].point_id
+			}
+		},
+		set_envio_point_id(state, value) {
+			state.envio.point_id = value || null
+		},
+		/**
+		 * Un campo del destinatario/dirección. Vue.set por si el campo no existía (destinos
+		 * hidratados desde un carrito guardado con menos claves).
+		 *
+		 * @param {object} state
+		 * @param {object} payload { field, value }
+		 */
+		set_envio_destino_field(state, payload) {
+			Vue.set(state.envio.destino, payload.field, payload.value)
+			// El comprador está corrigiendo: el campo deja de estar marcado como rechazado.
+			let index = state.envio.errores_destino.indexOf(payload.field)
+			if (index !== -1) {
+				state.envio.errores_destino.splice(index, 1)
+			}
+		},
+		set_envio_cotizando(state, value) {
+			state.envio.cotizando = !!value
+		},
+		set_envio_error(state, value) {
+			state.envio.error = value || null
+		},
+		set_envio_needs_location(state, value) {
+			state.envio.needs_location = !!value
+		},
+		set_envio_errores_destino(state, value) {
+			state.envio.errores_destino = Array.isArray(value) ? value : []
+		},
+		/**
+		 * Vuelve el envío a cero. Conserva SOLO el código postal (es lo que se guarda en el
+		 * navegador): el destino con nombre, DNI y teléfono no queda en memoria después de
+		 * un pedido, que en un comercio puede ser una computadora compartida.
+		 *
+		 * @param {object} state
+		 */
+		reset_envio(state) {
+			resetear_envio(state)
+		},
+		/**
+		 * Carga el envío desde un carrito que vino del servidor (`envio_cotizacion`,
+		 * `envio_opcion`, `envio_destino`): al volver a la tienda o después de cada guardado, lo
+		 * que muestra la pantalla es lo que el servidor tiene, con SU precio.
+		 *
+		 * Solo se hidrata si el carrito trae una cotización. Un carrito sin `envio_cotizacion`
+		 * puede venir de una API que todavía no conoce el envío (los dos lados no se despliegan
+		 * juntos) o de un carrito con retiro por el local: en ninguno de los dos hay que pisar lo
+		 * que el comprador tiene en pantalla.
+		 *
+		 * @param {object} state
+		 * @param {object} cart
+		 */
+		hidratar_envio_desde_cart(state, cart) {
+			hidratar_envio(state, cart)
 		},
 		setCardId(state, value) {
 			state.cart.card_id = value
@@ -187,9 +571,11 @@ export default {
 					promo.price = promo.pivot.price
 					promo.notes = promo.pivot.notes
 				})
-				state.payment_method = cart.payment_method 
-				state.delivery_zone = cart.delivery_zone 
-				state.cupon = cart.cupon 
+				state.payment_method = cart.payment_method
+				state.delivery_zone = cart.delivery_zone
+				state.cupon = cart.cupon
+				// Envío por correo guardado en el servidor (si lo hay): ver hidratar_envio_desde_cart.
+				hidratar_envio(state, cart)
 			} else {
 				state.cart = {
 					articles: [],
@@ -200,10 +586,13 @@ export default {
 					address_id: '',
 					payment_card_info_id: null,
 					fecha_entrega: 0,
+					envio: null,
 				}
 				state.payment_method = null
-				state.delovery_zone = null
+				// Hasta el 14/9/2026 decia `delovery_zone`: la zona elegida sobrevivia al vaciado.
+				state.delivery_zone = null
 				state.cupon = null
+				resetear_envio(state)
 			}
 			console.log(state.cart)
 		},
@@ -231,6 +620,8 @@ export default {
 			} else {
 				state.cart.delivery_zone_id = null
 			}
+			// Envío por correo (Zipnova): la opción elegida y el destino, sin precio. Ver payload_envio().
+			state.cart.envio = payload_envio(state)
 			console.log('carrito antes de guardar:')
 			console.log(state.cart)
 			if (!state.cart.id) {
@@ -286,6 +677,10 @@ export default {
 				state.cart.articles.length
 				|| state.cart.promociones_vinoteca.length
 			) {
+				// Sin esto el servidor leería un carrito SIN `envio` y limpiaría la forma de envío
+				// elegida: sacar un artículo cambia el costo, pero no tiene por qué borrar la elección.
+				// El servidor re-cotiza solo (cambió el hash de líneas) y conserva la opción si sigue.
+				state.cart.envio = payload_envio(state)
 				axios.put('/api/carts', state.cart)
 				.then(res => {
 					console.log('Carrito actualizado')
@@ -305,5 +700,75 @@ export default {
 				})
 			}
 		},	
+		/**
+		 * Cotiza el envío por correo contra `POST /api/envios/cotizar` con el código postal (y la
+		 * localidad/provincia si ya se resolvieron) del store.
+		 *
+		 * Se cotiza `articles` (líneas `{id, amount}`) y, si el carrito ya está guardado, también
+		 * `cart_id`: el servidor puede leer las líneas y el subtotal de cualquiera de los dos. Lo
+		 * que vuelve son las opciones YA normalizadas y con el precio que cobra el servidor: acá
+		 * no se calcula nada.
+		 *
+		 * Resuelve con la respuesta. Rechaza con el error de axios para que el cotizador decida
+		 * qué hacer (por ejemplo, intentar resolver la localidad con Google Maps ante
+		 * `needs_location`); el mensaje legible ya queda en `envio.error`.
+		 *
+		 * @param {object} context
+		 * @param {object} payload { articles: [{id, amount}], cart_id?: number }
+		 * @returns {Promise}
+		 */
+		cotizar_envio({ state, commit }, payload) {
+			let articles = payload && payload.articles ? payload.articles : []
+			let body = {
+				commerce_id: process.env.VUE_APP_COMMERCE_ID,
+				zipcode: state.envio.zipcode,
+				articles: articles,
+			}
+			if (state.envio.city) {
+				body.city = state.envio.city
+			}
+			if (state.envio.state) {
+				body.state = state.envio.state
+			}
+			if (payload && payload.cart_id) {
+				body.cart_id = payload.cart_id
+			}
+
+			commit('set_envio_cotizando', true)
+			commit('set_envio_error', null)
+
+			return axios.post('/api/envios/cotizar', body)
+			.then(res => {
+				commit('set_envio_cotizando', false)
+				commit('set_envio_opciones', {
+					opciones: res.data.opciones || [],
+					zipcode: res.data.zipcode,
+					city: res.data.city,
+					state: res.data.state,
+					envio_gratis: res.data.envio_gratis,
+					items_firma: firma_de_lineas(articles),
+				})
+				if (!res.data.opciones || !res.data.opciones.length) {
+					commit('set_envio_error', 'Ningún correo llega a ese código postal. Probá con otro o elegí retiro por el local.')
+				}
+				return res.data
+			})
+			.catch(err => {
+				commit('set_envio_cotizando', false)
+				let data = err.response && err.response.data ? err.response.data : {}
+				let mensaje = data.message || 'No pudimos cotizar el envío en este momento. Probá de nuevo en un rato.'
+				// Las opciones que hubiera eran de otra cotización: no se muestran con un error abajo.
+				// (set_envio_opciones también apaga error y needs_location, por eso van después.)
+				commit('set_envio_opciones', {
+					opciones: [],
+					items_firma: null,
+				})
+				commit('set_envio_error', mensaje)
+				if (err.response && err.response.status == 422 && data.needs_location) {
+					commit('set_envio_needs_location', true)
+				}
+				throw err
+			})
+		},
 	}
 }

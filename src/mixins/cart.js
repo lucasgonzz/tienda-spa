@@ -1,4 +1,5 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
+import { lineas_del_carrito } from '@/store/cart'
 export default {
 	computed: {
 		/**
@@ -191,8 +192,74 @@ export default {
 			}
 			return total
 		},
+		/**
+		 * Estado del envío por correo (Zipnova) en el store: código postal, opciones cotizadas,
+		 * opción elegida, sucursal y destino.
+		 *
+		 * @returns {object}
+		 */
+		envio() {
+			return this.$store.state.cart.envio
+		},
+		/**
+		 * La opción de Zipnova que el comprador eligió, buscada por su `key` entre las opciones
+		 * cotizadas. Es null si no eligió o si la opción ya no está en la lista (se re-cotizó y
+		 * desapareció): con eso la pantalla nunca muestra un precio que no esté en la cotización.
+		 *
+		 * @returns {object|null}
+		 */
+		cart_envio_opcion() {
+			let envio = this.$store.state.cart.envio
+			if (!envio || !envio.opcion_key) {
+				return null
+			}
+			let opcion = envio.opciones.find(opcion => {
+				return opcion.key == envio.opcion_key
+			})
+			return opcion ? opcion : null
+		},
+		/**
+		 * Si el pedido va por correo (Zipnova): envío a domicilio y una opción de Zipnova elegida.
+		 * Es lo que esconde el input de "Dirección" de una sola línea (la reemplaza el formulario
+		 * completo de DireccionEnvio) y lo que decide qué se valida al confirmar.
+		 *
+		 * @returns {boolean}
+		 */
+		envio_zipnova_elegido() {
+			return Number(this.cart.deliver) === 1 && !!this.cart_envio_opcion
+		},
+		/**
+		 * Lo que suma el envío al total en PANTALLA: la zona propia del negocio o la opción de
+		 * Zipnova (`precio`, que ya viene con la regla de envío gratis aplicada). Sin envío a
+		 * domicilio, cero. Es un cálculo de pantalla: lo que se cobra lo resuelve la API con
+		 * `carts.envio_precio` / la zona guardada, y sale del mismo dato.
+		 *
+		 * @returns {number}
+		 */
+		envio_precio_elegido() {
+			if (Number(this.cart.deliver) !== 1) {
+				return 0
+			}
+			if (this.cart_delivery_zone) {
+				let precio = Number(this.cart_delivery_zone.price)
+				return isFinite(precio) ? precio : 0
+			}
+			if (this.cart_envio_opcion) {
+				let precio = Number(this.cart_envio_opcion.precio)
+				return isFinite(precio) ? precio : 0
+			}
+			return 0
+		},
+		/**
+		 * Total con el envío. Hasta el 14/9/2026 hacía `Number(this.cart_delivery_zone.price)` sin
+		 * guarda y reventaba con la zona en null (retiro por el local, o zona todavía sin elegir);
+		 * Total.vue lo esquivaba con un cálculo propio. Ahora suma `envio_precio_elegido`, que ya
+		 * contempla la zona, la opción de Zipnova y el caso sin envío.
+		 *
+		 * @returns {number}
+		 */
 		total_with_deliver() {
-			return this.total_with_cupon + Number(this.cart_delivery_zone.price)
+			return this.total_with_cupon + this.envio_precio_elegido
 		},
 		total_final() {
 			return this.total_with_deliver
@@ -213,6 +280,8 @@ export default {
 		 * cualquier direccion guardada del Buyer o del Client del ERP).
 		 *
 		 * Orden de resolucion, siguiendo lo que cada flujo muestra en pantalla:
+		 *   0. Envio por correo (Zipnova) -> el destino del formulario de DireccionEnvio, en una
+		 *      linea (mismo texto que arma EnvioDestinoHelper::como_texto en la API).
 		 *   1. Vendedor con cliente seleccionado -> el input de Addresses.vue, que edita
 		 *      selected_buyer.comercio_city_client.address.
 		 *   2. Comprador invitado -> el input "Direccion" de Buyer.vue (store cart.buyer.address).
@@ -222,6 +291,15 @@ export default {
 		 * @returns {string|null}
 		 */
 		order_address() {
+			// 0) Envio por correo: la direccion es el destino completo que el comprador cargo. Los
+			// inputs de una sola linea de abajo estan ocultos en este caso, asi que no hay otra.
+			if (this.envio_zipnova_elegido) {
+				let texto = this.envio_destino_texto()
+				if (texto) {
+					return texto
+				}
+			}
+
 			// 1) Vendedor con un cliente seleccionado: gana siempre, porque cart.buyer
 			// puede tener datos de una sesion anterior del mismo browser.
 			if (this.selected_buyer && this.selected_buyer.comercio_city_client && this.selected_buyer.comercio_city_client.address) {
@@ -272,12 +350,210 @@ export default {
 			return total
 		},
 		/**
+		 * Un valor del destino de envío como texto recortado, o cadena vacía.
+		 *
+		 * @param {string} clave
+		 * @returns {string}
+		 */
+		envio_destino_valor(clave) {
+			let destino = this.$store.state.cart.envio.destino
+			if (!destino || destino[clave] === undefined || destino[clave] === null) {
+				return ''
+			}
+			return String(destino[clave]).trim()
+		},
+		/**
+		 * El destino de Zipnova en una sola línea, para `orders.address` (el ERP viejo la muestra
+		 * tal cual, y también va en los mails y el WhatsApp del pedido).
+		 *
+		 * 🔴 Es la réplica en JS de `EnvioDestinoHelper::como_texto()` de la API, y tiene que dar
+		 * EXACTAMENTE el mismo texto: el servidor lo vuelve a armar desde `envio_destino` al crear
+		 * el pedido, y si difieren el comprador vería una dirección en pantalla y otra en el mail.
+		 * Formato: "{calle} {numero} {piso_depto}, {localidad}, {provincia} (CP {cp}) — {nombre}
+		 * {apellido}, DNI {documento}, tel {telefono} ({referencia})".
+		 *
+		 * @returns {string}
+		 */
+		envio_destino_texto() {
+			let direccion = (this.envio_destino_valor('calle') + ' ' + this.envio_destino_valor('numero') + ' ' + this.envio_destino_valor('piso_depto'))
+				.trim()
+				.replace(/\s+/g, ' ')
+
+			let partes = []
+			if (direccion !== '') {
+				partes.push(direccion)
+			}
+			if (this.envio_destino_valor('localidad') !== '') {
+				partes.push(this.envio_destino_valor('localidad'))
+			}
+			let provincia = this.envio_destino_valor('provincia')
+			let cp = this.envio_destino_valor('codigo_postal')
+			if (provincia !== '' || cp !== '') {
+				partes.push((provincia + (cp !== '' ? ' (CP ' + cp + ')' : '')).trim())
+			}
+
+			let persona = (this.envio_destino_valor('nombre') + ' ' + this.envio_destino_valor('apellido')).trim()
+			let datos = []
+			if (persona !== '') {
+				datos.push(persona)
+			}
+			if (this.envio_destino_valor('documento') !== '') {
+				datos.push('DNI ' + this.envio_destino_valor('documento'))
+			}
+			if (this.envio_destino_valor('telefono') !== '') {
+				datos.push('tel ' + this.envio_destino_valor('telefono'))
+			}
+
+			let texto = partes.join(', ')
+			if (datos.length) {
+				texto += (texto !== '' ? ' — ' : '') + datos.join(', ')
+			}
+			if (this.envio_destino_valor('referencia') !== '') {
+				texto += ' (' + this.envio_destino_valor('referencia') + ')'
+			}
+			return texto
+		},
+		/**
+		 * Etiquetas visibles de los campos del destino, por clave. Son las mismas que muestra
+		 * DireccionEnvio.vue: el aviso de "te falta completar" tiene que decir lo que el
+		 * comprador ve en la pantalla, no el nombre del campo en la base.
+		 *
+		 * @param {string} clave
+		 * @returns {string}
+		 */
+		envio_destino_etiqueta(clave) {
+			let etiquetas = {
+				nombre: 'Nombre',
+				apellido: 'Apellido',
+				documento: 'DNI',
+				email: 'Email',
+				telefono: 'Teléfono',
+				calle: 'Calle',
+				numero: 'Número',
+				piso_depto: 'Piso / Depto',
+				localidad: 'Localidad',
+				provincia: 'Provincia',
+				codigo_postal: 'Código postal',
+				referencia: 'Referencias',
+				point_id: 'Sucursal de retiro',
+			}
+			return etiquetas[clave] ? etiquetas[clave] : clave
+		},
+		/**
+		 * Claves del destino que faltan o son inválidas, con las mismas reglas que
+		 * `EnvioDestinoHelper::faltantes()` de la API: nombre, DNI (7 a 11 dígitos), email válido,
+		 * teléfono (8 dígitos o más), localidad, provincia y código postal siempre; calle y número
+		 * solo a domicilio; sucursal elegida solo en retiro en sucursal.
+		 *
+		 * Se valida acá para no mandar un carrito que el servidor va a rechazar con 422, pero el
+		 * servidor valida igual: esto es la primera línea, no la única.
+		 *
+		 * @returns {string[]} claves (ver envio_destino_etiqueta para el nombre visible)
+		 */
+		envio_destino_faltantes() {
+			let faltan = []
+			let opcion = this.cart_envio_opcion
+			let es_punto_de_retiro = !!(opcion && opcion.es_punto_de_retiro)
+
+			let obligatorios = ['nombre', 'documento', 'email', 'telefono', 'localidad', 'provincia', 'codigo_postal']
+			if (!es_punto_de_retiro) {
+				obligatorios.push('calle', 'numero')
+			}
+			obligatorios.forEach(clave => {
+				if (this.envio_destino_valor(clave) === '') {
+					faltan.push(clave)
+				}
+			})
+
+			let documento = this.envio_destino_valor('documento').replace(/\s+/g, '')
+			if (documento !== '' && !/^\d{7,11}$/.test(documento)) {
+				faltan.push('documento')
+			}
+			let email = this.envio_destino_valor('email')
+			if (email !== '' && !this.isEmail(email)) {
+				faltan.push('email')
+			}
+			let telefono = this.envio_destino_valor('telefono')
+			if (telefono !== '' && telefono.replace(/\D/g, '').length < 8) {
+				faltan.push('telefono')
+			}
+			if (es_punto_de_retiro && !this.$store.state.cart.envio.point_id) {
+				faltan.push('point_id')
+			}
+
+			return faltan.filter((clave, index) => {
+				return faltan.indexOf(clave) === index
+			})
+		},
+		/**
+		 * Atiende los 422 del `PUT /api/carts` que son del envío por correo, y le dice al
+		 * comprador qué hacer:
+		 *
+		 *   - `codigo: 'opcion_envio'`: la opción elegida ya no está (cambió el carrito, venció la
+		 *     cotización). Se suelta la elección y se vuelve a cotizar para que elija de nuevo.
+		 *   - `codigo: 'destino'`: faltan datos del destinatario. Se marcan los campos que el
+		 *     servidor rechazó (`errors`) y se lleva al comprador al formulario.
+		 *
+		 * @param {object} err Error de axios.
+		 * @returns {boolean} true si el error era del envío y ya se le avisó al comprador.
+		 */
+		manejar_error_de_envio(err) {
+			if (!err || !err.response || err.response.status != 422 || !err.response.data) {
+				return false
+			}
+			let data = err.response.data
+			let self = this
+
+			if (data.codigo == 'opcion_envio') {
+				this.$toast.error(data.message || 'Esa forma de envío ya no está disponible, volvé a cotizar')
+				this.$store.commit('cart/set_envio_opcion_key', null)
+				if (this.$store.state.cart.envio.zipcode) {
+					this.$store.dispatch('cart/cotizar_envio', {
+						articles: lineas_del_carrito(this.$store.state.cart.cart),
+						cart_id: this.cart && this.cart.id ? this.cart.id : null,
+					})
+					.catch(() => {
+						// El mensaje ya quedó en envio.error y el cotizador lo muestra.
+					})
+				}
+				this.scrollTo('formas-de-envio')
+				return true
+			}
+
+			if (data.codigo == 'destino') {
+				let claves = []
+				if (data.errors && typeof data.errors === 'object') {
+					Object.keys(data.errors).forEach(clave => {
+						claves.push(clave)
+					})
+				}
+				this.$store.commit('cart/set_envio_errores_destino', claves)
+				let etiquetas = []
+				claves.forEach(clave => {
+					etiquetas.push(self.envio_destino_etiqueta(clave))
+				})
+				if (etiquetas.length) {
+					this.$toast.error('Revisá los datos del envío: ' + etiquetas.join(', '))
+				} else {
+					this.$toast.error(data.message || 'Revisá los datos del envío')
+				}
+				this.scrollTo('direccion-envio')
+				return true
+			}
+
+			return false
+		},
+		/**
 		 * Crea el pedido a partir del carrito.
 		 *
 		 * Devuelve SIEMPRE una promesa, y resuelve con `true` si el pedido quedo creado o con `null`
 		 * si algo fallo. Antes no devolvia nada, y por eso el checkout no tenia forma de encadenar
 		 * nada despues del pedido: el camino de Mercado Pago pedia la preferencia EN PARALELO, sin
 		 * mirar si el pedido se habia creado.
+		 *
+		 * Desde el 14/9/2026 tambien puede resolver con `false`: el `PUT /carts` rechazo el envio
+		 * por correo (422 `opcion_envio` / `destino`) y `manejar_error_de_envio` YA le dijo al
+		 * comprador que hacer. El llamador no tiene que mostrar el aviso generico en ese caso.
 		 *
 		 * No rechaza nunca: los llamadores viejos (Payway, el modal del carrito, el gateway) la
 		 * invocan sin `.catch`, y una promesa rechazada ahi solo ensuciaria la consola.
@@ -416,6 +692,12 @@ export default {
 			.catch(function(err) {
 				apagar_overlay()
 				console.log(err)
+				// Un 422 del envio por correo tiene su propio aviso (y su propia salida: volver a
+				// cotizar o corregir el destino). Se distingue con `false` para que el boton no
+				// pise ese aviso con el generico de "no pudimos guardar tu pedido".
+				if (self.manejar_error_de_envio(err)) {
+					return false
+				}
 				return null
 			})
 		},
