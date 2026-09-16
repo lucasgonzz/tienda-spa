@@ -208,7 +208,7 @@ export default {
 		getSimilars({ commit, state }) {
 			commit('setSimilars', [])
 			commit('setLoadingSimilars', true)
-			return axios.get(`/api/articles/similars/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}?page=1`)
+			return axios.get(`/api/articles/similars/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}?page=1&per_page=9`)
 			.then(res => {
 				console.log(res)
 				commit('setLoadingSimilars', false)
