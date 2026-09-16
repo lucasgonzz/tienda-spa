@@ -387,7 +387,15 @@ export default {
 		z-index: 30
 		top: calc(100% + 6px)
 		left: 0
-		right: 0
+		// 🔴 El panel NO hereda el ancho del disparador, y el min-width no es decorativo: en
+		// escritorio la columna de compra mide 22% (233px), el disparador 199px, y la fila
+		// "Cantidad: [input] Aplicar" necesita 231px -- con `right: 0` el boton quedaba
+		// CORTADO al medio, leyendose "Aplica". Medido en 1440px. En la captura de Mercado
+		// Libre el panel tambien es mas ancho que su disparador.
+		right: auto
+		min-width: 240px
+		// Que nunca se pase de la pantalla en telefono, donde la columna ya mide casi todo.
+		max-width: calc(100vw - 32px)
 		display: flex
 		flex-direction: column
 		background: #FFF
@@ -425,6 +433,9 @@ export default {
 		display: flex
 		flex-direction: row
 		align-items: center
+		// Red de seguridad del min-width de arriba: si aun asi no entra, el boton baja de
+		// renglon entero en vez de recortarse.
+		flex-wrap: wrap
 		gap: .4rem
 		margin-top: 6px
 		padding: 10px 14px 4px
