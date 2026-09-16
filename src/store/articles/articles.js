@@ -199,7 +199,14 @@ export default {
 				console.log(err)
 			})
 		},
+		/*
+		 * 🔴 Se vacia ANTES de pedir y tambien en el .catch(): esta vista se reusa al ir de
+		 * un articulo a otro, y sin esto se veian los relacionados del articulo anterior
+		 * mientras volaba la request -y PARA SIEMPRE si la request fallaba-. Mismo
+		 * tratamiento que ya usan get_tambien_compraron_vistas/compras de mas abajo.
+		 */
 		getSimilars({ commit, state }) {
+			commit('setSimilars', [])
 			commit('setLoadingSimilars', true)
 			return axios.get(`/api/articles/similars/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}?page=1`)
 			.then(res => {
@@ -210,6 +217,7 @@ export default {
 			.catch(err => {
 				commit('setLoadingSimilars', false)
 				console.log(err)
+				commit('setSimilars', [])
 			})
 		},
 		/*
