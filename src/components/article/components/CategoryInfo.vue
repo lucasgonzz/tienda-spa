@@ -73,8 +73,12 @@ export default {
 		border-right: 2px solid rgba(0, 0, 0, .4)
 		cursor: pointer
 
+		// Antes $green fijo: en un comercio con otro color de marca el breadcrumb pasaba a
+		// verde al pasar el mouse, sin relacion con el resto de la tienda. var(--secondary-
+		// color) es la misma variable que ya usa el boton "Calcular" y el link del modal de
+		// envio en la ficha del articulo.
 		&:hover
-			color: $green
+			color: var(--secondary-color, $green)
 
 		&:first-child
 			padding-left: 0	
