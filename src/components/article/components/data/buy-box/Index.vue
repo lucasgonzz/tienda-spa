@@ -65,6 +65,14 @@
 	</div>
 </template>
 <script>
+/*
+ * 🔴 `AddToCart` se importa DERECHO y no con `() => import(...)` como los otros dos. Con la
+ * carga diferida, `$refs.add_to_cart` queda en undefined hasta que llega el chunk, y los
+ * botones de arriba se dibujan antes que eso: en una conexion lenta el comprador podia apretar
+ * "Comprar ahora" y no pasaba nada, sin ningun aviso. La ficha siempre lo necesita, asi que
+ * diferirlo no ahorraba nada.
+ */
+import AddToCart from '@/components/article/components/data/add-to-cart/Index'
 import articles from '@/mixins/articles'
 export default {
 	name: 'CajaDeCompra',
@@ -73,9 +81,9 @@ export default {
 		article: Object,
 	},
 	components: {
+		AddToCart,
 		Envio: () => import('@/components/article/components/data/Envio'),
 		Cantidad: () => import('@/components/article/components/data/buy-box/Cantidad'),
-		AddToCart: () => import('@/components/article/components/data/add-to-cart/Index'),
 	},
 	computed: {
 		/**
