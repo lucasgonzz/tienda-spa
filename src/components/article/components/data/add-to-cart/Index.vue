@@ -234,7 +234,19 @@ export default {
 					// Guest checkout: carrito local sin persistir en API hasta el paso de pago.
 					this.$bvModal.hide('add-to-cart-modal')
 					this.$store.commit('cart/set_added_item', this.article)
-					this.$store.commit('cart/set_added_item_popup_visible', true)
+
+					/*
+					 * 🔴 Mismo criterio que la rama logueada de arriba: "Comprar ahora" tiene que
+					 * llevar al pago tambien para el invitado. Antes de este arreglo `buy_now` se
+					 * ignoraba aca y el boton se comportaba igual que "Agregar al carrito", sin
+					 * avisar nada.
+					 */
+					if (buy_now) {
+						this.$router.push({name: 'Payment'})
+					} else {
+						this.$store.commit('cart/set_added_item_popup_visible', true)
+					}
+
 					this.$store.commit('articles/setAmount', '')
 					this.$store.commit('articles/setNotes', '')
 				}
