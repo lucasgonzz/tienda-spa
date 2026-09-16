@@ -463,6 +463,8 @@ export default {
 			}
 			this.zipcode_resuelto_con_google = zipcode
 			if (!window.google || !window.google.maps || !window.google.maps.Geocoder) {
+				// eslint-disable-next-line no-console
+				console.warn('Cotizador: Google Maps no está cargado, no se puede resolver el código postal solo.')
 				return
 			}
 			let self = this
@@ -471,7 +473,20 @@ export default {
 				geocoder.geocode({
 					componentRestrictions: { country: 'AR', postalCode: zipcode },
 				}, function(results, status) {
-					if (status !== 'OK' || !results || !results.length || zipcode !== self.zipcode) {
+					if (status !== 'OK' || !results || !results.length) {
+						/*
+						 * Silencioso para el comprador (el formulario de localidad ya está a la vista
+						 * desde que llegó needs_location), pero NO para la consola: acá se detectó, el
+						 * 16/9/2026, que un REQUEST_DENIED por falta de facturación en el proyecto de
+						 * Google Cloud hacía fallar el geocoder para CUALQUIER código postal, no solo
+						 * para uno inválido, y antes de este log no había forma de distinguir un caso
+						 * del otro sin ir a pegarle a la API a mano.
+						 */
+						// eslint-disable-next-line no-console
+						console.warn('Cotizador: Google Maps no pudo resolver el código postal ' + zipcode + ' (status: ' + status + ').')
+						return
+					}
+					if (zipcode !== self.zipcode) {
 						return
 					}
 					let localidad = ''
