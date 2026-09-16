@@ -18,6 +18,14 @@ export default {
 		novedades() {
 			return this.$store.state.categories.novedades
 		},
+		/** Artículos con rangos de precio por cantidad, para "Comprando más, pagás menos". */
+		articulos_con_rangos() {
+			return this.$store.state.categories.articulos_con_rangos
+		},
+		/** Combos publicados en la tienda, para la sección "Combos" de la home. */
+		combos() {
+			return this.$store.state.categories.combos
+		},
 		articles() {
 			return this.$store.state.categories.articles
 		},
