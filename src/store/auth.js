@@ -1,3 +1,4 @@
+import Vue from 'vue'
 import axios from 'axios'
 axios.defaults.baseURL = process.env.VUE_APP_API_URL
 axios.defaults.withCredentials = true
@@ -34,6 +35,18 @@ export default {
 		},
 		addAddress(state, value) {
 			state.user.addresses.push(value)
+		},
+		/**
+		 * Último código postal (y localidad/provincia) con el que el buyer cotizó un envío en la
+		 * tienda. Vue.set porque un buyer que venía de una base sin la migración de empresa-api
+		 * puede no traer estas tres claves.
+		 * @param {object} state
+		 * @param {object} payload { zipcode, city, state }
+		 */
+		setUserEnvioZipcode(state, payload) {
+			Vue.set(state.user, 'envio_zipcode', payload.zipcode)
+			Vue.set(state.user, 'envio_city', payload.city)
+			Vue.set(state.user, 'envio_state', payload.state)
 		},
 		setLoading(state, value) {
 			state.loading = value
@@ -127,6 +140,24 @@ export default {
 			.catch(err => {
 				commit('setAuthenticated', false)
 				commit('setUser', null)
+				console.log(err)
+			})
+		},
+		/**
+		 * Guarda en el perfil el último código postal cotizado, para la próxima visita. Guardado
+		 * de conveniencia: si falla (sin sesión, o el cliente todavía no tiene la migración de
+		 * empresa-api y la API respondió 204 igual) no interrumpe la compra, solo queda en el log.
+		 *
+		 * @param {object} context
+		 * @param {object} payload { zipcode, city, state }
+		 * @returns {Promise}
+		 */
+		guardar_envio_zipcode({ commit }, payload) {
+			return axios.put('/api/buyer/envio-zipcode', payload)
+			.then(() => {
+				commit('setUserEnvioZipcode', payload)
+			})
+			.catch(err => {
 				console.log(err)
 			})
 		},

@@ -286,7 +286,12 @@
 		box-shadow: var(--cc-shadow-rest)
 
 	.cont-article-image
-		margin: 0 0 24px
+		// Antes "0 0 24px": esta plantilla pisa por especificidad el "margin: 20px 0" que define
+		// ArticleImage.vue, y CategoryInfo.vue (el breadcrumb de arriba) tampoco tiene
+		// margin-bottom propio — entre los dos no quedaba NINGÚN espacio, la imagen tocaba el
+		// breadcrumb. Medido en la app corriendo (regla 18 de contexto_master.md): con el margin-
+		// top en 0, el gap real entre .category-info y .cont-article-image daba 0px.
+		margin: 24px 0
 		background: var(--cc-surface)
 		overflow: hidden
 

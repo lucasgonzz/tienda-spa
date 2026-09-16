@@ -45,9 +45,15 @@ export default {
 			}
 			return 8
 		},
+		/*
+		 * Antes 3 (con row_xl_image en 7, sumaban 10 de 12: sobraban dos columnas sin asignar en
+		 * la fila, y la de datos quedaba en apenas 25% del ancho — la info se veía amontonada al
+		 * lado de la imagen). En 5 suma 12 con row_xl_image y la columna de precio/envío/carrito
+		 * pasa a casi el 42%, verificado en los tres anchos.
+		 */
 		row_xl_data() {
 			if (this.$route.name == 'Article') {
-				return 3
+				return 5
 			}
 			return 4
 		},

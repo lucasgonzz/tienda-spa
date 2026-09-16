@@ -221,7 +221,13 @@ export default {
 <style lang="scss" scoped>
 .article-page {
   font-family: var(--font-family-sans, sans-serif);
-  max-width: 1200px;
+  /*
+   * Antes 1200px: en una pantalla ancha (≥1600px) dejaba franjas vacías grandes a los costados y,
+   * puertas adentro, apretaba la columna de datos del artículo contra la de la imagen. 1400px es
+   * el punto medio verificado en los tres anchos: en escritorio "de verdad" (1366-1440) no se
+   * siente más ancho de lo necesario, y recién a partir de ahí gana aire.
+   */
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
   padding-bottom: 2rem;
