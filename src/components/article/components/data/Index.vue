@@ -8,14 +8,27 @@
 			<b-skeleton type="button" width="100%"></b-skeleton>
 		</b-card>
 	</template>
+	<!--
+		🔴 La clase dejo de ser `.article-data` a proposito (16/9/2026). Esta columna ya no es
+		una tarjeta: la ficha entera vive adentro de UNA sola tarjeta blanca, que la pone
+		`article-view/Index.vue`. Y habia reglas `.plantilla-comerciocity .article-data ...` en
+		`_plantilla_comerciocity.sass` (padding de 28px, nombre de 26px) con especificidad
+		(0,3,0) que con el nombre viejo seguian mandando y dejaban un marco adentro de otro.
+
+		El orden es el de las capturas de Mercado Libre: nombre → condicion → precio → cuotas →
+		envio → variantes → lo que tenes que saber. La caja de compra se fue a su propia columna
+		(`buy-box/Index.vue`).
+	-->
 	<div
-	class="m-t-20 m-b-20 article-data"
+	class="m-t-20 m-b-20 ficha-datos"
 	v-if="article_to_show">
 		<name-heart></name-heart>
 
+		<condition></condition>
+
 		<price></price>
 		<vinoteca></vinoteca>
-		
+
 		<payment-methods-info></payment-methods-info>
 
 		<!--
@@ -27,14 +40,13 @@
 		v-if="commerce.envios_zipnova"
 		:articulos="[{ id: article_to_show.id, amount: 1 }]"></cotizador-envio>
 
-		<condition></condition>	
+		<variants></variants>
+
+		<saber-del-producto></saber-del-producto>
 
 		<!-- <notes></notes> -->
 
-		<add-to-cart
-		:article="article_to_show"></add-to-cart>
-
-		<div class="article-data__actions">
+		<div class="ficha-datos__actions">
 			<compartir
 			:article="article_to_show"></compartir>
 
@@ -49,7 +61,6 @@ import PaymentMethodsInfo from '@/components/article/components/data/PaymentMeth
 import Price from '@/components/article/components/data/Price'
 import Condition from '@/components/article/components/data/Condition'
 // import Notes from '@/components/article/components/data/Notes'
-import AddToCart from '@/components/article/components/data/add-to-cart/Index'
 import Compartir from '@/components/article/components/data/Compartir'
 import WhatsappLink from '@/components/article/components/data/WhatsappLink'
 import CotizadorEnvio from '@/components/common/envio/Cotizador'
@@ -64,10 +75,11 @@ export default {
 		Price,
 		Condition,
 		// Notes,
-		AddToCart,
 		Compartir,
 		WhatsappLink,
 		CotizadorEnvio,
+		Variants: () => import('@/components/article/components/data/Variants'),
+		SaberDelProducto: () => import('@/components/article/components/data/SaberDelProducto'),
 
 		BtnLoader,
 	},
@@ -79,21 +91,41 @@ export default {
 }
 </script>
 <style lang="sass">
-.article-data
-	background: #FFF
-	border-radius: 10px
-	border: 2px solid #DDDDDD
-	padding: 25px
-	/* Anula text-align: center de #app en la tarjeta del producto. */
+.ficha-datos
+	/* Anula text-align: center de #app en la columna de datos del producto. */
 	text-align: left
 
+	.payment-methods-info
+		margin-top: .75rem
+
+	.article-variants
+		margin-top: 1rem
+
+	.saber-del-producto
+		margin-top: 1.25rem
+
 /* Acciones secundarias del artículo (compartir y WhatsApp). */
-.article-data__actions
-	margin-top: 0.75rem
+.ficha-datos__actions
+	margin-top: 1rem
 	display: flex
 	flex-direction: column
 	align-items: stretch
 	gap: 0.5rem
 	width: 100%
-</style>
 
+// El nombre del producto con los tamaños de la captura: 22px y peso 600.
+//
+// 🔴 La cadena arranca en `.ficha-ml__datos` (la columna que arma `article-view/Index.vue`) y
+// no en `.ficha-datos` a proposito: el estilo de `NameHeart.vue` es `scoped`, o sea
+// `.cont-name .product-name[data-v-hash]`, que vale (0,3,0) — lo mismo que valdria esta regla
+// con un nivel menos. En un empate gana el que va despues en la hoja, y eso depende del orden
+// de compilacion: con el nivel de mas queda (0,4,0) y gana siempre.
+.ficha-ml__datos .ficha-datos .cont-name .product-name
+	font-size: 22px
+	font-weight: 600
+	line-height: 1.3
+	letter-spacing: -.01em
+	color: rgba(0, 0, 0, .9)
+	@media screen and (max-width: 576px)
+		font-size: 20px
+</style>

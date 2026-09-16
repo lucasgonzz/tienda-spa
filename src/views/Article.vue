@@ -10,6 +10,17 @@
 			<article-view></article-view>
 		</div>
 
+		<!--
+			La descripcion completa, fuera de la tarjeta blanca. El id es el ancla a la que
+			scrollea el "Ver caracteristicas" de "Lo que tenes que saber de este producto": si
+			se cambia, hay que cambiarlo tambien en `data/SaberDelProducto.vue`.
+		-->
+		<section
+		id="descripcion-completa"
+		class="article-page__section article-page__section--descripcion">
+			<description></description>
+		</section>
+
 		<section
 		class="article-page__section article-page__section--similars">
 			<p class="article-page__section-eyebrow">
