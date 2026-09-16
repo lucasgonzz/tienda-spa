@@ -29,6 +29,13 @@
 					:article="article_to_show"></caja-de-compra>
 				</div>
 			</div>
+
+			<!--
+				Los relacionados van ADENTRO de la tarjeta, al final y separados por una linea.
+				En el modal de agregar al carrito no van: ahi el comprador esta a un click de
+				cerrar la compra y mostrarle otros seis productos es sacarlo de eso.
+			-->
+			<relacionados v-if="es_ficha"></relacionados>
 		</div>
 	</div>
 </template>
@@ -40,6 +47,7 @@ export default {
 		ArticleImage: () => import('@/components/article/components/ArticleImage'),
 		ArticleData: () => import('@/components/article/components/data/Index'),
 		CajaDeCompra: () => import('@/components/article/components/data/buy-box/Index'),
+		Relacionados: () => import('@/components/article/components/Relacionados'),
 	},
 	computed: {
 		/**

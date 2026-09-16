@@ -21,14 +21,6 @@
 			<description></description>
 		</section>
 
-		<section
-		class="article-page__section article-page__section--similars">
-			<p class="article-page__section-eyebrow">
-				También te puede interesar
-			</p>
-			<similars></similars>
-		</section>
-
 		<section class="article-page__section article-page__section--contact">
 			<contact-info></contact-info>
 		</section>
@@ -45,7 +37,6 @@ import ArticleData from '@/components/article/components/data/Index'
 import Variants from '@/components/article/components/data/Variants'
 import Description from '@/components/article/components/Description'
 import Questions from '@/components/article/components/questions/Index'
-import Similars from '@/components/article/components/Similars'
 import Preguntar from '@/components/article/components/Preguntar'
 import Categories from '@/components/categories/components/Categories'
 import Platelets from '@/components/home/components/platelets/Index'
@@ -74,7 +65,6 @@ export default {
 		Variants,
 		Description,
 		Questions,
-		Similars,
 		Preguntar,
 		Categories,
 		Platelets,
@@ -229,12 +219,12 @@ export default {
   }
 }
 
-/* Oculta el título nativo de Similars (la sección ya muestra el eyebrow). */
-.article-page__section--similars ::v-deep .title {
-  display: none;
-}
-
-.article-page__section--similars ::v-deep .cont-models {
-  margin-top: 0.25rem;
+/*
+ * La descripción completa del artículo. Es el ancla del botón "Ver características" de
+ * "Lo que tenés que saber de este producto", así que el scroll tiene que llegar a una
+ * sección que se vea: el margen de arriba lo da .article-page__section.
+ */
+.article-page__section--descripcion {
+  scroll-margin-top: 1rem;
 }
 </style>
