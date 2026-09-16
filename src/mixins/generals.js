@@ -888,22 +888,29 @@ export default {
 			return formated ? this.price(original) : original
 		},
 		/**
-		 * El texto del badge de UN descuento: "20% de descuento" o "$100 de descuento" segun
-		 * el tipo. Mismo texto porcentual que ya mostraba Discounts.vue — lo unico que cambia
-		 * es DONDE se dibuja — mas el caso nuevo de monto fijo, que antes no se contemplaba.
+		 * El texto del badge de UN descuento: "20% off" o "$100 off" segun el tipo.
+		 *
+		 * 🔴 Es el UNICO lugar donde vive ese texto, y lo leen las dos superficies: la ficha
+		 * (article/components/data/Price.vue) y las dos tarjetas de listado
+		 * (common/article-card/body/Price.vue y common/ArticleCard.vue). Cambiarlo aca los
+		 * cambia a los tres de una.
+		 *
+		 * El texto era "20% de descuento" hasta el 16/9/2026. Se acorto a "off" por pedido de
+		 * Lucas para copiar la ficha de Mercado Libre: el badge es chico y el texto largo lo
+		 * obligaba a partirse en dos renglones o a bajar solo debajo del precio.
 		 *
 		 * @param {object} descuento
 		 * @returns {string}
 		 */
 		texto_de_descuento(descuento) {
 			if (this.porcentaje_de_descuento_usable(descuento.percentage)) {
-				return this.formatDecimals(String(descuento.percentage)) + '% de descuento'
+				return this.formatDecimals(String(descuento.percentage)) + '% off'
 			}
 			if (this.monto_de_descuento_usable(descuento.amount)) {
 				/* price(monto, false) recorta los decimales SOLO cuando son ".00", igual
-				   criterio que formatDecimals() ya aplica al porcentaje de arriba: "$100 de
-				   descuento", no "$100.00 de descuento", para un monto redondo. */
-				return this.price(Number(descuento.amount), false) + ' de descuento'
+				   criterio que formatDecimals() ya aplica al porcentaje de arriba: "$100 off",
+				   no "$100.00 off", para un monto redondo. */
+				return this.price(Number(descuento.amount), false) + ' off'
 			}
 			return ''
 		},

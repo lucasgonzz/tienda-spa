@@ -48,15 +48,28 @@
 				class="product-price"
 				v-else>
 					<!--
-						El precio ORIGINAL tachado, en su propio renglon ARRIBA del precio con
-						los descuentos generales del articulo. Excluyente con el tachado de
-						oferta personalizada de abajo: descuentos_visibles() devuelve [] apenas
-						hay una oferta personalizada activa.
+						El renglon del descuento, ARRIBA del precio: el badge verde primero y a
+						su derecha el precio original tachado. Es el orden de la captura de la
+						tarjeta de Mercado Libre, y es al reves que en la ficha, donde el badge
+						va a la derecha del precio grande.
+
+						Excluyente con el tachado de oferta personalizada de abajo:
+						descuentos_visibles() devuelve [] apenas hay una oferta personalizada
+						activa, asi que los dos nunca se dibujan juntos.
 					-->
 					<span
 					v-if="precio_original_con_descuentos"
-					class="price__original-arriba">
-						{{ precio_original_con_descuentos }}
+					class="price__linea-descuento">
+						<b-badge
+						v-for="(descuento, index) in badges_de_descuento"
+						:key="'descuento-'+index"
+						variant="success"
+						class="price__badge-descuento">
+							{{ texto_de_descuento(descuento) }}
+						</b-badge>
+						<span class="price__original-arriba">
+							{{ precio_original_con_descuentos }}
+						</span>
 					</span>
 					{{ articlePriceEfectivo(article) }}
 					<!--
@@ -70,14 +83,6 @@
 					class="price__tachado">
 						{{ precio_sin_oferta(article) }}
 					</span>
-					<!-- Un badge por descuento general, con SU propio porcentaje, a la derecha del precio. -->
-					<b-badge
-					v-for="(descuento, index) in badges_de_descuento"
-					:key="'descuento-'+index"
-					variant="danger"
-					class="price__badge-descuento">
-						{{ texto_de_descuento(descuento) }}
-					</b-badge>
 				</p>
 
 			</div>
@@ -161,39 +166,45 @@ export default {
 // El precio original tachado al lado del descontado. Nunca en rojo: es informacion, no una
 // alarma. Un escalon mas chico que el precio de la tarjeta y bajado de opacidad.
 .price__tachado
-	font-size: .72em
+	font-size: 12px
 	font-weight: 400
 	margin-left: .35em
-	opacity: .45
+	color: rgba(0, 0, 0, .45)
 	text-decoration: line-through
 	// El importe no se parte a la mitad; si no entra al lado, cae entero al renglon de abajo.
 	white-space: nowrap
-	@media screen and (max-width: 576px)
-		font-size: .78em
-		margin-left: .25em
 
-// El precio ORIGINAL tachado, en el renglon de ARRIBA del precio con descuentos. Un escalon
-// mas chico que el precio de la tarjeta y bajado de opacidad: informacion, no alarma.
+// El renglon del descuento: badge verde + precio tachado, ARRIBA del precio grande. Es un
+// bloque para que el precio grande caiga al renglon de abajo, y `flex` con `wrap` para que si
+// entran dos badges y el tachado no se recorte ninguno.
+.price__linea-descuento
+	display: flex
+	flex-direction: row
+	align-items: center
+	flex-wrap: wrap
+	gap: .35rem
+	margin-bottom: .1rem
+
+// El precio ORIGINAL tachado, al lado del badge. Los 12px salen de la captura. Nunca en rojo:
+// es informacion, no una alarma.
 .price__original-arriba
-	display: block
-	font-size: .62em
+	font-size: 12px
 	font-weight: 400
-	line-height: 1.15
-	opacity: .5
+	line-height: 1.2
+	color: rgba(0, 0, 0, .45)
 	text-decoration: line-through
 	white-space: nowrap
-	@media screen and (max-width: 576px)
-		font-size: .68em
 
-// Un badge por descuento, a la derecha del precio nuevo. Inline a proposito: si no entran en
-// el ancho de la tarjeta bajan de renglon ENTEROS, nunca se recortan ni se parten.
+// El badge verde de la captura, a la IZQUIERDA del tachado. El fondo se clava en #00A650 (el
+// unico color que Lucas pidio copiar literal de Mercado Libre) y pisa al `variant="success"`
+// de BootstrapVue, que compila el verde de Bootstrap.
 .price__badge-descuento
-	font-size: .48em
+	font-size: 12px
 	font-weight: 600
-	margin-left: .4em
-	vertical-align: middle
+	line-height: 1.3
+	padding: 2px 5px
+	border-radius: 3px
 	white-space: nowrap
-	@media screen and (max-width: 576px)
-		font-size: .55em
-		margin-left: .3em
+	background-color: #00A650
+	color: #FFF
 </style>
