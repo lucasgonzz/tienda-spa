@@ -244,6 +244,26 @@ export default {
 			}
 		},
 		/**
+		 * Recorta la cantidad del store al stock nuevo cuando cambia la variante elegida.
+		 *
+		 * 🔴 Mismo criterio y mismo aviso que `add-to-cart/Amount.vue` (`check_amount()`):
+		 * "Solo hay N unidades en STOCK". Sin esto, elegir una variante con menos stock que
+		 * la cantidad ya tipeada dejaba el desplegable contradiciendose solo (ej. "Cantidad:
+		 * 10 unidades (+2 disponibles)") y agregaba de mas al carrito.
+		 *
+		 * @returns {void}
+		 */
+		recortar_al_stock() {
+			if (this.max === null) {
+				return
+			}
+			let cantidad_actual = Number(this.$store.state.articles.amount)
+			if (cantidad_actual && !isNaN(cantidad_actual) && cantidad_actual > this.max) {
+				this.$toast.error('Solo hay '+this.max+' unidades en STOCK')
+				this.$store.commit('articles/setAmount', this.max)
+			}
+		},
+		/**
 		 * Cierra el panel al hacer click afuera.
 		 *
 		 * @param {MouseEvent} event
@@ -288,6 +308,15 @@ export default {
 		 */
 		cantidad_store() {
 			this.asegurar_cantidad_valida()
+		},
+		/**
+		 * Al cambiar de variante el tope de stock puede bajar (o subir). Sin este watch la
+		 * cantidad quedaba "pisada" de la variante anterior: se podia mostrar una cantidad
+		 * por encima del stock de la variante recien elegida, contradiciendo al propio
+		 * "(+N disponibles)" de al lado.
+		 */
+		selected_article_variant() {
+			this.recortar_al_stock()
 		},
 	},
 	created() {
