@@ -9,6 +9,13 @@ export default {
 	state: {
 		images: [],
 		similars: [],
+		/*
+		 * Las dos secciones de recomendacion de la ficha. Son arrays PLANOS (no paginados):
+		 * estas secciones no tienen scroll infinito. Vacio significa que la seccion entera no
+		 * se dibuja.
+		 */
+		tambien_compraron_vistas: [],
+		tambien_compraron_compras: [],
 		article_to_show: null,
 		amount: '',
 		// amount: 1,
@@ -45,6 +52,12 @@ export default {
 		},
 		addSimilars(state, value) {
 			state.similars = state.similars.concat(value)
+		},
+		set_tambien_compraron_vistas(state, value) {
+			state.tambien_compraron_vistas = Array.isArray(value) ? value : []
+		},
+		set_tambien_compraron_compras(state, value) {
+			state.tambien_compraron_compras = Array.isArray(value) ? value : []
 		},
 		addArticles(state, articles) {
 			state.articles = state.articles.concat(articles)
@@ -177,6 +190,52 @@ export default {
 			.catch(err => {
 				commit('setLoadingSimilars', false)
 				console.log(err)
+			})
+		},
+		/*
+		 * "Quienes vieron este producto también compraron".
+		 *
+		 * 🔴 El `.catch()` deja el array VACIO y no muestra nada al comprador. Es lo que
+		 * permite que esta version del SPA siga andando contra una API vieja que todavia no
+		 * tiene el endpoint: un 404 o un 500 se traducen en una seccion que no se dibuja, no en
+		 * una pantalla rota. Lo mismo vale para un comercio sin la extension `tracking_buyers`,
+		 * donde el endpoint contesta 200 con la lista vacia.
+		 *
+		 * Se vacia ANTES de pedir: esta vista se reusa al ir de un articulo a otro y si no,
+		 * mientras llega la respuesta, se verian las recomendaciones del articulo anterior.
+		 */
+		get_tambien_compraron_vistas({ commit, state }) {
+			commit('set_tambien_compraron_vistas', [])
+			if (!state.article_to_show) {
+				return Promise.resolve()
+			}
+			return axios.get(`/api/articles/tambien-compraron/vistas/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}`)
+			.then(res => {
+				commit('set_tambien_compraron_vistas', res.data.models)
+			})
+			.catch(err => {
+				console.log('tambien-compraron/vistas no devolvio nada:')
+				console.log(err)
+				commit('set_tambien_compraron_vistas', [])
+			})
+		},
+		/*
+		 * "Quienes compraron este producto también compraron". Mismo criterio de tolerancia que
+		 * la de arriba: sin datos o sin endpoint, array vacio y seccion oculta.
+		 */
+		get_tambien_compraron_compras({ commit, state }) {
+			commit('set_tambien_compraron_compras', [])
+			if (!state.article_to_show) {
+				return Promise.resolve()
+			}
+			return axios.get(`/api/articles/tambien-compraron/compras/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}`)
+			.then(res => {
+				commit('set_tambien_compraron_compras', res.data.models)
+			})
+			.catch(err => {
+				console.log('tambien-compraron/compras no devolvio nada:')
+				console.log(err)
+				commit('set_tambien_compraron_compras', [])
 			})
 		},
 	},

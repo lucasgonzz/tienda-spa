@@ -21,6 +21,19 @@
 			<description></description>
 		</section>
 
+		<!--
+			Las dos secciones de recomendacion, cada una en su propio bloque. Sin datos no se
+			dibuja nada, ni el titulo: el componente tiene el v-if adentro, por eso no van
+			envueltas en un <section> propio (quedaria un bloque vacio con su linea).
+		-->
+		<tambien-compraron
+		titulo="Quienes vieron este producto también compraron"
+		:articulos="tambien_compraron_vistas"></tambien-compraron>
+
+		<tambien-compraron
+		titulo="Quienes compraron este producto también compraron"
+		:articulos="tambien_compraron_compras"></tambien-compraron>
+
 		<section class="article-page__section article-page__section--contact">
 			<contact-info></contact-info>
 		</section>
@@ -72,6 +85,7 @@ export default {
 		ArticleView: () => import('@/components/article/components/article-view/Index'),
 		ContactInfo: () => import('@/components/common/ContactInfo'),
 		AddToCartModal: () => import('@/components/common/add-to-cart-modal/Index'),
+		TambienCompraron: () => import('@/components/article/components/TambienCompraron'),
 	},
 	data() {
 		return {
@@ -101,6 +115,22 @@ export default {
 			}
 			return ''
 		},
+		/**
+		 * "Quienes vieron este producto también compraron". Vacio = seccion oculta.
+		 *
+		 * @returns {Array}
+		 */
+		tambien_compraron_vistas() {
+			return this.$store.state.articles.tambien_compraron_vistas
+		},
+		/**
+		 * "Quienes compraron este producto también compraron". Vacio = seccion oculta.
+		 *
+		 * @returns {Array}
+		 */
+		tambien_compraron_compras() {
+			return this.$store.state.articles.tambien_compraron_compras
+		},
 	},
 	methods: {
 		getArticleToShow() {
@@ -122,6 +152,17 @@ export default {
 		},
 		setArticleProps() {
 			this.$store.dispatch('articles/getSimilars')
+			/*
+			 * Las dos secciones de recomendacion. Van acá y no en created() por lo mismo que el
+			 * resto: setArticleProps() es el EMBUDO ÚNICO de los dos caminos de carga, y esta
+			 * vista se REUSA al ir de un artículo a otro.
+			 *
+			 * No se encadenan ni se espera la respuesta: las dos son independientes entre sí y
+			 * de todo lo demás, y si alguna falla su .catch() deja el array vacío y su sección
+			 * no se dibuja.
+			 */
+			this.$store.dispatch('articles/get_tambien_compraron_vistas')
+			this.$store.dispatch('articles/get_tambien_compraron_compras')
 			this.checkCartArticle()
 			/*
 			 * La cantidad que dejó pedida el mensaje de promoción GANA sobre la del carrito:
