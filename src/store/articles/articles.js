@@ -207,6 +207,18 @@ export default {
 		 */
 		getSimilars({ commit, state }) {
 			commit('setSimilars', [])
+			/*
+			 * 🔴 Misma guarda que las dos secciones de recomendacion, y por el mismo motivo:
+			 * article_to_show puede ser una PromocionVinoteca, cuyo id choca con el de un
+			 * Article cualquiera (las dos tablas arrancan en 1). Sin esto se le pedian los
+			 * similares del articulo con ESE id -productos que no tienen nada que ver- y
+			 * ademas `similars/{promo_id}` tira 500 cuando no existe un Article con ese id.
+			 * Importa mas que antes: los relacionados ahora viven ADENTRO de la tarjeta
+			 * blanca del producto y se leen como parte de su ficha.
+			 */
+			if (!es_articulo_real(state.article_to_show)) {
+				return Promise.resolve()
+			}
 			commit('setLoadingSimilars', true)
 			return axios.get(`/api/articles/similars/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}?page=1&per_page=9`)
 			.then(res => {

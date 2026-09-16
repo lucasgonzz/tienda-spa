@@ -99,14 +99,17 @@
 		font-size: .9em
 		font-weight: bold
 		margin-bottom: 0
+	// Mismos numeros que la plantilla comerciocity, y por el mismo motivo: el nombre va chico y
+	// liviano para que el precio sea lo unico que grita. Salen de la captura que paso Lucas.
 	.product-name
 		@media screen and (max-width: 576px)
-			font-size: 1em
 			margin-bottom: 0
 		@media screen and (min-width: 576px)
-			font-size: 1.2em
-			font-weight: 700
 			margin-bottom: 10px
+		font-size: 14px
+		line-height: 1.25
+		font-weight: 400
+		color: rgba(0, 0, 0, .8)
 		text-align: left
 
 
@@ -141,7 +144,8 @@
 		flex-direction: column
 		justify-content: flex-start
 	.product-price
-		font-size: 1.4em
+		font-size: 24px
+		font-weight: 400
 		margin-bottom: 0
 		text-align: left
 		img 
