@@ -586,6 +586,21 @@ export default {
 				})
 			}
 
+			/*
+				🔴 findIndex devuelve -1 cuando no encontro nada, y abajo ese -1 no seria inocuo:
+				`splice(-1, 1)` cuenta desde el final y borra la ULTIMA linea del carrito -- una
+				que el comprador no pidio sacar --, y `Vue.set(coleccion[-1], ...)` escribe sobre
+				undefined. O sea que el sintoma de "no lo encontre" seria borrar el item
+				equivocado, sin un solo error en consola.
+
+				Es el mismo defecto que esta misma rama tapo del otro lado, en el store de VENDER
+				de empresa-spa (removeItem / updateItem matcheaban por id pelado). Aca la guarda va
+				una sola vez y arriba, asi cubre las tres colecciones.
+			*/
+			if (index === -1) {
+				return
+			}
+
 			if (item.amount > 1 && remove_only_one_amount) {
 				let new_amount = item.amount
 				new_amount--
