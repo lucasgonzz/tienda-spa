@@ -357,12 +357,20 @@ export default {
 		 * Con el carrito: si cambian las líneas (cantidades, un artículo más) las opciones
 		 * quedan viejas y se vuelve a cotizar solo, con un respiro para no disparar una
 		 * cotización por cada toque del "+".
+		 *
+		 * En la ficha del artículo: `firma` también cambia al navegar de un artículo a OTRO,
+		 * porque `Article.vue` reusa el mismo árbol de componentes (no hay ningún `:key` que
+		 * fuerce un remount — confirmado leyendo el archivo). Si no se atendiera acá, la
+		 * precarga del código postal guardado de `created()` correría UNA sola vez por sesión
+		 * de SPA (la primera ficha que se carga) y nunca más, que es exactamente lo que no se
+		 * quiere: el comprador navega de producto en producto todo el tiempo.
 		 */
 		firma() {
-			if (!this.usar_carrito) {
+			if (this.usar_carrito) {
+				this.programar_recotizacion()
 				return
 			}
-			this.programar_recotizacion()
+			this.cotizar_de_nuevo_si_el_buyer_tiene_cp_guardado()
 		},
 	},
 	created() {
@@ -373,19 +381,7 @@ export default {
 			this.cotizar_si_hace_falta()
 			return
 		}
-		/*
-		 * Excepción acotada: si el buyer está logueado y ya tiene un código postal guardado de
-		 * una cotización anterior (`envio_zipcode`), se lo precarga y se cotiza UNA vez al entrar
-		 * a la ficha — es lo que Lucas pidió ("que ya le aparezca el costo del envío más barato").
-		 * No dispara nada para un visitante anónimo ni para un buyer sin código postal guardado:
-		 * esos dos casos siguen tocando "Calcular" como siempre, por el motivo de arriba.
-		 */
-		let buyer = this.$store.state.auth.user
-		if (buyer && buyer.envio_zipcode && !this.zipcode) {
-			this.$store.commit('cart/set_envio_zipcode', buyer.envio_zipcode)
-			this.$store.commit('cart/set_envio_localidad', { city: buyer.envio_city, state: buyer.envio_state })
-			this.cotizar_si_hace_falta()
-		}
+		this.cotizar_de_nuevo_si_el_buyer_tiene_cp_guardado()
 	},
 	beforeDestroy() {
 		if (this.timer_recotizar) {
@@ -406,6 +402,32 @@ export default {
 				return
 			}
 			this.cotizar()
+		},
+		/**
+		 * Ficha del artículo, comprador logueado con código postal guardado en el perfil
+		 * (`envio_zipcode`): muestra el envío más barato sin que toque "Calcular", en
+		 * CUALQUIER artículo que mire, no solo el primero de la sesión (ver el comentario del
+		 * watcher `firma`).
+		 *
+		 * No pisa un código postal que el comprador ya tenga cargado en esta sesión del
+		 * navegador (de este cotizador o de otro: `zipcode` se guarda en `localStorage` y es
+		 * compartido) — el perfil es el punto de partida, no una corrección constante. Si el
+		 * comprador lo cambió a mano para mandarle un regalo a otra ciudad, `cotizar_si_hace_falta`
+		 * sigue cotizando cada artículo con ESE código postal, no con el del perfil.
+		 *
+		 * No hace nada para un visitante anónimo ni para un buyer sin código postal guardado:
+		 * esos dos siguen tocando "Calcular" cuando les interesa, sin ningún cambio.
+		 */
+		cotizar_de_nuevo_si_el_buyer_tiene_cp_guardado() {
+			let buyer = this.$store.state.auth.user
+			if (!buyer || !buyer.envio_zipcode) {
+				return
+			}
+			if (!this.zipcode) {
+				this.$store.commit('cart/set_envio_zipcode', buyer.envio_zipcode)
+				this.$store.commit('cart/set_envio_localidad', { city: buyer.envio_city, state: buyer.envio_state })
+			}
+			this.cotizar_si_hace_falta()
 		},
 		programar_recotizacion() {
 			if (this.timer_recotizar) {
