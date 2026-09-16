@@ -15,7 +15,7 @@
 			sentido mandar a leer mas de lo que ya se esta leyendo.
 		-->
 		<button
-		v-if="hay_que_recortar"
+		v-if="hay_que_recortar && !esta_en_modal"
 		type="button"
 		class="saber-del-producto__link"
 		@click="ver_caracteristicas">
@@ -34,6 +34,28 @@ export default {
 		 */
 		article() {
 			return this.$store.state.articles.article_to_show
+		},
+		/**
+		 * Si esta instancia esta montada adentro del modal de agregar al carrito, donde NO
+		 * existe el ancla `#descripcion-completa` -esa la pone `views/Article.vue`, que no
+		 * envuelve al modal-. Mismo mecanismo que ya usa `article-view/Index.vue` para la
+		 * misma pregunta (subir por $parent hasta encontrar el BModal de BootstrapVue).
+		 *
+		 * Sin esto "Ver caracteristicas" quedaba visible en el modal: abierto desde Home
+		 * no hacia nada (no hay ancla en el DOM) y abierto desde la ficha scrolleaba la
+		 * pagina de atras con el modal encima.
+		 *
+		 * @returns {boolean}
+		 */
+		esta_en_modal() {
+			let padre = this.$parent
+			while (padre) {
+				if (padre.$options && padre.$options.name == 'BModal') {
+					return true
+				}
+				padre = padre.$parent
+			}
+			return false
 		},
 		/**
 		 * Cuantos caracteres se muestran antes de recortar.

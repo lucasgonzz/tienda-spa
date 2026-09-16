@@ -37,6 +37,14 @@
 			-->
 			<relacionados v-if="es_ficha"></relacionados>
 		</div>
+
+		<!--
+			En el modal de agregar al carrito la descripcion completa vive ACA: no hay una
+			`views/Article.vue` alrededor que la dibuje en su propia seccion (esa es la
+			pagina entera, y no envuelve al modal). En la ficha real no se repite: ya la
+			dibuja `views/Article.vue`, en su seccion con el ancla `#descripcion-completa`.
+		-->
+		<description v-if="!es_ficha"></description>
 	</div>
 </template>
 <script>
@@ -48,6 +56,7 @@ export default {
 		ArticleData: () => import('@/components/article/components/data/Index'),
 		CajaDeCompra: () => import('@/components/article/components/data/buy-box/Index'),
 		Relacionados: () => import('@/components/article/components/Relacionados'),
+		Description: () => import('@/components/article/components/Description'),
 	},
 	computed: {
 		/**
