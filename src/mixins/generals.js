@@ -442,14 +442,6 @@ export default {
 				if (!rango) {
 					return
 				}
-				/* Criterio 4: sin precio usable el rango no existe para nadie. */
-				if (rango.price === null || typeof rango.price == 'undefined') {
-					return
-				}
-				let precio = Number(rango.price)
-				if (!isFinite(precio) || precio <= 0) {
-					return
-				}
 				let amount = Number(rango.amount)
 				if (!isFinite(amount)) {
 					return
@@ -469,6 +461,44 @@ export default {
 					elegido = rango
 				}
 			})
+			/*
+				🔴 Criterio 4, y va SOBRE EL GANADOR — no adentro del forEach. El orden acá no es
+				cosmetico: decide un numero distinto.
+
+				Medido el 16/9/2026 con dos tramos, `>=10 -> $3000` y `>=20 -> price NULL`, y 25
+				unidades en el carrito:
+
+				  · filtrando el precio ANTES de elegir, el tramo sin precio no compite y gana el
+				    de 10  ->  se MUESTRA $3000
+				  · filtrando DESPUES, gana el de 20 por tener mayor `amount`, se queda sin precio
+				    usable y cae al precio normal  ->  se COBRA $3948
+
+				O sea: el comprador veia $3000 y pagaba $3948. Manda la segunda forma, y no por
+				gusto: es lo que hacen las otras DOS implementaciones de esta misma regla.
+				`ArticlePriceRangeHelper::rango()` + `::precio()` de tienda-api (que es quien
+				cobra) elige el ganador sin mirar el precio, y el ERP —
+				empresa-spa/src/mixins/vender/article_price_range.js, donde estos tramos se
+				cargan y ya funcionan— hace el `reduce` por `amount` y recien despues escribe
+				`price_vender_personalizado = Number(range.price)`, que con NULL da 0, es falsy y
+				lo manda al precio normal. Las tres coinciden ahora.
+
+				La clase esta documentada en APRENDER_NO_PARCHEAR.md, "el mismo invariante
+				decidido con dos criterios distintos en front y back": ninguna de las dos formas
+				esta mal leida sola, el defecto vive ENTRE las dos y no lo ve ningun test que
+				ejerza un solo lado.
+			*/
+			if (elegido === null) {
+				return null
+			}
+			let precio_del_ganador = Number(elegido.price)
+			if (
+				elegido.price === null
+				|| typeof elegido.price == 'undefined'
+				|| !isFinite(precio_del_ganador)
+				|| precio_del_ganador <= 0
+			) {
+				return null
+			}
 			return elegido
 		},
 		/**
