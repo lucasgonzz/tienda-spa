@@ -16,6 +16,7 @@
 			se cambia, hay que cambiarlo tambien en `data/SaberDelProducto.vue`.
 		-->
 		<section
+		v-if="tiene_descripcion"
 		id="descripcion-completa"
 		class="article-page__section article-page__section--descripcion">
 			<description></description>
@@ -96,6 +97,20 @@ export default {
 	computed: {
 		article() {
 			return this.$store.state.articles.article_to_show
+		},
+		/**
+		 * Si hay algo que mostrar en la descripcion completa. Mismo criterio que el "show"
+		 * de `Description.vue`, que es lo que dibuja adentro: la seccion se armaba igual sin
+		 * esto -sin v-if propio- y un articulo sin descripcion dejaba una raya horizontal y
+		 * aire en blanco antes del contacto.
+		 *
+		 * @returns {boolean}
+		 */
+		tiene_descripcion() {
+			if (!this.article) {
+				return false
+			}
+			return !!((this.article.descriptions && this.article.descriptions.length) || this.article.description)
 		},
 		title() {
 			if (this.article) {
