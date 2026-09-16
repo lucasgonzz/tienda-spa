@@ -1,5 +1,7 @@
 <template>
-	<div class="caja-compra">
+	<div
+	class="caja-compra"
+	:class="tiene_recuadro ? 'caja-compra--recuadro' : ''">
 		<!-- El renglon de envio. Se oculta entero si no hay nada que decir. -->
 		<envio
 		:article="article"></envio>
@@ -99,6 +101,27 @@ export default {
 			}
 			return this.hasStock(this.article)
 		},
+		/**
+		 * Si la caja dibuja su recuadro.
+		 *
+		 * 🔴 No siempre hay algo que encuadrar. Con un comercio que exige registro para comprar
+		 * (`register_to_buy`) y un visitante sin sesion, `add-to-cart` no dibuja nada y los
+		 * botones tampoco: quedaba un recuadro vacio de 16px de padding colgando a la derecha
+		 * de la ficha. El renglon de envio, cuando es lo unico que hay, se lee mejor suelto.
+		 *
+		 * @returns {boolean}
+		 */
+		tiene_recuadro() {
+			if (this.puede_comprar) {
+				return true
+			}
+			/* Agotado: ahi `add-to-cart` dibuja el aviso y el boton de "avisarme cuando este
+			   disponible", que si tienen que ir encuadrados. */
+			if (!this.authenticated && !this.puede_comprar_sin_login) {
+				return false
+			}
+			return !!this.article && !this.hasStock(this.article)
+		},
 	},
 	methods: {
 		/**
@@ -139,14 +162,17 @@ export default {
 }
 </script>
 <style scoped lang="sass">
-// El recuadro propio de la columna derecha, con los numeros de la captura.
 .caja-compra
 	box-sizing: border-box
-	border: 1px solid rgba(0, 0, 0, .12)
-	border-radius: 6px
-	padding: 16px
-	background: #FFF
 	text-align: left
+
+	// El recuadro propio de la columna derecha, con los numeros de la captura. Solo cuando hay
+	// algo adentro: ver `tiene_recuadro`.
+	&.caja-compra--recuadro
+		border: 1px solid rgba(0, 0, 0, .12)
+		border-radius: 6px
+		padding: 16px
+		background: #FFF
 
 	.caja-compra__stock
 		margin: .85rem 0 .35rem 0
