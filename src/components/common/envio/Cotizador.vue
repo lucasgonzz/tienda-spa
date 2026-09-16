@@ -4,7 +4,7 @@
 	:class="{'envio-cotizador--seleccionable': seleccionable}">
 
 		<!-- Es un <label> y no un <p>: apunta al input del CP (el id lleva _uid porque el pie del
-		     carrito monta este componente dos veces y los ids tienen que ser únicos). -->
+		carrito monta este componente dos veces y los ids tienen que ser únicos). -->
 		<label
 		:for="'envio-cp-' + _uid"
 		class="envio-cotizador__label">
@@ -98,100 +98,58 @@
 				{{ texto_destino }}
 			</p>
 
+			<!--
+				Checkout: lista elegible completa, sin modal — ahí el comprador tiene que poder
+				tocar una opción, un paso extra le suma fricción justo donde no hace falta.
+			-->
 			<div
-			:role="seleccionable ? 'radiogroup' : null"
-			:aria-label="seleccionable ? 'Forma de envío' : null">
-				<div
+			v-if="seleccionable"
+			role="radiogroup"
+			aria-label="Forma de envío">
+				<envio-opcion-card
 				v-for="opcion in opciones_visibles"
 				:key="opcion.key"
-				class="envio-opcion"
-				:class="{
-					'checkout-option': seleccionable,
-					'checkout-option--selected': seleccionable && esta_elegida(opcion),
-					'envio-opcion--fija': !seleccionable,
-				}"
-				:role="seleccionable ? 'radio' : null"
-				:tabindex="seleccionable ? 0 : null"
-				:aria-checked="seleccionable ? (esta_elegida(opcion) ? 'true' : 'false') : null"
+				:opcion="opcion"
+				seleccionable
+				:elegida="esta_elegida(opcion)"
+				:point_id="point_id"
 				@click="elegir(opcion)"
-				@keyup.enter="elegir(opcion)"
-				@keyup.space.prevent="elegir(opcion)">
-
-					<span
-					v-if="seleccionable"
-					class="checkout-option__radio"></span>
-
-					<img
-					v-if="opcion.carrier_logo"
-					:src="opcion.carrier_logo"
-					:alt="opcion.carrier_name"
-					class="envio-opcion__logo"
-					@error="ocultar_logo">
-
-					<div class="envio-opcion__body">
-						<p class="envio-opcion__nombre">
-							{{ opcion.carrier_name }}
-							<span class="envio-opcion__servicio">· {{ opcion.service_name }}</span>
-						</p>
-						<p
-						v-if="texto_plazo(opcion)"
-						class="envio-opcion__plazo">
-							{{ texto_plazo(opcion) }}
-						</p>
-						<div
-						v-if="chips(opcion).length"
-						class="checkout-option__tags envio-opcion__chips">
-							<span
-							v-for="chip in chips(opcion)"
-							:key="chip"
-							class="checkout-tag checkout-tag--good">
-								{{ chip }}
-							</span>
-						</div>
-
-					</div>
-
-					<p
-					class="envio-opcion__precio"
-					:class="{'envio-opcion__precio--gratis': es_gratis(opcion)}">
-						{{ texto_precio(opcion) }}
-					</p>
-
-					<!--
-						Retiro en sucursal del correo: el comprador elige en cuál. Va después del precio
-						y ocupa todo el ancho de la tarjeta (flex-wrap): adentro del cuerpo, en un
-						teléfono, el select quedaba en 150px y no se leía el nombre de la sucursal.
-					-->
-					<div
-					v-if="seleccionable && esta_elegida(opcion) && opcion.es_punto_de_retiro"
-					class="envio-opcion__sucursales"
-					@click.stop
-					@keyup.stop>
-						<label
-						:for="'envio-sucursal-' + _uid"
-						class="checkout-field__label">
-							¿En qué sucursal lo retirás?
-						</label>
-						<b-form-select
-						v-if="opcion.puntos_de_retiro && opcion.puntos_de_retiro.length"
-						:id="'envio-sucursal-' + _uid"
-						v-model="point_id"
-						:options="opciones_sucursal(opcion)"
-						class="envio-cotizador__select"></b-form-select>
-						<p
-						v-else
-						class="envio-cotizador__hint m-b-0">
-							El correo te va a indicar la sucursal más cercana a tu código postal.
-						</p>
-					</div>
-				</div>
+				@input="point_id = $event"></envio-opcion-card>
 			</div>
+
+			<!--
+				Artículo y carrito: solo informan. Se muestra el más barato y el resto queda en un
+				modal aparte — la lista completa apretada adentro de la tarjeta del artículo era
+				el problema que reportó Lucas.
+			-->
+			<template v-else>
+				<envio-opcion-card :opcion="opcion_mas_barata"></envio-opcion-card>
+
+				<button
+				type="button"
+				v-b-modal="'envio-modal-' + _uid"
+				class="envio-cotizador__link-modal">
+					Costos y tiempo de entrega
+				</button>
+
+				<b-modal
+				:id="'envio-modal-' + _uid"
+				title="Costos y tiempo de entrega"
+				hide-footer
+				centered>
+					<envio-opcion-card
+					v-for="opcion in opciones_visibles"
+					:key="opcion.key"
+					:opcion="opcion"></envio-opcion-card>
+				</b-modal>
+			</template>
 		</div>
 	</div>
 </template>
 <script>
 import { PROVINCIAS, normalizar_provincia } from '@/constants/provincias'
 import { firma_de_lineas, lineas_del_carrito } from '@/store/cart'
+import EnvioOpcionCard from '@/components/common/envio/EnvioOpcionCard'
 
 /**
  * Cotizador de envío por correo (Zipnova): el comprador escribe su código postal y ve los
@@ -213,6 +171,9 @@ import { firma_de_lineas, lineas_del_carrito } from '@/store/cart'
  */
 export default {
 	name: 'CotizadorEnvio',
+	components: {
+		EnvioOpcionCard,
+	},
 	props: {
 		/**
 		 * Líneas a cotizar cuando NO es el carrito: [{id, amount}]. Se llama `articulos` y no
@@ -374,6 +335,22 @@ export default {
 			}
 			return 'Envío gratis en compras desde ' + this.price(desde, false)
 		},
+		/**
+		 * La opción más barata de `opciones_visibles`, para el resumen que se ve sin abrir el
+		 * modal (artículo y carrito). Zipnova ya las devuelve ordenadas por precio
+		 * (`ZipnovaCotizadorService::cotizar` manda `sort_by: 'price'`), pero acá se busca el
+		 * mínimo explícito en vez de asumir `[0]`: es una sola cuenta y no depende de que ese
+		 * orden se mantenga si el día de mañana cambia el criterio de ordenamiento.
+		 * @returns {object}
+		 */
+		opcion_mas_barata() {
+			return this.opciones_visibles.reduce(function(mas_barata, opcion) {
+				if (!mas_barata || Number(opcion.precio) < Number(mas_barata.precio)) {
+					return opcion
+				}
+				return mas_barata
+			}, null)
+		},
 	},
 	watch: {
 		/**
@@ -390,9 +367,23 @@ export default {
 	},
 	created() {
 		// Carrito y checkout: si hay código postal y las opciones no son de estas líneas, se
-		// cotiza solo. En la página del artículo no: cada artículo que se mira sería una
-		// cotización, y el comprador toca "Calcular" cuando le interesa.
+		// cotiza solo. En la página del artículo NO, salvo la excepción de abajo: cada artículo
+		// que se mira sería una cotización, y el comprador toca "Calcular" cuando le interesa.
 		if (this.usar_carrito) {
+			this.cotizar_si_hace_falta()
+			return
+		}
+		/*
+		 * Excepción acotada: si el buyer está logueado y ya tiene un código postal guardado de
+		 * una cotización anterior (`envio_zipcode`), se lo precarga y se cotiza UNA vez al entrar
+		 * a la ficha — es lo que Lucas pidió ("que ya le aparezca el costo del envío más barato").
+		 * No dispara nada para un visitante anónimo ni para un buyer sin código postal guardado:
+		 * esos dos casos siguen tocando "Calcular" como siempre, por el motivo de arriba.
+		 */
+		let buyer = this.$store.state.auth.user
+		if (buyer && buyer.envio_zipcode && !this.zipcode) {
+			this.$store.commit('cart/set_envio_zipcode', buyer.envio_zipcode)
+			this.$store.commit('cart/set_envio_localidad', { city: buyer.envio_city, state: buyer.envio_state })
 			this.cotizar_si_hace_falta()
 		}
 	},
@@ -443,12 +434,38 @@ export default {
 			this.$store.dispatch('cart/cotizar_envio', payload)
 			.then(function() {
 				self.$emit('cotizado')
+				self.guardar_zipcode_en_el_perfil()
 			})
 			.catch(function(err) {
 				let data = err && err.response && err.response.data ? err.response.data : {}
 				if (data.needs_location && !self.envio.city) {
 					self.resolver_localidad_con_google()
 				}
+			})
+		},
+		/**
+		 * Si hay un buyer logueado y lo que se acaba de cotizar (con localidad/provincia YA
+		 * resueltas, no `needs_location`) difiere de lo que tiene guardado, lo guarda en su
+		 * perfil para la próxima visita. Va acá y no en un solo lugar del carrito/checkout para
+		 * cubrir los tres cotizadores (artículo, carrito, checkout) desde donde ya se resuelve la
+		 * cotización con éxito. No bloquea ni avisa si falla: es un guardado de conveniencia.
+		 */
+		guardar_zipcode_en_el_perfil() {
+			let buyer = this.$store.state.auth.user
+			if (!buyer || this.envio.needs_location || !this.envio.zipcode) {
+				return
+			}
+			if (
+				buyer.envio_zipcode === this.envio.zipcode
+				&& (buyer.envio_city || '') === (this.envio.city || '')
+				&& (buyer.envio_state || '') === (this.envio.state || '')
+			) {
+				return
+			}
+			this.$store.dispatch('auth/guardar_envio_zipcode', {
+				zipcode: this.envio.zipcode,
+				city: this.envio.city || null,
+				state: this.envio.state || null,
 			})
 		},
 		/**
@@ -522,99 +539,6 @@ export default {
 		},
 		esta_elegida(opcion) {
 			return this.envio.opcion_key == opcion.key
-		},
-		es_gratis(opcion) {
-			return !!(opcion.envio_gratis || Number(opcion.precio) === 0)
-		},
-		/**
-		 * Precio de la opción: "Gratis" o el importe. `price()` del mixin devuelve "-" con cero,
-		 * por eso el caso gratis va antes.
-		 * @param {object} opcion
-		 * @returns {string}
-		 */
-		texto_precio(opcion) {
-			if (this.es_gratis(opcion)) {
-				return 'Gratis'
-			}
-			return this.price(opcion.precio)
-		},
-		/**
-		 * "Llega en 3 a 5 días hábiles", "Llega en 2 días hábiles", "Llega en 1 día hábil" o, sin
-		 * días, "Llega el 21/09".
-		 * @param {object} opcion
-		 * @returns {string}
-		 */
-		texto_plazo(opcion) {
-			let min = opcion.dias_min
-			let max = opcion.dias_max
-			if (min !== null && min !== undefined && max !== null && max !== undefined) {
-				min = Number(min)
-				max = Number(max)
-				if (min === max) {
-					if (min === 1) {
-						return 'Llega en 1 día hábil'
-					}
-					return 'Llega en ' + min + ' días hábiles'
-				}
-				return 'Llega en ' + min + ' a ' + max + ' días hábiles'
-			}
-			if (opcion.estimated_delivery) {
-				let fecha = new Date(opcion.estimated_delivery)
-				if (!isNaN(fecha.getTime())) {
-					let dia = String(fecha.getDate()).padStart(2, '0')
-					let mes = String(fecha.getMonth() + 1).padStart(2, '0')
-					return 'Llega el ' + dia + '/' + mes
-				}
-			}
-			return ''
-		},
-		/**
-		 * Etiquetas de la opción a partir de los `tags` de Zipnova.
-		 * @param {object} opcion
-		 * @returns {string[]}
-		 */
-		chips(opcion) {
-			let chips = []
-			;(opcion.tags || []).forEach(tag => {
-				if (tag == 'cheapest') {
-					chips.push('Más barato')
-				} else if (tag == 'fastest') {
-					chips.push('Más rápido')
-				}
-			})
-			return chips
-		},
-		/**
-		 * Opciones del select de sucursales de una opción de retiro.
-		 * @param {object} opcion
-		 * @returns {Array}
-		 */
-		opciones_sucursal(opcion) {
-			let options = [{ value: null, text: 'Elegí la sucursal' }]
-			;(opcion.puntos_de_retiro || []).forEach(punto => {
-				let direccion = (punto.street + ' ' + punto.street_number).trim()
-				let texto = punto.description
-				if (direccion) {
-					texto += ' — ' + direccion
-				}
-				if (punto.city) {
-					texto += ', ' + punto.city
-				}
-				if (punto.open_hours) {
-					texto += ' (' + punto.open_hours + ')'
-				}
-				options.push({ value: punto.point_id, text: texto })
-			})
-			return options
-		},
-		/**
-		 * El logo del correo no cargó: se esconde y queda el nombre, que siempre está.
-		 * @param {Event} event
-		 */
-		ocultar_logo(event) {
-			if (event && event.target) {
-				event.target.style.display = 'none'
-			}
 		},
 	},
 }
@@ -710,75 +634,24 @@ export default {
 	color: rgba(0, 0, 0, .55)
 	margin: 0 0 .5rem
 
-// Una opción (correo + servicio). En el checkout lleva además .checkout-option (tarjeta elegible).
-.envio-opcion
-	display: flex
-	flex-wrap: wrap
-	align-items: flex-start
-	gap: .7rem
-
-.envio-opcion--fija
-	padding: .65rem 0
-	border-top: 1px solid rgba(0, 0, 0, .08)
-
-	&:last-child
-		border-bottom: 1px solid rgba(0, 0, 0, .08)
-
-.envio-opcion__logo
-	flex: 0 0 auto
-	width: 40px
-	height: 28px
-	object-fit: contain
-	margin-top: 2px
-
-// Base 0: con flex-wrap en la tarjeta, un nombre largo no manda el precio a la línea de abajo.
-.envio-opcion__body
-	flex: 1 1 0%
-	min-width: 0
-
-.envio-opcion__nombre
-	font-size: .95rem
+// Resumen no seleccionable (artículo, carrito): texto-link que abre el modal con el resto de
+// las opciones. Sin fondo ni borde a propósito — no compite con "Calcular" ni con "Agregar".
+.envio-cotizador__link-modal
+	display: inline-block
+	margin-top: .5rem
+	padding: 0
+	border: none
+	background: none
+	font-size: .88rem
 	font-weight: 600
-	color: #1a1a1a
-	margin: 0
-	line-height: 1.35
+	color: var(--secondary-color, #0d6efd)
+	text-decoration: underline
+	text-underline-offset: 2px
+	cursor: pointer
 
-.envio-opcion__servicio
-	font-weight: 400
-	color: rgba(0, 0, 0, .6)
-
-.envio-opcion__plazo
-	font-size: .84rem
-	color: rgba(0, 0, 0, .6)
-	margin: .15rem 0 0
-
-.envio-opcion__chips
-	margin-top: .35rem
-
-.envio-opcion__precio
-	flex: 0 0 auto
-	font-size: .98rem
-	font-weight: 700
-	color: #1a1a1a
-	white-space: nowrap
-	margin: 0
-	padding-left: .4rem
-
-.envio-opcion__precio--gratis
-	color: #1b7a3d
-
-// Ocupa el ancho entero de la tarjeta, alineado con el cuerpo (después del radio y su gap).
-.envio-opcion__sucursales
-	flex: 0 0 100%
-	margin-top: .2rem
-	padding-left: calc(20px + .8rem)
-	cursor: default
-
-	.checkout-field__label
-		margin-bottom: .35rem
-
-	@media screen and (max-width: 767px)
-		padding-left: 0
+	&:hover,
+	&:focus
+		opacity: .8
 
 // Dentro de la tarjeta del carrito y de la del artículo el bloque va separado del resto.
 .cart-summary .envio-cotizador,
