@@ -1,26 +1,58 @@
 <template>
 	<div
-	v-if="data_seted"
+	v-if="data_seted || articulo_no_encontrado"
 	class="article-page view">
-		<add-to-cart-modal></add-to-cart-modal>
+		<div
+		v-if="articulo_no_encontrado"
+		class="payment-result">
+			<div class="payment-result__card">
+				<i class="bi bi-exclamation-triangle-fill payment-result__icon payment-result__icon--error"></i>
 
-		<advise></advise>
+				<h1 class="payment-result__title">
+					No pudimos cargar este producto
+				</h1>
+				<p class="payment-result__text">
+					Puede que ya no esté disponible, o que se haya cortado la conexión un instante.
+				</p>
 
-		<div class="article-page__main">
-			<article-view></article-view>
+				<div class="payment-result__actions">
+					<b-button
+					block
+					variant="success"
+					@click="getArticleToShowBySlug">
+						Reintentar
+					</b-button>
+					<b-button
+					block
+					variant="outline-secondary"
+					:to="{name: 'Home'}">
+						Volver a la tienda
+					</b-button>
+				</div>
+			</div>
 		</div>
 
-		<section
-		class="article-page__section article-page__section--similars">
-			<p class="article-page__section-eyebrow">
-				También te puede interesar
-			</p>
-			<similars></similars>
-		</section>
+		<template v-else>
+			<add-to-cart-modal></add-to-cart-modal>
 
-		<section class="article-page__section article-page__section--contact">
-			<contact-info></contact-info>
-		</section>
+			<advise></advise>
+
+			<div class="article-page__main">
+				<article-view></article-view>
+			</div>
+
+			<section
+			class="article-page__section article-page__section--similars">
+				<p class="article-page__section-eyebrow">
+					También te puede interesar
+				</p>
+				<similars></similars>
+			</section>
+
+			<section class="article-page__section article-page__section--contact">
+				<contact-info></contact-info>
+			</section>
+		</template>
 	</div>
 </template>
 
@@ -76,6 +108,7 @@ export default {
 		return {
 			loading: false,
 			data_seted: false,
+			articulo_no_encontrado: false,
 		}
 	},
 	computed: {
@@ -116,7 +149,20 @@ export default {
 					commerce_id: this.$route.params.commerce_id,
 				})
 				.then(() => {
-					this.setArticleProps()
+					/*
+					 * article_to_show puede quedar en null por dos caminos: el fetch falló y el
+					 * catch de la action lo absorbió sin relanzar, o el backend respondió 200 con
+					 * article: null (slug/commerce_id que no matchean ningún Article ni
+					 * PromocionVinoteca). En los dos casos NO hay que llamar a setArticleProps():
+					 * getSimilars() y checkCartArticleVariant() asumen un artículo real y tiran
+					 * TypeError apenas lo leen, lo que aborta la función ANTES de la línea que pone
+					 * data_seted en true -- la pantalla quedaba en blanco para siempre y sin ningún
+					 * aviso (informe 20260916-detalle-articulo-recarga).
+					 */
+					this.articulo_no_encontrado = !this.article
+					if (this.article) {
+						this.setArticleProps()
+					}
 				})
 		},
 		setArticleProps() {
