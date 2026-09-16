@@ -1,43 +1,24 @@
 <template>
-	<div
+	<!--
+		El renglon "Nuevo" de la captura: discreto, arriba del nombre del articulo. El
+		"+1000 vendidos" de al lado NO se agrega: ese dato no existe en el payload de la
+		tienda y no se inventa.
+	-->
+	<p
 	v-if="article_to_show.condition_id"
-	class="m-t-10">
-		<p
-		class="text-left m-b-5">
-			<strong>
-				{{ article_to_show.condition.name }}
-			</strong>
-		</p>
-		<p
-		class="text-left">
-			{{ article_to_show.condition.description }}
-		</p>
-	</div>
+	class="condicion-articulo">
+		{{ article_to_show.condition.name }}
+	</p>
 </template>
 <script>
 export default {
-	methods: {
-		isCondition(condition) {
-			if (this.article_to_show.condition_id && this.article_to_show.condition_id == condition.id) {
-				return ' condition-selected bg-success'
-			}
-			return 'condition-not-selected'
-		}
-	}
+	name: 'Condition',
 }
 </script>
-<style lang="sass">
-.conditions 
-	display: flex
-.condition
-	// border: 1.5px solid rgba(0,0,0,.7)
-	border-radius: 1em
-	padding: .5em 1em
-	margin-right: 1em
-.condition-selected
-	font-weight: bold
-	color: #FFF
-.condition-not-selected
-	font-weight: 600
-	color: rgba(0,0,0,.5)
+<style scoped lang="sass">
+.condicion-articulo
+	margin: 0 0 2px 0
+	font-size: 14px
+	line-height: 1.35
+	color: rgba(0, 0, 0, .55)
 </style>

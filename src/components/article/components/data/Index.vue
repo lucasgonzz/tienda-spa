@@ -15,7 +15,7 @@
 		`_plantilla_comerciocity.sass` (padding de 28px, nombre de 26px) con especificidad
 		(0,3,0) que con el nombre viejo seguian mandando y dejaban un marco adentro de otro.
 
-		El orden es el de las capturas de Mercado Libre: nombre → condicion → precio → cuotas →
+		El orden es el de las capturas de Mercado Libre: condicion → nombre → precio → cuotas →
 		envio → variantes → lo que tenes que saber. La caja de compra se fue a su propia columna
 		(`buy-box/Index.vue`).
 	-->
@@ -26,9 +26,9 @@
 	<div
 	class="ficha-datos"
 	v-if="article_to_show">
-		<name-heart></name-heart>
-
 		<condition></condition>
+
+		<name-heart></name-heart>
 
 		<price></price>
 		<vinoteca></vinoteca>
