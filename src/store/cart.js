@@ -219,6 +219,12 @@ export default {
 		cart: {
 			articles: [],
 			promociones_vinoteca: [],
+			/*
+			 * Tercera colección del carrito, hermana de `promociones_vinoteca`. Un combo NO es
+			 * un artículo: tiene su propia secuencia de ids y su propio pivote (`cart_combo`),
+			 * así que mezclarlo con `articles` haría que un id repetido pise la línea de otro.
+			 */
+			combos: [],
 			deliver: 0,
 			description: '',
 			payment_id: '',
@@ -504,9 +510,21 @@ export default {
 		addItem(state, item) {
 
 			let is_promocion_vinoteca = item.is_promocion_vinoteca
+			let is_combo = item.is_combo
 			let index
 
-			if (is_promocion_vinoteca) {
+			/* Un carrito que vino de una API sin combos no trae la clave. Ver setCart(). */
+			if (!Array.isArray(state.cart.combos)) {
+				Vue.set(state.cart, 'combos', [])
+			}
+
+			if (is_combo) {
+
+				index = state.cart.combos.findIndex(combo => {
+					return combo.id == item.id
+				})
+
+			} else if (is_promocion_vinoteca) {
 
 				index = state.cart.promociones_vinoteca.findIndex(promo => {
 					return promo.id == item.id
@@ -521,13 +539,17 @@ export default {
 			}
 
 			if (index != -1) {
-				if (is_promocion_vinoteca) {
+				if (is_combo) {
+					state.cart.combos.splice(index, 1)
+				} else if (is_promocion_vinoteca) {
 					state.cart.promociones_vinoteca.splice(index, 1)
 				} else {
 					state.cart.articles.splice(index, 1)
 				}
 			} else {
-				if (is_promocion_vinoteca) {
+				if (is_combo) {
+					state.cart.combos.push(item)
+				} else if (is_promocion_vinoteca) {
 					state.cart.promociones_vinoteca.push(item)
 				} else {
 					state.cart.articles.push(item)
@@ -540,9 +562,19 @@ export default {
 			}
 
 			let is_promocion_vinoteca = item.is_promocion_vinoteca
+			let is_combo = item.is_combo
 
-			let index 
-			if (is_promocion_vinoteca) {
+			if (!Array.isArray(state.cart.combos)) {
+				Vue.set(state.cart, 'combos', [])
+			}
+
+			let index
+			if (is_combo) {
+				console.log('eliminado combo')
+				index = state.cart.combos.findIndex(combo => {
+					return combo.id == item.id
+				})
+			} else if (is_promocion_vinoteca) {
 				console.log('eliminado promocion vinoteca')
 				index = state.cart.promociones_vinoteca.findIndex(promo => {
 					return promo.id == item.id
@@ -553,19 +585,24 @@ export default {
 					return article.id == item.id
 				})
 			}
-			
+
 			if (item.amount > 1 && remove_only_one_amount) {
 				let new_amount = item.amount
 				new_amount--
 				delete item.amount
 
-				if (is_promocion_vinoteca) {
+				if (is_combo) {
+					Vue.set(state.cart.combos[index], 'amount', new_amount)
+				} else if (is_promocion_vinoteca) {
 					Vue.set(state.cart.promociones_vinoteca[index], 'amount', new_amount)
 				} else {
 					Vue.set(state.cart.articles[index], 'amount', new_amount)
 				}
 			} else {
-				if (is_promocion_vinoteca) {
+				if (is_combo) {
+					console.log('se elimino el combo')
+					state.cart.combos.splice(index, 1)
+				} else if (is_promocion_vinoteca) {
 					console.log('se lo eliminio promo')
 					state.cart.promociones_vinoteca.splice(index, 1)
 				} else {
@@ -573,9 +610,19 @@ export default {
 					state.cart.articles.splice(index, 1)
 				}
 			}
-		},	
+		},
 		setCart(state, cart = null) {
 			if (cart) {
+				/*
+				 * 🔴 Una API que todavía no conoce los combos —o un cliente al que todavía no
+				 * le llegó la migración de `cart_combo`— NO manda esta clave. Sin normalizarla
+				 * acá, `state.cart.combos` queda undefined y revienta el primer `.forEach` o
+				 * `.length` que la toque. Se normaliza ANTES de asignar el carrito para que Vue
+				 * la haga reactiva al recorrer el objeto.
+				 */
+				if (!Array.isArray(cart.combos)) {
+					cart.combos = []
+				}
 				state.cart = cart
 				cart.articles.forEach(article => {
 					article.amount = article.pivot.amount
@@ -587,6 +634,11 @@ export default {
 					promo.price = promo.pivot.price
 					promo.notes = promo.pivot.notes
 				})
+				cart.combos.forEach(combo => {
+					combo.amount = combo.pivot.amount
+					combo.price = combo.pivot.price
+					combo.notes = combo.pivot.notes
+				})
 				state.payment_method = cart.payment_method
 				state.delivery_zone = cart.delivery_zone
 				state.cupon = cart.cupon
@@ -596,6 +648,7 @@ export default {
 				state.cart = {
 					articles: [],
 					promociones_vinoteca: [],
+					combos: [],
 					deliver: 0,
 					description: '',
 					payment_id: '',
@@ -692,6 +745,7 @@ export default {
 			if (
 				state.cart.articles.length
 				|| state.cart.promociones_vinoteca.length
+				|| (state.cart.combos && state.cart.combos.length)
 			) {
 				// Sin esto el servidor leería un carrito SIN `envio` y limpiaría la forma de envío
 				// elegida: sacar un artículo cambia el costo, pero no tiene por qué borrar la elección.
