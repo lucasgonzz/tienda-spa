@@ -130,10 +130,18 @@ export default {
 		 * @returns {void}
 		 */
 		elegir(article_property, article_property_value) {
+			/*
+			 * Tocar el chip YA elegido vuelve a "ninguno" (0): el <select> viejo tenia la
+			 * opcion "Seleccione X" para volver atras y los chips no ofrecian forma de
+			 * hacer lo mismo, una vez elegido no habia como destocarlo.
+			 */
+			let valor = this.es_elegido(article_property, article_property_value)
+				? 0
+				: article_property_value.name
 			this.$set(
 				this.article_to_show.selected_article_properties,
 				article_property.article_property_type.name,
-				article_property_value.name
+				valor
 			)
 			this.setSelectedVariant()
 		},

@@ -106,10 +106,15 @@ export default {
 		/**
 		 * El tope por stock, o null si el articulo no lleva control de stock.
 		 *
-		 * 🔴 Es EXACTAMENTE el criterio de `add-to-cart/Amount.vue`, que es el que hoy corta la
-		 * cantidad y avisa "Solo hay N unidades en STOCK": primero el stock de la variante
-		 * elegida (si el articulo tiene variantes), despues el del articulo, y null cuando no
-		 * hay ninguno de los dos. Si alla cambia, tiene que cambiar aca.
+		 * 🔴 Mismo criterio que `add-to-cart/Amount.vue` para la variante elegida con stock
+		 * (si alla cambia esa parte, tiene que cambiar aca): primero el stock de la variante
+		 * elegida, despues el del articulo.
+		 *
+		 * La UNICA diferencia a proposito: con variantes pero SIN ninguna elegida todavia, no
+		 * se cae al `article.stock` de mas abajo. El ERP lleva el stock POR VARIANTE en ese
+		 * caso, asi que ese campo no es un tope real (tipicamente 0) y usarlo igual dejaba el
+		 * panel abierto vacio (`opciones` en []) con "Aplicar" deshabilitado para cualquier
+		 * numero. Sin tope conocido el panel ofrece 1..6 en su lugar.
 		 *
 		 * @returns {number|null}
 		 */
@@ -122,7 +127,11 @@ export default {
 				&& this.selected_article_variant.stock
 			) {
 				return Number(this.selected_article_variant.stock)
-			} else if (this.article && this.article.stock != null) {
+			}
+			if (this.article && this.article.article_variants && this.article.article_variants.length) {
+				return null
+			}
+			if (this.article && this.article.stock != null) {
 				return Number(this.article.stock)
 			}
 			return null
@@ -162,6 +171,10 @@ export default {
 		texto_disponibles() {
 			if (this.max === null || isNaN(this.max) || this.max <= 0) {
 				return null
+			}
+			/* Con 1 sola unidad no hay nada que sumar ni que pluralizar. */
+			if (this.max === 1) {
+				return '(1 disponible)'
 			}
 			return '(+' + this.max + ' disponibles)'
 		},
