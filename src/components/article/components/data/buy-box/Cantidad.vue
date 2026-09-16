@@ -181,6 +181,17 @@ export default {
 			}
 			return true
 		},
+		/**
+		 * La cantidad CRUDA del store, sin el `|| 1` de mostrar de `cantidad`.
+		 *
+		 * 🔴 Existe solo para el watch de mas abajo: `cantidad` nunca deja ver el '' real
+		 * (lo tapa el `|| 1`), y sin verlo no hay forma de saber cuando re-normalizar.
+		 *
+		 * @returns {string|number}
+		 */
+		cantidad_store() {
+			return this.$store.state.articles.amount
+		},
 	},
 	methods: {
 		/**
@@ -265,6 +276,17 @@ export default {
 		 * nuevo no esta en el carrito. Hay que volver a normalizar.
 		 */
 		'article.id'() {
+			this.asegurar_cantidad_valida()
+		},
+		/**
+		 * El desplegable SIEMPRE muestra una cantidad valida (el `|| 1` de `cantidad`), pero
+		 * el store puede quedar en '' por fuera de este componente -por ejemplo
+		 * `add-to-cart/Index.vue` lo vacia despues de guardar el carrito-. Sin este watch el
+		 * desplegable mentia "1 unidad" mientras el store tenia '', y "Actualizar carrito" /
+		 * "Comprar ahora" fallaban en silencio o con un aviso que no coincidia con lo que se
+		 * veia en pantalla.
+		 */
+		cantidad_store() {
 			this.asegurar_cantidad_valida()
 		},
 	},

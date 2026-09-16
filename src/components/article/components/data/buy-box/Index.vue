@@ -34,7 +34,10 @@
 
 			<template v-else>
 				<b-button
+				v-b-tooltip.hover="actualizar_carrito_tooltip_config"
 				class="caja-compra__btn caja-compra__btn--carrito"
+				:class="{ 'caja-compra__btn--actualizar-disabled': actualizar_carrito_disabled }"
+				:aria-disabled="actualizar_carrito_disabled ? 'true' : 'false'"
 				@click="actualizar_carrito">
 					Actualizar carrito
 				</b-button>
@@ -130,6 +133,34 @@ export default {
 			}
 			return !!this.article && !this.hasStock(this.article)
 		},
+		/**
+		 * Si "Actualizar carrito" tiene que verse deshabilitado: sin cantidad valida no hay
+		 * nada que actualizar. El dueno de la logica es `add-to-cart/Index.vue` (mismo
+		 * criterio que ya usa su propio boton "Actualizar"); esto solo lo LEE por ref para
+		 * no duplicarlo. Antes del mount del hijo no hay nada que leer: false por default,
+		 * como ya hacen comprar_ahora/agregar_al_carrito/actualizar_carrito de mas abajo.
+		 *
+		 * @returns {boolean}
+		 */
+		actualizar_carrito_disabled() {
+			if (!this.$refs.add_to_cart) {
+				return false
+			}
+			return this.$refs.add_to_cart.actualizar_carrito_disabled
+		},
+		/**
+		 * El tooltip del boton de arriba. Mismo texto que ya usa `add-to-cart/Index.vue`
+		 * para su propio boton "Actualizar": antes esta caja no lo replicaba, y
+		 * "Actualizar carrito" cortaba en silencio sin avisar nada.
+		 *
+		 * @returns {Object}
+		 */
+		actualizar_carrito_tooltip_config() {
+			return {
+				title: 'Indicá una nueva cantidad para poder actualizar el carrito.',
+				disabled: !this.actualizar_carrito_disabled,
+			}
+		},
 	},
 	methods: {
 		/**
@@ -224,6 +255,14 @@ export default {
 		font-size: 14px
 		font-weight: 400
 		color: rgba(0, 0, 0, .55)
+
+	// Mismo tratamiento que ".add-to-cart__btn-actualizar--disabled" del componente viejo:
+	// sin "disabled" nativo (el tooltip tiene que poder recibir hover igual), la corta de
+	// verdad el guard de adentro de update_article_cart(); esto es solo la senal visual.
+	.caja-compra__btn--actualizar-disabled
+		opacity: 0.65
+		cursor: not-allowed
+		box-shadow: none
 
 	// Ver el comentario del template: el componente se monta igual, lo que se esconde es su
 	// fila de controles, que estos botones reemplazan.
