@@ -1,43 +1,82 @@
 <template>
 	<div
-	v-if="data_seted"
+	v-if="data_seted || articulo_no_encontrado"
 	class="article-page view">
-		<add-to-cart-modal></add-to-cart-modal>
+		<div
+		v-if="articulo_no_encontrado"
+		class="payment-result">
+			<div class="payment-result__card">
+				<i class="bi bi-exclamation-triangle-fill payment-result__icon payment-result__icon--error"></i>
 
-		<advise></advise>
+				<h1 class="payment-result__title">
+					No pudimos cargar este producto
+				</h1>
+				<p class="payment-result__text">
+					Puede que ya no esté disponible, o que se haya cortado la conexión un instante.
+				</p>
 
-		<div class="article-page__main">
-			<article-view></article-view>
+				<div class="payment-result__actions">
+					<b-button
+					block
+					variant="success"
+					@click="getArticleToShowBySlug">
+						Reintentar
+					</b-button>
+					<b-button
+					block
+					variant="outline-secondary"
+					:to="{name: 'Home'}">
+						Volver a la tienda
+					</b-button>
+				</div>
+			</div>
 		</div>
 
 		<!--
-			La descripcion completa, fuera de la tarjeta blanca. El id es el ancla a la que
-			scrollea el "Ver caracteristicas" de "Lo que tenes que saber de este producto": si
-			se cambia, hay que cambiarlo tambien en `data/SaberDelProducto.vue`.
+			🔴 El v-else es de `bd24352` y NO se toca: sin el, cuando el fetch no trae articulo
+			la ficha se dibujaba igual y quedaba en blanco. Todo lo de esta mision va ADENTRO.
 		-->
-		<section
-		v-if="tiene_descripcion"
-		id="descripcion-completa"
-		class="article-page__section article-page__section--descripcion">
-			<description></description>
-		</section>
+		<template v-else>
+			<add-to-cart-modal></add-to-cart-modal>
 
-		<!--
-			Las dos secciones de recomendacion, cada una en su propio bloque. Sin datos no se
-			dibuja nada, ni el titulo: el componente tiene el v-if adentro, por eso no van
-			envueltas en un <section> propio (quedaria un bloque vacio con su linea).
-		-->
-		<tambien-compraron
-		titulo="Quienes vieron este producto también compraron"
-		:articulos="tambien_compraron_vistas"></tambien-compraron>
+			<advise></advise>
 
-		<tambien-compraron
-		titulo="Quienes compraron este producto también compraron"
-		:articulos="tambien_compraron_compras"></tambien-compraron>
+			<div class="article-page__main">
+				<article-view></article-view>
+			</div>
 
-		<section class="article-page__section article-page__section--contact">
-			<contact-info></contact-info>
-		</section>
+			<!--
+				La descripcion completa, fuera de la tarjeta blanca. El id es el ancla a la que
+				scrollea el "Ver caracteristicas" de "Lo que tenes que saber de este producto":
+				si se cambia, hay que cambiarlo tambien en `data/SaberDelProducto.vue`.
+			-->
+			<section
+			v-if="tiene_descripcion"
+			id="descripcion-completa"
+			class="article-page__section article-page__section--descripcion">
+				<description></description>
+			</section>
+
+			<!--
+				Las dos secciones de recomendacion, cada una en su propio bloque. Sin datos no
+				se dibuja nada, ni el titulo: el componente tiene el v-if adentro, por eso no
+				van envueltas en un <section> propio (quedaria un bloque vacio con su linea).
+
+				La seccion suelta de "Tambien te puede interesar" se fue: esos mismos articulos
+				ahora viven ADENTRO de la tarjeta blanca, como relacionados.
+			-->
+			<tambien-compraron
+			titulo="Quienes vieron este producto también compraron"
+			:articulos="tambien_compraron_vistas"></tambien-compraron>
+
+			<tambien-compraron
+			titulo="Quienes compraron este producto también compraron"
+			:articulos="tambien_compraron_compras"></tambien-compraron>
+
+			<section class="article-page__section article-page__section--contact">
+				<contact-info></contact-info>
+			</section>
+		</template>
 	</div>
 </template>
 
@@ -92,6 +131,7 @@ export default {
 		return {
 			loading: false,
 			data_seted: false,
+			articulo_no_encontrado: false,
 		}
 	},
 	computed: {
@@ -162,7 +202,20 @@ export default {
 					commerce_id: this.$route.params.commerce_id,
 				})
 				.then(() => {
-					this.setArticleProps()
+					/*
+					 * article_to_show puede quedar en null por dos caminos: el fetch falló y el
+					 * catch de la action lo absorbió sin relanzar, o el backend respondió 200 con
+					 * article: null (slug/commerce_id que no matchean ningún Article ni
+					 * PromocionVinoteca). En los dos casos NO hay que llamar a setArticleProps():
+					 * getSimilars() y checkCartArticleVariant() asumen un artículo real y tiran
+					 * TypeError apenas lo leen, lo que aborta la función ANTES de la línea que pone
+					 * data_seted en true -- la pantalla quedaba en blanco para siempre y sin ningún
+					 * aviso (informe 20260916-detalle-articulo-recarga).
+					 */
+					this.articulo_no_encontrado = !this.article
+					if (this.article) {
+						this.setArticleProps()
+					}
 				})
 		},
 		setArticleProps() {
@@ -232,7 +285,13 @@ export default {
 <style lang="scss" scoped>
 .article-page {
   font-family: var(--font-family-sans, sans-serif);
-  max-width: 1200px;
+  /*
+   * Antes 1200px: en una pantalla ancha (≥1600px) dejaba franjas vacías grandes a los costados y,
+   * puertas adentro, apretaba la columna de datos del artículo contra la de la imagen. 1400px es
+   * el punto medio verificado en los tres anchos: en escritorio "de verdad" (1366-1440) no se
+   * siente más ancho de lo necesario, y recién a partir de ahí gana aire.
+   */
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
   padding-bottom: 2rem;

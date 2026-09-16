@@ -67,6 +67,7 @@ export default {
 		article_to_show() {
 			return this.$store.state.articles.article_to_show
 		},
+
 		/**
 		 * Si esto es la FICHA del articulo o el modal de agregar al carrito.
 		 *
