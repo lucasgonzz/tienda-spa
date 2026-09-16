@@ -9,15 +9,26 @@
 		<div
 		class="al-borde cont-article-image"
 		v-if="article">
+			<!--
+				Las miniaturas en COLUMNA a la izquierda de la foto grande (en telefono y tablet
+				pasan a una fila abajo, por CSS). Antes vivian arriba y en telefono no se
+				dibujaban.
+
+				🔴 Las clases son nuevas (`galeria-miniaturas*`) y no las viejas
+				(`images-preview` / `selected-image`) a proposito:
+				`_plantilla_comerciocity.sass` las pisa con especificidad (0,4,0) — ancho 74%,
+				sombra en vez de borde — y con los nombres viejos los 48x48 de la captura se
+				aplicaban en todas las plantillas menos en la de ComercioCity, en silencio.
+			-->
 			<div
-			v-if="!is_mobile"
-			class="images-preview">
-				<img 
+			class="galeria-miniaturas">
+				<img
 				v-for="(image, index) in images"
 				:key="image.id ? 'preview-'+image.id : 'preview-index-'+index"
-				class="apretable shadow-1"
+				class="apretable galeria-miniaturas__item"
 				:class="selectedImage(index)"
 				:src="image.hosting_url"
+				@mouseenter="setImage(index)"
 				@click="setImage(index)">
 			</div>
 			<carousel
@@ -224,7 +235,7 @@ export default {
 			this.$store.commit('articles/setImageIndex', Number(index))
 		},
 		selectedImage(index) {
-			return this.index == index ? 'selected-image' : '-'
+			return this.index == index ? 'galeria-miniaturas__item--activa' : ''
 		},
 		setInterval() {
 			setTimeout(() => {
@@ -437,12 +448,18 @@ export default {
 .cont-article-image
 	box-sizing: border-box
 	display: flex
-	flex-direction: row 
-	background: #FFF
-	margin: 20px 0
-	border-radius: 10px
-	border: 2px solid #DDDDDD
 	position: relative
+	// 🔴 La tarjeta blanca ya no la pone la galeria: ahora la ficha entera vive adentro de UNA
+	// sola tarjeta blanca (`article-view/Index.vue`) y la galeria es una columna adentro de
+	// ella. Sin esto quedaban dos marcos, uno adentro del otro.
+	background: transparent
+	margin: 0
+	// Telefono y tablet: las miniaturas bajan a una fila DEBAJO de la foto grande (el `order`
+	// de mas abajo es el que decide cual va primero).
+	@media screen and (max-width: 991px)
+		flex-direction: column
+	@media screen and (min-width: 992px)
+		flex-direction: row
 
 	.imagen-logo-empresa
 		position: absolute
@@ -460,53 +477,69 @@ export default {
 			width: 200px
 
 
-	.images-preview
-		// padding: 30px 0
-		width: 150px
-		overflow-y: auto
-		@media screen and (max-width: 992px)
-			max-height: 50vh
-		@media screen and (min-width: 992px)
-			max-height: 70vh 
-
-
+	// Las miniaturas: columna a la izquierda en escritorio, fila abajo en telefono y tablet.
+	// Los 48x48 con borde de 1px y 8px de separacion salen de las capturas.
+	.galeria-miniaturas
+		display: flex
+		gap: 8px
 		scrollbar-width: thin
 		scrollbar-color: $green #ffffff
 
+		@media screen and (max-width: 991px)
+			order: 2
+			flex-direction: row
+			overflow-x: auto
+			padding: 10px 0 2px
 
-		&::-webkit-scrollbar 
-			@media screen and (max-width: 992px)
-				width: 6px
-			@media screen and (min-width: 992px)
-				width: 8px
-			height: 12px
+		@media screen and (min-width: 992px)
+			order: 1
+			flex-direction: column
+			width: 56px
+			flex-shrink: 0
+			max-height: 70vh
+			overflow-y: auto
+			padding: 4px 8px 4px 0
 
-		&::-webkit-scrollbar-track 
+		&::-webkit-scrollbar
+			width: 6px
+			height: 6px
+
+		&::-webkit-scrollbar-track
 			background: rgba(0,0,0,0)
 
-		&::-webkit-scrollbar-thumb 
+		&::-webkit-scrollbar-thumb
 			background-color: color-mix(in srgb, $green 80%, white 20%)
 			border-radius: 10px
 			border: 2px solid #ffffff
 
-		img 
-			width: 80%
-			margin: 15px 0 
-			border-radius: 7px
-			cursor: pointer
-		.selected-image
-			border: 2px solid #333
-			transition: all .2s
+	.galeria-miniaturas__item
+		width: 48px
+		height: 48px
+		flex-shrink: 0
+		object-fit: contain
+		background: #FFF
+		border: 1px solid rgba(0, 0, 0, .15)
+		border-radius: 4px
+		cursor: pointer
+		transition: border-color .15s
+		// `_shadows.sass` declara `shadow-1` con !important; la miniatura ahora lleva borde y
+		// no sombra, y esta linea la deja sin sombra venga de donde venga.
+		box-shadow: none !important
+
+	// La seleccionada. Se marca tambien con el mouse encima, no solo con el click: es lo que
+	// hace Mercado Libre y es lo que permite recorrer las fotos sin apretar nada.
+	.galeria-miniaturas__item--activa
+		border: 2px solid var(--primary-color)
 
 	.VueCarousel
-		padding: 30px 0
-		@media screen and (max-width: 992px)
+		@media screen and (max-width: 991px)
+			order: 1
 			width: 100%
-			padding: 15px	
-			// height: 50vh
+			padding: 10px 0
 		@media screen and (min-width: 992px)
-			width: calc(100% - 150px)
-			// height: 70vh
+			order: 2
+			width: calc(100% - 56px)
+			padding: 10px 0
 	.VueCarousel-navigation-button
 		border: none
 	.VueCarousel-navigation-next
