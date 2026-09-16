@@ -65,10 +65,39 @@ export default {
 		 * migas de pan ni los relacionados, y la caja de compra baja a lo ancho: no hay lugar
 		 * para tres columnas.
 		 *
+		 * 🔴 La ruta sola NO alcanza. El modal tambien se abre DESDE la ficha: el boton
+		 * "Mas info" de cada tarjeta (`article-card/body/BtnMasInfo.vue`) lo abre, y los
+		 * relacionados que ahora viven adentro de la tarjeta son justamente tarjetas. Sin el
+		 * chequeo del modal, abrir uno desde ahi dibujaba las migas de pan y OTRA grilla de
+		 * relacionados —los mismos, porque salen del store del articulo actual— adentro de un
+		 * modal. Antes del 16/9 no pasaba porque los relacionados no vivian aca.
+		 *
 		 * @returns {boolean}
 		 */
 		es_ficha() {
-			return this.$route.name == 'Article'
+			return this.$route.name == 'Article' && !this.esta_en_modal
+		},
+		/**
+		 * Si esta instancia esta montada adentro del modal de agregar al carrito.
+		 *
+		 * Se resuelve subiendo por la cadena de padres hasta encontrar el `BModal` de
+		 * BootstrapVue. No es reactivo y no hace falta que lo sea: un componente no cambia de
+		 * padre en toda su vida, asi que el cacheo del computed es exactamente lo que se
+		 * quiere. Si algun dia el nombre del componente de BootstrapVue cambiara, esto
+		 * devuelve false y se vuelve al comportamiento de antes —la ruta sola—, que es lo que
+		 * habia hasta ahora: degrada, no rompe.
+		 *
+		 * @returns {boolean}
+		 */
+		esta_en_modal() {
+			let padre = this.$parent
+			while (padre) {
+				if (padre.$options && padre.$options.name == 'BModal') {
+					return true
+				}
+				padre = padre.$parent
+			}
+			return false
 		},
 	},
 }
@@ -85,6 +114,12 @@ export default {
 		background: #FFF
 		border-radius: 6px
 		box-shadow: 0 1px 2px rgba(0, 0, 0, .12)
+		// La linea de 1px no esta en la captura: alla el fondo de la pagina es gris (#EDEDED) y
+		// la sombra alcanza para que la tarjeta se lea. Aca el fondo lo elige cada comercio
+		// (`online_configuration.background_color`) y puede ser blanco: sin la linea, la tarjeta
+		// desaparece. No se clava el gris de Mercado Libre porque eso seria pisarle el tema al
+		// comercio, que es justo lo que el diseno dice que NO se copia.
+		border: 1px solid rgba(0, 0, 0, .08)
 		padding: 24px
 		margin-top: 1rem
 		@media screen and (max-width: 767px)
@@ -128,6 +163,7 @@ export default {
 .ficha-ml--modal
 	.ficha-ml__tarjeta
 		box-shadow: none
+		border: none
 		padding: 0
 		margin-top: 0
 

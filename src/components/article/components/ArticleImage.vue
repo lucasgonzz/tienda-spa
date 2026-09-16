@@ -6,8 +6,18 @@
 				:height="height"></b-skeleton-img>
 			</div>
 		</template>
+		<!--
+			Sin `al-borde`: esa clase mete `margin: 0 -15px !important` para compensar el padding
+			de la `b-col` en la que vivia la galeria hasta ahora. Adentro de la tarjeta blanca no
+			hay ninguna `b-col`, y esos 15px se convertian en 30px de desborde a los costados.
+
+			🔴 Y la clase pasa de `cont-article-image` a `ficha-galeria` por el mismo motivo que las
+			miniaturas: `_plantilla_comerciocity.sass` le pone borde, radio de 20px, sombra y fondo
+			propios con especificidad (0,2,0). Con el nombre viejo, en esa plantilla la galeria
+			seguia siendo una tarjeta adentro de la tarjeta.
+		-->
 		<div
-		class="al-borde cont-article-image"
+		class="ficha-galeria"
 		v-if="article">
 			<!--
 				Las miniaturas en COLUMNA a la izquierda de la foto grande (en telefono y tablet
@@ -445,7 +455,7 @@ export default {
 </script>
 <style lang="sass">
 @import '@/sass/_custom'
-.cont-article-image
+.ficha-galeria
 	box-sizing: border-box
 	display: flex
 	position: relative
@@ -598,7 +608,7 @@ export default {
 
 #add-to-cart-modal
 	@media screen and (max-width: 800px)
-		.cont-article-image
+		.ficha-galeria
 			margin: 0
 			.VueCarousel
 				margin: auto

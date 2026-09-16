@@ -19,8 +19,12 @@
 		envio → variantes → lo que tenes que saber. La caja de compra se fue a su propia columna
 		(`buy-box/Index.vue`).
 	-->
+	<!--
+		Sin margen propio arriba: adentro de la tarjeta la columna de datos tiene que arrancar a
+		la misma altura que la foto, y los 20px de `m-t-20` la bajaban medio renglon.
+	-->
 	<div
-	class="m-t-20 m-b-20 ficha-datos"
+	class="ficha-datos"
 	v-if="article_to_show">
 		<name-heart></name-heart>
 
@@ -103,6 +107,14 @@ export default {
 
 	.saber-del-producto
 		margin-top: 1.25rem
+
+	// El separador del cotizador de envio. Lo declaraba `common/envio/Cotizador.vue` como
+	// `.article-data .envio-cotizador`, y esa cadena quedo muerta al renombrar la columna. Se
+	// repone aca, con la clase nueva, para que el bloque siga leyendose separado del resto.
+	.envio-cotizador
+		padding-top: .85rem
+		border-top: 1px solid rgba(0, 0, 0, .08)
+		margin-bottom: .25rem
 
 /* Acciones secundarias del artículo (compartir y WhatsApp). */
 .ficha-datos__actions
