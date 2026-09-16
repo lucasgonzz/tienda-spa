@@ -4,6 +4,26 @@ axios.defaults.baseURL = process.env.VUE_APP_API_URL
 axios.defaults.withCredentials = true
 import preguntar from '@/store/articles/preguntar'
 import categories from '@/store/categories'
+
+/**
+ * Si `article` es un Article de verdad y no una PromocionVinoteca.
+ *
+ * 🔴 Mismo criterio que `is_promocion_vinoteca()` en `article-card/body/Price.vue`:
+ * las promociones de vinoteca no traen `bar_code`. Hace falta aca porque
+ * `ArticleController@show` devuelve una PromocionVinoteca en el mismo campo `article`
+ * cuando el slug no es el de un Article, y las dos tablas arrancan su id en 1 -el id de
+ * una promo choca con el de un articulo cualquiera-. Sin este chequeo las dos secciones
+ * de "tambien compraron" pedirian recomendaciones por un article_id que en realidad es
+ * el id de la promo, y mostrarian productos de otro articulo cualquiera bajo un titulo
+ * que afirma que alguien los compro.
+ *
+ * @param {Object|null} article
+ * @returns {boolean}
+ */
+function es_articulo_real(article) {
+	return !!article && typeof article.bar_code != 'undefined'
+}
+
 export default {
 	namespaced: true,
 	state: {
@@ -206,7 +226,7 @@ export default {
 		 */
 		get_tambien_compraron_vistas({ commit, state }) {
 			commit('set_tambien_compraron_vistas', [])
-			if (!state.article_to_show) {
+			if (!es_articulo_real(state.article_to_show)) {
 				return Promise.resolve()
 			}
 			return axios.get(`/api/articles/tambien-compraron/vistas/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}`)
@@ -225,7 +245,7 @@ export default {
 		 */
 		get_tambien_compraron_compras({ commit, state }) {
 			commit('set_tambien_compraron_compras', [])
-			if (!state.article_to_show) {
+			if (!es_articulo_real(state.article_to_show)) {
 				return Promise.resolve()
 			}
 			return axios.get(`/api/articles/tambien-compraron/compras/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}`)
