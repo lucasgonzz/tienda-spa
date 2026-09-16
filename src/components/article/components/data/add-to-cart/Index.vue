@@ -139,12 +139,25 @@ export default {
 			console.log(this.article)
 			console.log(this.article.is_promocion_vinoteca)
 			let is_promocion_vinoteca = typeof this.article.is_promocion_vinoteca != 'undefined' ? true : false
+			/*
+			 * `is_combo` apunta al pivote correcto del lado del servidor, igual que ya hace
+			 * `is_promocion_vinoteca`. Sin él, un combo iría a parar a la tabla de artículos y
+			 * el id —que es de otra secuencia— actualizaría la línea equivocada.
+			 */
+			let is_combo = typeof this.article.is_combo != 'undefined' ? true : false
 
 			this.$store.commit('auth/setMessage', 'Cargando')
 			this.$store.commit('auth/setLoading', true)
+			/*
+			 * 🔴 Es el servidor el que recalcula acá el precio por cantidad: cambiar la cantidad
+			 * puede cambiar de tramo de `article_price_ranges`, y `CartHelper` lo reevalúa al
+			 * actualizar. Por eso lo que vuelve en `res.data.cart` pisa el carrito entero en vez
+			 * de tocar solo el `amount` local.
+			 */
 			this.$api.put('carts/update-article-amount/'+this.cart.id, {
 				id: this.article.id,
 				is_promocion_vinoteca: is_promocion_vinoteca,
+				is_combo: is_combo,
 				amount: this.amount
 			})
 			.then(res => {
@@ -173,13 +186,28 @@ export default {
 			}
 			if (this.checkVariant()) {
 				console.log('paso variants')
-				this.article.amount = amount 
-				this.article.notes = this.notes 
+				/*
+				 * 🔴 EL PRECIO DE LA LÍNEA SIGUE LA CANTIDAD. Si la cantidad que el comprador
+				 * eligió cae en un rango de `article_price_ranges`, el unitario de la línea es
+				 * el del rango y no el precio de lista.
+				 *
+				 * El pivote es OPTIMISTA: el precio que efectivamente se cobra lo resuelve
+				 * `CartHelper::get_price()` del lado de la API y vuelve en el `setCart` de la
+				 * respuesta. Esto es lo que ve el invitado —que no persiste el carrito hasta el
+				 * checkout— y lo que suma el total local de mixins/cart.js.
+				 *
+				 * `precio_por_cantidad()` devuelve null cuando ningún rango aplica; ahí manda el
+				 * precio de siempre. Las dos cifras están en la misma escala (recargo online y
+				 * redondeo incluidos), que es justo lo que ese helper existe para garantizar.
+				 */
+				let precio_de_rango = this.precio_por_cantidad(this.article, amount, false)
+				this.article.amount = amount
+				this.article.notes = this.notes
 				this.article.pivot = {
 					amount: amount,
 					notes: this.notes,
 					variant_id: this.selected_article_variant ? this.selected_article_variant.id : null,
-					price: this.articlePriceEfectivo(this.article, false)
+					price: precio_de_rango !== null ? precio_de_rango : this.articlePriceEfectivo(this.article, false)
 				}
 				this.$store.commit('cart/addItem', this.article)
 				/*

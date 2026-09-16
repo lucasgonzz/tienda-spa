@@ -11,7 +11,16 @@ id="articles-list">
 
 		<novedades></novedades>
 
-		<p 
+		<!--
+			Las dos secciones nuevas van DEBAJO de Novedades, en este orden y no en otro: es
+			donde las pidió Lucas. La sección "Ofertas" (in-offer, el check `in_offer` del
+			artículo) queda donde estaba, arriba de Novedades: son mecanismos distintos.
+		-->
+		<comprando-mas-pagas-menos></comprando-mas-pagas-menos>
+
+		<combos></combos>
+
+		<p
 		v-if="selected_category || selected_sub_category || selected_bodega || selected_cepa || selected_brand"
 		class="title">
 			<span
@@ -108,6 +117,8 @@ export default {
 	mixins: [articles_mixin, VueScreenSize.VueScreenSizeMixin],
 	components: {
 		PromocionesVinoteca: () => import('@/components/home/components/articles-list/PromocionesVinoteca'),
+		ComprandoMasPagasMenos: () => import('@/components/home/components/articles-list/ComprandoMasPagasMenos'),
+		Combos: () => import('@/components/home/components/articles-list/Combos'),
 		InfiniteLoading,
 		Featured,
 		InOffer,
@@ -347,7 +358,8 @@ export default {
 }
 </script>
 <style lang="sass">
-// Espaciado entre secciones de carrusel en home (Promociones, Destacados, Ofertas, Novedades)
+// Espaciado entre secciones de carrusel en home (Promociones, Destacados, Ofertas, Novedades,
+// Comprando más pagás menos, Combos)
 #articles-list
 	.featured-list
 		margin-bottom: 12px

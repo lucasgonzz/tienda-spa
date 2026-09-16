@@ -34,11 +34,17 @@ export default {
 				cart.promociones_vinoteca.forEach(promo => {
 					cant_items += Number(promo.amount) || 0
 				})
+
+				/* Tercera coleccion del carrito. El `|| []` cubre el carrito que vino de una API
+				   sin combos, donde la clave directamente no existe. */
+				;(cart.combos || []).forEach(combo => {
+					cant_items += Number(combo.amount) || 0
+				})
 			}
 			return cant_items
 		},
 		/**
-		 * Cantidad de líneas distintas en el carrito (artículos + promos vinoteca).
+		 * Cantidad de líneas distintas en el carrito (artículos + promos vinoteca + combos).
 		 * @returns {number}
 		 */
 		cart_unique_products_count() {
@@ -52,6 +58,9 @@ export default {
 			}
 			if (cart.promociones_vinoteca) {
 				count += cart.promociones_vinoteca.length
+			}
+			if (cart.combos) {
+				count += cart.combos.length
 			}
 			return count
 		},
@@ -83,6 +92,19 @@ export default {
 			let cart = this.$store.state.cart.cart
 			if (cart) {
 				return cart.promociones_vinoteca
+			}
+			return []
+		},
+		/**
+		 * Los combos del carrito. Devuelve [] cuando el carrito vino de una API que todavía no
+		 * los conoce, así que quien lo consume puede hacer `v-for` sin preguntar.
+		 *
+		 * @returns {Array}
+		 */
+		cart_combos() {
+			let cart = this.$store.state.cart.cart
+			if (cart && cart.combos) {
+				return cart.combos
 			}
 			return []
 		},
@@ -172,6 +194,20 @@ export default {
 			promociones_vinoteca.forEach(function(promo) {
 				if (promo.pivot && promo.pivot.price != null && promo.pivot.price !== undefined) {
 					total += Number(promo.pivot.price) * Number(promo.pivot.amount)
+				}
+			})
+			/*
+			 * 🔴 Los combos son la TERCERA coleccion y van en la misma cuenta, con el mismo
+			 * patron y el mismo guard de null. Sin este forEach se reproduce exactamente el bug
+			 * del 14/9/2026 que arreglo el de arriba: el invitado con un combo solo en el
+			 * carrito veria el total en "-", y con un combo mas un articulo veria solo el
+			 * precio del articulo. El numero corto se propaga hasta la pantalla de confirmar
+			 * compra, que es donde mas caro sale.
+			 */
+			let combos = this.$store.state.cart.cart.combos || []
+			combos.forEach(function(combo) {
+				if (combo.pivot && combo.pivot.price != null && combo.pivot.price !== undefined) {
+					total += Number(combo.pivot.price) * Number(combo.pivot.amount)
 				}
 			})
 			return total

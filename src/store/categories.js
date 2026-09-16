@@ -13,6 +13,14 @@ export default {
 		promociones_vinoteca: [],
 		in_offer: [],
 		novedades: [],
+		/*
+		 * Artículos con al menos un rango de precio por cantidad (`article_price_ranges`), para
+		 * la sección "Comprando más, pagás menos" de la home. Arranca en [] y se queda en [] si
+		 * la API todavía no manda la clave: la sección no se renderiza y no hay error.
+		 */
+		articulos_con_rangos: [],
+		/* Combos publicados en la tienda (`combos.online = 1`). Mismo criterio que arriba. */
+		combos: [],
 
 		selected_category: null,
 		selected_sub_category: null,
@@ -80,6 +88,28 @@ export default {
 		},
 		setNovedades(state, value) {
 			state.novedades = value
+		},
+		/**
+		 * 🔴 El `|| []` es el guard del contrato con la API, no una costumbre: las dos claves
+		 * son OPCIONALES. Una tienda desplegada contra una `tienda-api` vieja —o contra un
+		 * cliente al que todavía no le llegó la columna `combos.online`— recibe la respuesta
+		 * sin ellas, y `res.data.combos` llega `undefined`. Sin el `|| []` el estado quedaría
+		 * en undefined y el `v-if` de la sección reventaría al leerle el `.length`.
+		 *
+		 * @param {object} state
+		 * @param {Array|undefined} value
+		 */
+		set_articulos_con_rangos(state, value) {
+			state.articulos_con_rangos = Array.isArray(value) ? value : []
+		},
+		/**
+		 * Ver set_articulos_con_rangos: misma clave opcional, mismo guard.
+		 *
+		 * @param {object} state
+		 * @param {Array|undefined} value
+		 */
+		set_combos(state, value) {
+			state.combos = Array.isArray(value) ? value : []
 		},
 		addArticles(state, value) {
 			state.articles = state.articles.concat(value)
@@ -276,6 +306,9 @@ export default {
 				commit('set_promociones_vinoteca', res.data.promociones_vinoteca)
 				commit('setInOffer', res.data.in_offer)
 				commit('setNovedades', res.data.novedades)
+				/* Claves nuevas y opcionales: si no vienen, las mutaciones dejan []. */
+				commit('set_articulos_con_rangos', res.data.articulos_con_rangos)
+				commit('set_combos', res.data.combos)
 			})
 			.catch(err => {
 				commit('setLoadingArticles', false)

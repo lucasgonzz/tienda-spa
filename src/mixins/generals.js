@@ -257,10 +257,17 @@ export default {
 			return finded != undefined
 		},
 		get_item_cart(item) {
-			let finded 
-			if (item.is_promocion_vinoteca) {
+			let finded
+			if (item.is_combo) {
+				/* Los ids de `combos` y `articles` son secuencias distintas: buscar un combo
+				   entre los artículos devolvería la línea equivocada. Por eso la rama va
+				   PRIMERO y por eso `combos` se busca solo contra `combos`. */
+				finded = (this.cart.combos || []).find(combo => {
+					return combo.id == item.id
+				})
+			} else if (item.is_promocion_vinoteca) {
 				finded = this.cart.promociones_vinoteca.find(promo => {
-					return promo.id == item.id 
+					return promo.id == item.id
 				})
 			} else {
 				finded = this.cart.articles.find(article => {
@@ -392,6 +399,149 @@ export default {
 			// 	}
 			// 	return formated ? this.price(price) : price
 			// }
+		},
+		/**
+		 * El rango de precio por cantidad (`article_price_ranges`) que le corresponde a un
+		 * artículo para la cantidad que el comprador eligió. null cuando ninguno aplica.
+		 *
+		 * 🔴 ESTA FUNCIÓN ES EL ESPEJO DE `ArticlePriceRangeHelper` DE `tienda-api`, y el
+		 * servidor es el que manda. Acá se decide qué PRECIO SE MUESTRA mientras el comprador
+		 * elige la cantidad; el precio que efectivamente se cobra lo resuelve
+		 * `CartHelper::get_price()` con su propia copia del mismo criterio. Si los dos criterios
+		 * difieren en un borde, el comprador ve un precio y paga otro — es la clase de error
+		 * "el mismo invariante decidido con dos criterios distintos en front y back" de
+		 * APRENDER_NO_PARCHEAR.md. Ante divergencia se corrige ESTE lado, nunca el del servidor.
+		 *
+		 * Los cuatro criterios, literales y en este orden:
+		 *   1. `'Mayor o igual'` → matchea con `cantidad >= amount`.
+		 *      `'Igual'` → matchea solo con igualdad estricta.
+		 *   2. Cualquier otro `modo` NO matchea. Nunca un default permisivo.
+		 *   3. Entre los que matchean gana el de MAYOR `amount`; con `amount` igual, el PRIMERO
+		 *      del array (por eso la comparación es `>` estricto y no `>=`).
+		 *   4. `price` nulo o cero → el rango NO aplica y el artículo sale al precio normal.
+		 *      `price` es nullable en `article_price_ranges` desde su migración original.
+		 *
+		 * Devuelve el rango CRUDO, con su `price` tal como vino de la base — la misma escala en
+		 * la que el servidor cobra. Para mostrarlo en la tienda va `precio_por_cantidad()`, que
+		 * es el que le suma el recargo online.
+		 *
+		 * @param {object} article artículo con su `article_price_ranges`
+		 * @param {number|string} cantidad la que el comprador tiene elegida
+		 * @returns {object|null}
+		 */
+		rango_de_precio_por_cantidad(article, cantidad) {
+			if (!article || !Array.isArray(article.article_price_ranges) || !article.article_price_ranges.length) {
+				return null
+			}
+			let cantidad_numero = Number(cantidad)
+			if (!isFinite(cantidad_numero) || cantidad_numero <= 0) {
+				return null
+			}
+			let elegido = null
+			article.article_price_ranges.forEach(rango => {
+				if (!rango) {
+					return
+				}
+				let amount = Number(rango.amount)
+				if (!isFinite(amount)) {
+					return
+				}
+				/* Criterios 1 y 2: solo estos dos modos matchean, cualquier otro queda afuera. */
+				let matchea = false
+				if (rango.modo === 'Mayor o igual') {
+					matchea = cantidad_numero >= amount
+				} else if (rango.modo === 'Igual') {
+					matchea = cantidad_numero === amount
+				}
+				if (!matchea) {
+					return
+				}
+				/* Criterio 3: mayor `amount`, y ante empate el primero del array. */
+				if (elegido === null || amount > Number(elegido.amount)) {
+					elegido = rango
+				}
+			})
+			/*
+				🔴 Criterio 4, y va SOBRE EL GANADOR — no adentro del forEach. El orden acá no es
+				cosmetico: decide un numero distinto.
+
+				Medido el 16/9/2026 con dos tramos, `>=10 -> $3000` y `>=20 -> price NULL`, y 25
+				unidades en el carrito:
+
+				  · filtrando el precio ANTES de elegir, el tramo sin precio no compite y gana el
+				    de 10  ->  se MUESTRA $3000
+				  · filtrando DESPUES, gana el de 20 por tener mayor `amount`, se queda sin precio
+				    usable y cae al precio normal  ->  se COBRA $3948
+
+				O sea: el comprador veia $3000 y pagaba $3948. Manda la segunda forma, y no por
+				gusto: es lo que hacen las otras DOS implementaciones de esta misma regla.
+				`ArticlePriceRangeHelper::rango()` + `::precio()` de tienda-api (que es quien
+				cobra) elige el ganador sin mirar el precio, y el ERP —
+				empresa-spa/src/mixins/vender/article_price_range.js, donde estos tramos se
+				cargan y ya funcionan— hace el `reduce` por `amount` y recien despues escribe
+				`price_vender_personalizado = Number(range.price)`, que con NULL da 0, es falsy y
+				lo manda al precio normal. Las tres coinciden ahora.
+
+				La clase esta documentada en APRENDER_NO_PARCHEAR.md, "el mismo invariante
+				decidido con dos criterios distintos en front y back": ninguna de las dos formas
+				esta mal leida sola, el defecto vive ENTRE las dos y no lo ve ningun test que
+				ejerza un solo lado.
+			*/
+			if (elegido === null) {
+				return null
+			}
+			let precio_del_ganador = Number(elegido.price)
+			if (
+				elegido.price === null
+				|| typeof elegido.price == 'undefined'
+				|| !isFinite(precio_del_ganador)
+				|| precio_del_ganador <= 0
+			) {
+				return null
+			}
+			return elegido
+		},
+		/**
+		 * El precio unitario a MOSTRAR cuando la cantidad elegida cae en un rango por cantidad.
+		 * null cuando no hay rango que aplique (ahí manda `articlePriceEfectivo`).
+		 *
+		 * 🔴 La ESCALA importa y es la misma trampa que ya explican `precio_sin_oferta()` y sus
+		 * hermanas de más abajo: `articlePriceEfectivo()` no muestra `final_price` pelado, le
+		 * suma el `online_price_surchage` y lo redondea. El `price` del rango viene en la escala
+		 * de `final_price` (es un precio unitario absoluto CON IVA cargado en el ERP), así que
+		 * para que el número del rango y el precio normal sean comparables hay que pasarlo por
+		 * el mismo recargo y el mismo redondeo. Sin eso el comprador vería dos cifras de escalas
+		 * distintas y un "ahorro" que no es el real.
+		 *
+		 * ⚠️ El precio que el servidor guarda en el pivote del carrito NO lleva ese recargo (lo
+		 * resuelve `CartHelper::get_price()`, que es del lado API y no conoce la configuración
+		 * online del SPA). Quien necesite la escala del servidor usa
+		 * `rango_de_precio_por_cantidad()` y lee `rango.price` derecho.
+		 *
+		 * @param {object} article
+		 * @param {number|string} cantidad
+		 * @param {boolean} formated
+		 * @returns {string|number|null}
+		 */
+		precio_por_cantidad(article, cantidad, formated = true) {
+			if (!this.puede_ver_precios()) {
+				return null
+			}
+			/* Con precio pausado no hay importe unitario: manda el texto de configuración. */
+			if (!article || this.flag_activo(article.precio_pausado)) {
+				return null
+			}
+			let rango = this.rango_de_precio_por_cantidad(article, cantidad)
+			if (!rango) {
+				return null
+			}
+			let price = Number(rango.price)
+			/* Mismo recargo y mismo redondeo que articlePriceEfectivo. Ver el bloque de arriba. */
+			if (this.commerce.online_configuration.online_price_surchage) {
+				price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
+				price = Math.round(price)
+			}
+			return formated ? this.price(price) : price
 		},
 		/**
 		 * Determina si el usuario puede ver precios.
