@@ -19,6 +19,19 @@
 			:key="'promo-' + promo.id"
 			:show_added_info="false"
 			:article="promo"></last-article>
+
+			<!--
+				🔴 Los combos NO pueden ir por last-article: esa fila resuelve la imagen con
+				articleImage(), que entra derecho a `article.images.length` — y un combo no tiene
+				`images`, tiene las de sus artículos componentes. Va con su propia tarjeta, en
+				modo carrito.
+			-->
+			<combo-card
+			class="m-b-10"
+			v-for="combo in combos"
+			:key="'combo-' + combo.id"
+			en_carrito
+			:combo="combo"></combo-card>
 		</div>
 
 		<total></total>
@@ -34,6 +47,7 @@ import BeforeConfirmNotice from '@/components/payment/components/BeforeConfirmNo
 export default {
 	components: {
 		LastArticle: () => import('@/components/nav/right-buttons/cart-btn/LastArticle'),
+		ComboCard: () => import('@/components/common/combo-card/Index'),
 		BeforeConfirmNotice,
 		Total: () => import('@/components/payment/components/payment-method/Total'),
 		BtnSave: () => import('@/components/payment/components/BtnSave'),
@@ -41,6 +55,15 @@ export default {
 	computed: {
 		cart() {
 			return this.$store.state.cart.cart
+		},
+		/**
+		 * Los combos del carrito. El `|| []` es el guard del carrito que vino de una API que
+		 * todavía no los conoce: ahí la clave directamente no existe.
+		 *
+		 * @returns {Array}
+		 */
+		combos() {
+			return this.cart.combos || []
 		}
 	}
 }

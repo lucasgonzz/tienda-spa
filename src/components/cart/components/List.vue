@@ -24,7 +24,19 @@
 				v-for="promo in promociones_vinoteca"
 				:key="promo.key"
 				:article="promo"></article-card>
-				
+
+				<!--
+					Los combos van con SU tarjeta y no con article-card: no tienen imagen propia
+					ni ficha, y article-card resuelve la imagen con `article.images`, que un
+					combo no tiene. `en_carrito` hace que muestre el pivote (lo que se cobra) y
+					el botón de quitar.
+				-->
+				<combo-card
+				v-for="combo in cart_combos"
+				:key="'combo-' + combo.id"
+				en_carrito
+				:combo="combo"></combo-card>
+
 			</div>
 		</div>
 	</div>
@@ -48,6 +60,7 @@ export default {
 	},
 	components: {
 		ArticleCard,
+		ComboCard: () => import('@/components/common/combo-card/Index'),
 		BtnLoader,
 	},
 	computed: {
