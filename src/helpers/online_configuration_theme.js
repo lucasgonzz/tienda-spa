@@ -12,6 +12,22 @@ export const default_theme_colors = {
 }
 
 /**
+ * Fondo de fábrica por plantilla, cuando el de `default_theme_colors` no es el que corresponde.
+ *
+ * 🔴 La plantilla ComercioCity pide gris y no blanco. Su ficha de artículo copia el layout de
+ * Mercado Libre, que apoya tarjetas BLANCAS sobre un fondo gris: con el fondo blanco de fábrica la
+ * tarjeta desaparece contra la página y hay que sostenerla con una línea de 1px (ver el comentario
+ * de `article-view/Index.vue`, donde esa línea está puesta justamente por esto). Moderno y Clásico
+ * no arman tarjetas sobre la página y siguen en blanco.
+ *
+ * 🔴 Esto cambia SOLO el valor de fábrica. Al comercio que ya eligió un color válido no se le
+ * toca nada: `normalize_hex_color` devuelve el suyo y este fallback ni se consulta.
+ */
+const background_color_por_plantilla = {
+	comerciocity: '#EDEDED',
+}
+
+/**
  * Stack tipográfico genérico cuando online_configuration no define fuente.
  */
 const default_font_family_sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
@@ -29,6 +45,33 @@ export function normalize_hex_color(color_value, fallback_color) {
 	/* Acepta formato #RGB o #RRGGBB para mantener flexibilidad en la configuración. */
 	let is_valid_hex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(color_string)
 	return is_valid_hex ? color_string : fallback_color
+}
+
+/**
+ * Devuelve el fondo de fábrica que le corresponde a la plantilla activa.
+ *
+ * `online_template` puede no venir (comercio recién creado, o una respuesta vieja del API): en ese
+ * caso vale el blanco de siempre, que es el comportamiento que había hasta ahora.
+ *
+ * Se busca con `hasOwnProperty` y no con `mapa[slug]` a secas para que un slug como `constructor`
+ * o `toString` no devuelva algo del prototipo en vez de un color.
+ *
+ * @param {object|null|undefined} online_configuration
+ * @returns {string}
+ */
+function resolve_default_background_color(online_configuration) {
+	/* Slug de la plantilla activa, con la misma guarda que usa App.vue para armar su clase. */
+	let template_slug = online_configuration
+		&& online_configuration.online_template
+		&& typeof online_configuration.online_template.slug == 'string'
+			? online_configuration.online_template.slug
+			: ''
+
+	if (Object.prototype.hasOwnProperty.call(background_color_por_plantilla, template_slug)) {
+		return background_color_por_plantilla[template_slug]
+	}
+
+	return default_theme_colors.background_color
 }
 
 /**
@@ -67,7 +110,8 @@ export function apply_online_configuration_theme(online_configuration) {
 	let text_color = normalize_hex_color(online_configuration.text_color, default_theme_colors.text_color)
 	let hover_text_color = normalize_hex_color(online_configuration.hover_text_color, default_theme_colors.hover_text_color)
 	let category_color_text = normalize_hex_color(online_configuration.category_color_text, default_theme_colors.category_color_text)
-	let background_color = normalize_hex_color(online_configuration.background_color, default_theme_colors.background_color)
+	/* El único fallback que depende de la plantilla: ver `background_color_por_plantilla`. */
+	let background_color = normalize_hex_color(online_configuration.background_color, resolve_default_background_color(online_configuration))
 	let font_family_sans = resolve_font_family_sans(online_configuration)
 
 	/* Publica los colores como variables CSS consumidas por SASS y componentes. */
