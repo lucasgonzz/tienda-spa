@@ -1091,8 +1091,37 @@ export default {
 	border-radius: 10px !important
 	font-weight: 700
 	border: none !important
-	color: #FFF !important
-	background: var(--secondary-color, #0d6efd) !important
+	// 🔴 ERA BLANCO SOBRE EL COLOR DE MARCA PELADO, Y ESO NO SE PUEDE ARREGLAR ELIGIENDO
+	// OTRO TEXTO. Medido en la ficha corriendo: `#FFF` sobre `#fe7802` da contraste 2,66 -- AA
+	// pide 4,5. Con texto negro ese mismo naranja sube a 7,9, pero `--secondary-color` lo elige
+	// cada comercio: con una marca oscura el negro se hunde igual, y con una clara el blanco.
+	// Ninguna eleccion de texto sobre el color pelado sirve para TODOS los tonos.
+	//
+	// Lo que sirve para todos es no usar el color saturado de fondo: se tiñe el fondo al 12% y el
+	// texto se oscurece 45% hacia el negro. Asi el contraste lo pone la distancia entre los dos
+	// derivados y no el tono original. Verificado a mano con los bordes: naranja #fe7802 -> 8,3;
+	// amarillo #FFD400 (el peor caso, marca clarisima) -> 5,9; azul marino #1a2b4c -> 13,7.
+	// Todos por encima de 4,5.
+	//
+	// Y de paso resuelve lo otro: "Calcular" es un PASO INTERMEDIO a 200px del boton de comprar,
+	// y con relleno saturado pesaba mas que la compra y se leia primero. Es la misma tecnica que
+	// ya usan `.caja-compra__btn--carrito` y `_article_action_link.sass`, no una novedad.
+	//
+	// Las dos lineas planas de abajo son el respaldo para un navegador sin `color-mix`: si la
+	// segunda no se entiende, queda la primera, que tambien pasa AA (10,4 sobre el gris claro).
+	background: rgba(0, 0, 0, .05) !important
+	background: color-mix(in srgb, var(--secondary-color) 12%, #FFF) !important
+	color: rgba(0, 0, 0, .75) !important
+	color: color-mix(in srgb, var(--secondary-color) 45%, #000) !important
+
+	// El hover sube el tinte y no cambia de color. La regla existe porque `b-button` sin variante
+	// nace `btn-secondary`, y su hover gris se comia el tinte de arriba.
+	&:hover,
+	&:focus
+		background: rgba(0, 0, 0, .09) !important
+		background: color-mix(in srgb, var(--secondary-color) 20%, #FFF) !important
+		color: rgba(0, 0, 0, .75) !important
+		color: color-mix(in srgb, var(--secondary-color) 45%, #000) !important
 
 	&:disabled
 		opacity: .65
