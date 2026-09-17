@@ -4,6 +4,8 @@
 // 17/9/2026 en la MISMA fila, cada uno con la mitad del ancho: por eso el contenido va centrado y
 // no alineado a la izquierda, y por eso el padding lateral bajo de 0.85rem a 0.6rem — a 360px esos
 // 0.25rem por lado son la diferencia entre que el texto entre y que se corte.
+//
+// Y son acciones SECUNDARIAS: tienen que pesar como tales. Ver el bloque de color de mas abajo.
 .article-action-link
 	display: flex
 	align-items: center
@@ -11,13 +13,18 @@
 	gap: 0.45rem
 	width: 100%
 	margin: 0
-	padding: 0.65rem 0.6rem
+	padding: 0.5rem 0.6rem
 	border-radius: 8px
-	border: 1px solid color-mix(in srgb, var(--secondary-color) 22%, #ddd)
-	background: color-mix(in srgb, var(--secondary-color) 5%, #fff)
-	color: #334155
+	// 🔴 Eran una caja crema con borde tostado (`--secondary-color` al 22% y al 5%) de 45px de
+	// alto, justo debajo del precio: dos bloques pintados que competian con la caja de compra, que
+	// es lo unico que tiene que gritar en la ficha. En Mercado Libre "Compartir" es un link chico y
+	// callado, nunca un boton. Ahora son un contorno de pelo sobre el fondo de la tarjeta. El tinte
+	// de marca no se perdio: aparece cuando el visitante pasa por encima (ver `&:hover` abajo).
+	border: 1px solid rgba(0, 0, 0, .12)
+	background: transparent
+	color: rgba(0, 0, 0, .65)
 	font-family: var(--font-family-sans, sans-serif)
-	font-size: 0.9rem
+	font-size: 0.8125rem
 	font-weight: 500
 	line-height: 1.35
 	text-align: left
@@ -30,7 +37,7 @@
 	transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease
 
 	.bi
-		font-size: 1.05rem
+		font-size: 1rem
 		color: var(--secondary-color)
 		flex-shrink: 0
 
@@ -43,9 +50,10 @@
 		overflow: hidden
 		text-overflow: ellipsis
 
+	// El color de marca se gana el lugar al pasar por encima, en vez de decorar el reposo.
 	&:hover,
 	&:focus
-		background: color-mix(in srgb, var(--secondary-color) 12%, #fff)
+		background: color-mix(in srgb, var(--secondary-color) 10%, #fff)
 		border-color: color-mix(in srgb, var(--secondary-color) 38%, #ddd)
 		color: var(--primary-color)
 		text-decoration: none

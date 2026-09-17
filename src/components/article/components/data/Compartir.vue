@@ -3,7 +3,13 @@
 	type="button"
 	class="article-action-link"
 	@click="compartir_por_whatsapp">
-		<i class="bi bi-whatsapp" aria-hidden="true"></i>
+		<!--
+			Icono generico de compartir y no el de WhatsApp. Desde que este boton y el de
+			"Consultar" viven en la MISMA fila (17/9/2026), los dos con el icono de WhatsApp se
+			leian como el mismo boton repetido. El que comparte sigue abriendo WhatsApp: lo que
+			cambia es que el icono nombra la accion y no el canal, como en Mercado Libre.
+		-->
+		<i class="bi bi-share" aria-hidden="true"></i>
 		<span>Compartir</span>
 	</button>
 </template>
