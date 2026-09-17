@@ -610,6 +610,56 @@ export default {
 				}
 			}
 		},
+		/*
+		 * Cambia la cantidad de una linea que YA esta en el carrito, sin sacarla.
+		 *
+		 * 🔴 No se puede usar addItem para esto: addItem es un TOGGLE —si el articulo ya estaba,
+		 * lo saca—, asi que actualizar con el terminaria vaciando la linea. Existe para el
+		 * comprador invitado, cuyo carrito no se persiste hasta el checkout y por lo tanto no
+		 * tiene `id` contra el que pegarle a la API.
+		 *
+		 * El precio viaja desde el llamador porque el unitario sigue a la cantidad
+		 * (`article_price_ranges`): quien llama ya lo resolvio con `precio_por_cantidad()`, el
+		 * mismo helper que usa el alta. Para el comprador logueado esto no corre: ahi el precio
+		 * lo fija el servidor y vuelve en el setCart de la respuesta.
+		 */
+		update_item_amount(state, { item, amount, price, notes }) {
+
+			let coleccion
+
+			if (item.is_combo) {
+				coleccion = Array.isArray(state.cart.combos) ? state.cart.combos : []
+			} else if (item.is_promocion_vinoteca) {
+				coleccion = state.cart.promociones_vinoteca
+			} else {
+				coleccion = state.cart.articles
+			}
+
+			let index = coleccion.findIndex(linea => {
+				if (item.is_combo || item.is_promocion_vinoteca) {
+					return linea.id == item.id
+				}
+				/* Misma comparacion de variante que addItem: dos variantes del mismo articulo son
+				   dos lineas distintas. */
+				return linea.id == item.id && (!linea.pivot.variant_id || linea.pivot.variant_id == item.variant_id)
+			})
+
+			if (index == -1) {
+				return
+			}
+
+			let pivot = coleccion[index].pivot
+
+			Vue.set(pivot, 'amount', amount)
+
+			if (price !== null && typeof price != 'undefined') {
+				Vue.set(pivot, 'price', price)
+			}
+
+			if (typeof notes != 'undefined') {
+				Vue.set(pivot, 'notes', notes)
+			}
+		},
 		removeArticle(state, {item, remove_only_one_amount }) {
 			if (remove_only_one_amount == undefined) {
 				remove_only_one_amount = true
