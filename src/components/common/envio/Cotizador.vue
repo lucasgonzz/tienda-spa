@@ -45,14 +45,36 @@
 		</form>
 
 		<!--
-			Zipnova no reconoció el código postal solo: primero se intenta resolver la localidad
-			con Google Maps (sin molestar), y si eso no está o no resuelve, se le pide al comprador.
+			El formulario de localidad a mano. Desde el 17/9/2026 aparece por DOS motivos muy
+			distintos, y por eso el texto de arriba cambia.
+
+			`pide_localidad`: el servidor no pudo resolver el código postal (no existe, o Zipnova
+			no devolvió a dónde resolvió). Es el camino de excepción, porque un código postal
+			válido se resuelve solo del lado del servidor. Antes de llegar acá se intenta una vez
+			más con Google Maps, sin molestar al comprador.
+
+			`corrigiendo_localidad`: el código postal SÍ se resolvió, pero el comprador dice que esa
+			no es su localidad (hay códigos postales que cubren varias) y la viene a corregir. Ahí
+			no hay ningún error que mostrarle.
 		-->
 		<div
-		v-if="pide_localidad"
+		v-if="mostrar_localidad_a_mano"
 		class="envio-cotizador__localidad">
-			<p class="envio-cotizador__error">
+			<!--
+				El error también se muestra en el modo corrección: si el comprador corrigió y la
+				re-cotización falló (Zipnova caído, un 502), sin esto se quedaría mirando la
+				invitación a corregir sin enterarse de que lo que mandó no llegó a ningún lado.
+			-->
+			<p
+			v-if="pide_localidad || (error && mostrar_error)"
+			class="envio-cotizador__error">
 				{{ error || 'No reconocimos ese código postal. Decinos la localidad y la provincia.' }}
+			</p>
+
+			<p
+			v-else
+			class="envio-cotizador__destino">
+				Decinos tu localidad y tu provincia y volvemos a calcular.
 			</p>
 
 			<div class="envio-cotizador__localidad-campos">
@@ -92,10 +114,23 @@
 		<div
 		v-if="opciones_visibles.length"
 		class="envio-cotizador__opciones">
+			<!--
+				A dónde se está cotizando. Desde el 17/9/2026 la localidad la resuelve el servidor
+				con el código postal solo, así que esta línea es lo ÚNICO que el comprador tiene
+				para darse cuenta si le adivinaron mal: va siempre acompañada de la forma de
+				corregirla, porque hay códigos postales que cubren más de una localidad.
+			-->
 			<p
 			v-if="texto_destino"
 			class="envio-cotizador__destino">
 				{{ texto_destino }}
+				<button
+				v-if="!mostrar_localidad_a_mano"
+				type="button"
+				@click="corregir_localidad"
+				class="envio-cotizador__link-corregir">
+					No es mi localidad
+				</button>
 			</p>
 
 			<!--
@@ -185,8 +220,8 @@ import EnvioOpcionCard from '@/components/common/envio/EnvioOpcionCard'
  *   - checkout (`usar_carrito` + `seleccionable`: las opciones son tarjetas elegibles y la
  *     elegida es la que viaja al servidor como `opcion_key`).
  *
- * Lo único que vive en el componente son detalles de pantalla (un logo que no cargó, si ya se
- * intentó resolver la localidad con Google Maps).
+ * Lo único que vive en el componente son detalles de pantalla (si ya se intentó resolver la
+ * localidad con Google Maps, si el comprador abrió el formulario para corregirla).
  *
  * 🔴 El precio que se muestra es el `precio` que devolvió el servidor en cada opción. Acá no se
  * calcula ni se manda ningún precio: al guardar el carrito viaja la `key` de la opción y el
@@ -243,6 +278,13 @@ export default {
 		return {
 			/* Ya se intentó resolver la localidad con Google Maps para este código postal. */
 			zipcode_resuelto_con_google: null,
+			/*
+			 * El comprador abrió el formulario de localidad por su cuenta, para corregir la que el
+			 * servidor resolvió. Es distinto de `needs_location` (ahí el servidor no pudo resolver
+			 * nada), y por eso no se guarda en el store: es estado de ESTA pantalla, y el carrito
+			 * monta el cotizador dos veces.
+			 */
+			corrigiendo_localidad: false,
 			/* Temporizador de la re-cotización automática al cambiar el carrito. */
 			timer_recotizar: null,
 			/*
@@ -383,8 +425,26 @@ export default {
 		mostrar_error() {
 			return this.envio.items_firma === null || this.envio.items_firma === this.firma
 		},
+		/**
+		 * El servidor no pudo resolver el destino y lo tiene que escribir el comprador.
+		 *
+		 * Desde el 17/9/2026 esto es el camino de EXCEPCIÓN y no el de todos los días: el servidor
+		 * resuelve la localidad con el código postal solo (ver `ZipnovaCotizadorService` de
+		 * tienda-api), y solo manda `needs_location` cuando ese código postal no existe o cuando
+		 * Zipnova no devolvió a dónde resolvió.
+		 * @returns {boolean}
+		 */
 		pide_localidad() {
 			return this.envio.needs_location && !this.cotizando
+		},
+		/**
+		 * El formulario de localidad a mano está a la vista, lo haya pedido el servidor o el
+		 * comprador. Mientras se cotiza una corrección se deja abierto a propósito: el botón de
+		 * adentro es el que muestra el spinner.
+		 * @returns {boolean}
+		 */
+		mostrar_localidad_a_mano() {
+			return this.pide_localidad || this.corrigiendo_localidad
 		},
 		puede_cotizar() {
 			return !this.cotizando && String(this.zipcode || '').trim().length >= 4 && this.lineas.length > 0
@@ -600,6 +660,14 @@ export default {
 
 			this.cotizar_de_nuevo_si_el_buyer_tiene_cp_guardado()
 		},
+		/**
+		 * Otro código postal es otro destino: la corrección que el comprador estaba haciendo era
+		 * sobre la localidad del anterior (el store ya le vació `city` y `state`), y dejar el
+		 * formulario abierto le pediría una localidad que el servidor todavía no intentó resolver.
+		 */
+		zipcode() {
+			this.corrigiendo_localidad = false
+		},
 	},
 	created() {
 		this.ids_de_la_ficha_anterior = this.ids_de_la_ficha
@@ -722,6 +790,8 @@ export default {
 
 			this.$store.dispatch('cart/cotizar_envio', payload)
 			.then(function() {
+				// Cotizó bien: si venía de una corrección, el formulario ya cumplió y se cierra.
+				self.corrigiendo_localidad = false
 				self.$emit('cotizado')
 				self.guardar_zipcode_en_el_perfil()
 			})
@@ -733,11 +803,31 @@ export default {
 			})
 		},
 		/**
+		 * El comprador dice que la localidad que se resolvió no es la suya: se le abre el mismo
+		 * formulario de siempre, con lo resuelto ya cargado para que corrija solo lo que está mal.
+		 *
+		 * La provincia se normaliza al nombre del select (`normalizar_provincia`): Zipnova la
+		 * devuelve sin tildes ("Cordoba", "Rio Negro") y con nombres propios ("Capital Federal"),
+		 * y sin esto el comprador vería el select vacío aunque el servidor ya la haya resuelto.
+		 */
+		corregir_localidad() {
+			this.corrigiendo_localidad = true
+			let provincia = normalizar_provincia(this.envio.state)
+			if (provincia && provincia !== this.envio.state) {
+				this.$store.commit('cart/set_envio_localidad', { state: provincia })
+			}
+		},
+		/**
 		 * Si hay un buyer logueado y lo que se acaba de cotizar (con localidad/provincia YA
 		 * resueltas, no `needs_location`) difiere de lo que tiene guardado, lo guarda en su
 		 * perfil para la próxima visita. Va acá y no en un solo lugar del carrito/checkout para
 		 * cubrir los tres cotizadores (artículo, carrito, checkout) desde donde ya se resuelve la
 		 * cotización con éxito. No bloquea ni avisa si falla: es un guardado de conveniencia.
+		 *
+		 * Desde el 17/9/2026 esto se completa SOLO: `envio.city` y `envio.state` salen de lo que
+		 * resolvió el servidor con el código postal, así que `envio_city` / `envio_state` del
+		 * perfil se llenan sin que el comprador escriba nada. Antes quedaban vacíos salvo que
+		 * hubiera pasado por el formulario de "no reconocimos ese código postal".
 		 */
 		guardar_zipcode_en_el_perfil() {
 			let buyer = this.$store.state.auth.user
@@ -761,6 +851,14 @@ export default {
 		 * Geocodifica el código postal con Google Maps (si está cargado en la página) para sacar
 		 * localidad y provincia, y vuelve a cotizar con eso. Una sola vez por código postal: si
 		 * tampoco así se resuelve, el comprador lo completa a mano.
+		 *
+		 * 🔴 ESTO NO ES CÓDIGO MUERTO, es el SEGUNDO intento y casi nunca corre. Desde el
+		 * 17/9/2026 el servidor resuelve la localidad con el código postal solo (el centinela de
+		 * `ZipnovaCotizadorService`), así que un CP válido ya no llega nunca acá: solo se pasa por
+		 * este camino cuando Zipnova tampoco lo pudo resolver. Se deja porque el día que Lucas
+		 * habilite la facturación del proyecto de Google Cloud —hoy el geocoder devuelve
+		 * REQUEST_DENIED para CUALQUIER código postal— vuelve a ser un intento más antes de
+		 * molestar al comprador, y no cuesta nada tenerlo.
 		 */
 		resolver_localidad_con_google() {
 			let zipcode = this.zipcode
@@ -922,6 +1020,26 @@ export default {
 	font-size: .82rem
 	color: rgba(0, 0, 0, .55)
 	margin: 0 0 .5rem
+
+// "No es mi localidad": la salida cuando el código postal resolvió a otro lado. Va pegada al
+// destino y en gris con subrayado — tiene que estar SIEMPRE a mano, pero no competir con
+// "Calcular" ni con el precio del envío.
+.envio-cotizador__link-corregir
+	display: inline
+	margin-left: .35rem
+	padding: 0
+	border: none
+	background: none
+	font-size: .82rem
+	font-weight: 600
+	color: rgba(0, 0, 0, .55)
+	text-decoration: underline
+	text-underline-offset: 2px
+	cursor: pointer
+
+	&:hover,
+	&:focus
+		color: var(--secondary-color, #0d6efd)
 
 // La diferencia que el comprador paga por sumar este producto a un envío que ya tiene. Va ARRIBA
 // de la tarjeta y con más peso que el resto: es el número que decide la compra, y el de la

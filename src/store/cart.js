@@ -75,6 +75,13 @@ function destino_vacio() {
 function envio_inicial() {
 	return {
 		zipcode: leer_zipcode_guardado(),
+		/*
+		 * Localidad y provincia del destino. Desde el 17/9/2026 las devuelve SIEMPRE el servidor
+		 * en el 200 de `POST /api/envios/cotizar`, resueltas a partir del código postal (antes
+		 * quedaban vacías salvo que el comprador las hubiera escrito a mano después de un
+		 * `needs_location`). Son lo que se le muestra —"Envíos a Rosario, Santa Fe"—, lo que
+		 * precarga el destino del checkout y lo que se le guarda en el perfil.
+		 */
 		city: '',
 		state: '',
 		opciones: [],
@@ -329,6 +336,11 @@ export default {
 		 * Código postal a cotizar. Cambiarlo invalida lo cotizado: las opciones eran para OTRO
 		 * destino, así que se vacían junto con la localidad resuelta y la opción elegida.
 		 *
+		 * 🔴 Vaciar `city` y `state` es obligatorio y no una prolijidad: la localidad la resolvió
+		 * el servidor para el código postal ANTERIOR, y si quedara colgada viajaría como pista en
+		 * la próxima cotización. Zipnova le da prioridad a la pareja localidad+provincia cuando
+		 * matchea su padrón, así que el comprador escribiría 5000 y se le cotizaría a Rosario.
+		 *
 		 * @param {object} state
 		 * @param {string} value
 		 */
@@ -369,6 +381,12 @@ export default {
 		 * Resultado de una cotización. Además de las opciones guarda para QUÉ líneas se cotizó
 		 * (`items_firma`) y precarga en el destino lo que ya se sabe (CP, localidad, provincia)
 		 * sin pisar lo que el comprador haya escrito.
+		 *
+		 * `city` y `state` del payload son los que resolvió Zipnova, y desde el 17/9/2026 vienen
+		 * llenos también cuando el comprador mandó solo el código postal: el servidor los resuelve
+		 * con el centinela de `ZipnovaCotizadorService` (tienda-api). Que pisen lo que el comprador
+		 * haya escrito es lo correcto —Zipnova sabe a dónde cotizó de verdad—, y si se equivocó de
+		 * localidad, el cotizador le deja corregirla con "No es mi localidad".
 		 *
 		 * Si la opción que estaba elegida sigue existiendo se conserva (re-cotización por cambio
 		 * de cantidades); si desapareció, se suelta para que la vuelva a elegir.
@@ -806,7 +824,12 @@ export default {
 		 * Se cotiza `articles` (líneas `{id, amount}`) y, si el carrito ya está guardado, también
 		 * `cart_id`: el servidor puede leer las líneas y el subtotal de cualquiera de los dos. Lo
 		 * que vuelve son las opciones YA normalizadas y con el precio que cobra el servidor: acá
-		 * no se calcula nada.
+		 * no se calcula nada. Vuelven también `city` y `state`: la localidad y la provincia que
+		 * Zipnova resolvió para ese código postal, aunque el comprador no haya escrito ninguna.
+		 *
+		 * `city`/`state` se mandan solo si el comprador ya los tiene: son una PISTA para Zipnova,
+		 * que le gana al código postal cuando la pareja matchea su padrón. Sin ellos, el servidor
+		 * resuelve por el código postal solo, que es el caso normal.
 		 *
 		 * `articles_extra` son las líneas que el comprador está por AGREGAR (la ficha del
 		 * artículo, con la cantidad que eligió) sobre lo que ya tiene. Con eso el servidor cotiza
