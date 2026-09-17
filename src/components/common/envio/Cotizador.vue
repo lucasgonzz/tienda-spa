@@ -243,14 +243,17 @@ export default {
 			default: null,
 		},
 		/**
-		 * Líneas que el comprador está por AGREGAR, `[{id, amount}]`, separadas de la base: es la
-		 * ficha del artículo con la cantidad que eligió en el selector.
+		 * Lo que la ficha pide llevar EN TOTAL de ese artículo, `[{id, amount}]`: la cantidad que
+		 * el comprador tiene puesta en el selector. Es el total pedido, NO el delta — el delta lo
+		 * calcula el cotizador restándole lo que ya está en el carrito (ver `lineas_extra`), y
+		 * tiene que ser así porque quien monta esta prop no sabe nada del carrito.
 		 *
 		 * Con esto el cotizador deja de preguntar "cuánto sale mandar esto" y pasa a preguntar
 		 * "cuánto MÁS me sale mandar esto además de lo que ya tengo", que es lo único que el
 		 * comprador necesita saber en la ficha: el envío es uno solo y ya lo está pagando. La base
 		 * es el carrito del store; con el carrito vacío el costo que se muestra es el completo,
-		 * igual que siempre.
+		 * igual que siempre, y si de este artículo ya hay tanto o más en el carrito no hay
+		 * diferencia que mostrar y se ve el envío del carrito tal como está.
 		 *
 		 * Es excluyente con `articulos`: si vienen las dos, manda esta.
 		 */
@@ -350,43 +353,128 @@ export default {
 			return this.lineas_normalizadas(this.articulos)
 		},
 		/**
-		 * Las líneas que el comprador está por agregar (prop `articulos_extra`).
+		 * Las líneas del carrito del store, ya normalizadas (ver `lineas_del_carrito`: las
+		 * cantidades en 0 quedan afuera).
 		 * @returns {Array}
 		 */
-		lineas_extra() {
+		lineas_del_carrito_actual() {
+			return lineas_del_carrito(this.$store.state.cart.cart)
+		},
+		/**
+		 * Cuánto hay YA en el carrito de cada artículo, `{id: cantidad}`.
+		 * @returns {object}
+		 */
+		cantidades_en_el_carrito() {
+			let cantidades = {}
+			this.lineas_del_carrito_actual.forEach(function(linea) {
+				cantidades[linea.id] = (cantidades[linea.id] || 0) + linea.amount
+			})
+			return cantidades
+		},
+		/**
+		 * Lo que la ficha pide llevar EN TOTAL (prop `articulos_extra`): la cantidad que el
+		 * comprador tiene puesta en el selector, sin descontar nada todavía.
+		 * @returns {Array}
+		 */
+		lineas_pedidas_en_la_ficha() {
 			return this.lineas_normalizadas(this.articulos_extra)
 		},
 		/**
-		 * Se está cotizando una DIFERENCIA y no un envío suelto: hay algo por agregar y esto no
-		 * es el carrito ni el checkout.
+		 * Lo que FALTA agregar: lo que el selector pide menos lo que de ese mismo artículo ya está
+		 * en el carrito.
+		 *
+		 * 🔴 Ese descuento es el corazón del asunto y no un detalle. El selector de la ficha
+		 * arranca con la cantidad que el artículo YA tiene en el carrito (por eso la caja de
+		 * compra dice "Actualizar carrito" y no "Agregar al carrito"), así que mandarlo entero
+		 * como extra contaba el artículo dos veces: con 1 en el carrito y 1 en el selector se
+		 * cotizaban 2 unidades y se le decía al comprador que sumar eso le costaba $1.007 más
+		 * —cuando no está sumando nada—; con el selector en 3 sobre 1 del carrito, se cotizaban 4.
+		 *
+		 * Si la resta da 0 o menos no hay nada que agregar y la línea se descarta: el cotizador
+		 * vuelve a mostrar el envío del carrito tal como está, que es lo que va a pagar.
+		 *
+		 * @returns {Array}
+		 */
+		lineas_extra() {
+			let cantidades = this.cantidades_en_el_carrito
+			let lineas = []
+			this.lineas_pedidas_en_la_ficha.forEach(function(linea) {
+				let falta = linea.amount - (cantidades[linea.id] || 0)
+				if (falta > 0) {
+					lineas.push({ id: linea.id, amount: falta })
+				}
+			})
+			return lineas
+		},
+		/**
+		 * Este cotizador es el de una ficha a la que le pasaron `articulos_extra`, o sea el que
+		 * pregunta "cuánto MÁS me sale". Se mira lo PEDIDO y no lo que falta: que el artículo ya
+		 * esté entero en el carrito no lo convierte en el cotizador de otra cosa.
+		 * @returns {boolean}
+		 */
+		ficha_con_extra() {
+			return !this.usar_carrito && this.lineas_pedidas_en_la_ficha.length > 0
+		},
+		/**
+		 * La base de la cotización es el carrito del store: siempre en el carrito y el checkout, y
+		 * en la ficha cuando el comprador ya tiene algo adentro.
+		 * @returns {boolean}
+		 */
+		base_es_el_carrito() {
+			if (this.usar_carrito) {
+				return true
+			}
+			return this.ficha_con_extra && this.lineas_del_carrito_actual.length > 0
+		},
+		/**
+		 * Se está cotizando una DIFERENCIA y no un envío suelto: hay un carrito de base y algo que
+		 * todavía falta agregarle.
 		 * @returns {boolean}
 		 */
 		modo_incremental() {
-			return !this.usar_carrito && this.lineas_extra.length > 0
+			return this.base_es_el_carrito && !this.usar_carrito && this.lineas_extra.length > 0
 		},
 		/**
-		 * La base de la cotización: lo que el comprador YA tiene. El carrito en el carrito, en el
-		 * checkout y también en la ficha cuando hay algo por agregar; las líneas de la prop en la
-		 * ficha de siempre. Con el carrito vacío queda vacía, y entonces no hay diferencia que
-		 * mostrar: el servidor devuelve `hay_base: false` y se ve el costo completo.
+		 * La base de la cotización, lo que viaja como `articles`: lo que el comprador YA tiene.
+		 *
+		 * 🔴 Con el carrito vacío la ficha va acá y no en `articles_extra`, aunque se la hayan
+		 * pasado por esa prop. No es una prolijidad: `articles_extra` es una clave NUEVA, y una
+		 * `tienda-api` todavía sin actualizar la ignora — el artículo de la ficha se le perdía y
+		 * respondía 422 `sin_articulos`, o sea un error rojo donde el comprador antes veía el
+		 * precio del envío. Mandándolo en `articles` las dos versiones de la API hacen lo mismo y
+		 * lo correcto: cotizan el artículo solo, que es justo lo que corresponde sin base.
+		 *
 		 * @returns {Array}
 		 */
 		lineas_base() {
-			if (this.usar_carrito || this.modo_incremental) {
-				return lineas_del_carrito(this.$store.state.cart.cart)
+			if (this.base_es_el_carrito) {
+				return this.lineas_del_carrito_actual
+			}
+			if (this.ficha_con_extra) {
+				return this.lineas_pedidas_en_la_ficha
 			}
 			return this.lineas_de_la_prop
 		},
 		/**
-		 * Todo lo que se cotiza: la base más lo que se está por agregar.
+		 * Todo lo que se cotiza, y en el mismo orden en que se manda: la base, más lo que falta
+		 * agregar solo cuando eso viaja aparte. Sin modo incremental la base ya es todo, y
+		 * concatenar contaría dos veces las líneas de la ficha.
 		 * @returns {Array}
 		 */
 		lineas() {
-			return this.lineas_base.concat(this.lineas_extra)
+			if (this.modo_incremental) {
+				return this.lineas_base.concat(this.lineas_extra)
+			}
+			return this.lineas_base
 		},
 		/**
 		 * Los ids que este cotizador muestra por sí mismo (sin el carrito), para distinguir un
 		 * cambio de cantidad de un cambio de artículo. Ver el watcher `firma`.
+		 *
+		 * Van los ids PEDIDOS por la ficha y no los que falta agregar: si no, mirar un artículo
+		 * que ya está entero en el carrito daría la misma cadena vacía que el carrito, y el
+		 * watcher leería "me fui a otro artículo" cada vez que el comprador toca el "+".
+		 *
 		 * @returns {string}
 		 */
 		ids_de_la_ficha() {
@@ -394,7 +482,7 @@ export default {
 				return ''
 			}
 			let ids = []
-			this.lineas_de_la_prop.concat(this.lineas_extra).forEach(function(linea) {
+			this.lineas_de_la_prop.concat(this.lineas_pedidas_en_la_ficha).forEach(function(linea) {
 				ids.push(String(linea.id))
 			})
 			return ids.join(',')
@@ -775,16 +863,36 @@ export default {
 			let self = this
 
 			/*
-			 * `articles` es SIEMPRE la base (lo que ya tiene) y `articles_extra` lo que está por
-			 * agregar. `cart_id` va cuando el carrito ya está guardado del lado del servidor: es
-			 * la base de verdad, con las cantidades y el subtotal que resolvió el servidor, y la
-			 * copia local queda como respaldo para el carrito que todavía no se guardó.
+			 * `articles` es SIEMPRE la base (lo que ya tiene) y `articles_extra` lo que FALTA
+			 * agregar, y solo viaja cuando hay una base contra la cual restar. `cart_id` va
+			 * cuando el carrito ya está guardado del lado del servidor: es la base de verdad, con
+			 * las cantidades y el subtotal que resolvió el servidor, y la copia local queda como
+			 * respaldo para el carrito que todavía no se guardó.
+			 *
+			 * ⚠️ QUÉ PASA CON UNA `tienda-api` TODAVÍA SIN ACTUALIZAR (`articles_extra` es una
+			 * clave nueva y una API vieja la ignora). La ventana existe de verdad: la corrida de
+			 * actualización del admin sube los dos repos juntos, pero publica el SPA MINUTOS ANTES
+			 * que la API, y si falla al subir la API no revierte el SPA.
+			 *
+			 *   - Carrito vacío: cubierto. La ficha va en `articles` (ver `lineas_base`), así que
+			 *     las dos versiones cotizan el artículo solo. Es el caso de lejos más común: el
+			 *     comprador que entra a una ficha sin haber puesto nada todavía.
+			 *   - Nada que agregar: cubierto. No se manda `articles_extra` y las dos versiones
+			 *     cotizan el carrito.
+			 *   - 🔴 Carrito CON cosas y algo que agregar: NO se puede cubrir desde acá, y se deja
+			 *     así a propósito. Una API vieja cotiza la base y omite el artículo de la ficha:
+			 *     el comprador ve el envío de su carrito sin este producto (un precio de menos, no
+			 *     un error), y sin la línea de la diferencia porque no viene el bloque
+			 *     `incremental`. Mandarlo también dentro de `articles` para taparlo sería peor: la
+			 *     API NUEVA sumaría el artículo dos veces —una en la base y otra como extra— y la
+			 *     diferencia saldría al doble para todos los compradores, siempre, a cambio de
+			 *     maquillar unos minutos de una API vieja. Se elige degradar, no mentir.
 			 */
 			let payload = { articles: this.lineas_base }
 			if (this.modo_incremental) {
 				payload.articles_extra = this.lineas_extra
 			}
-			if ((this.usar_carrito || this.modo_incremental) && this.cart && this.cart.id) {
+			if (this.base_es_el_carrito && this.cart && this.cart.id) {
 				payload.cart_id = this.cart.id
 			}
 

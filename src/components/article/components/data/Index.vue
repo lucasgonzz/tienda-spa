@@ -43,6 +43,12 @@
 			UNO SOLO, asi que lo que se muestra aca es cuanto MAS sale por sumar este articulo, no
 			otro envio entero. Y la cantidad sale del store —la misma que leen el desplegable de la
 			ficha y el modal—, porque 3 unidades no pagan el mismo envio que 1.
+
+			Lo que va es la cantidad PEDIDA, el total del selector, sin mirar el carrito: el
+			descuento de lo que este articulo ya tiene adentro lo hace el cotizador, que es el
+			unico que lee el carrito. Meter esa cuenta aca seria poner logica de carrito en el
+			template de la ficha, y ademas el selector arranca justamente con la cantidad que ya
+			esta en el carrito (por eso la caja de compra dice "Actualizar carrito").
 		-->
 		<cotizador-envio
 		v-if="commerce.envios_zipnova"
