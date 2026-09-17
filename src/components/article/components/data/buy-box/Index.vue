@@ -20,6 +20,7 @@
 		v-if="puede_comprar"
 		class="caja-compra__botones">
 			<b-button
+			v-if="mostrar_comprar_ahora"
 			class="caja-compra__btn caja-compra__btn--comprar"
 			@click="comprar_ahora">
 				Comprar ahora
@@ -89,6 +90,30 @@ export default {
 		Cantidad: () => import('@/components/article/components/data/buy-box/Cantidad'),
 	},
 	computed: {
+		/**
+		 * Si se dibuja el boton "Comprar ahora".
+		 *
+		 * Lo habilita cada comercio desde su configuracion
+		 * (`online_configuration.mostrar_comprar_ahora`), y viene APAGADO de fabrica: la mayoria
+		 * de las tiendas quiere una sola accion —"Agregar al carrito"— y el atajo al pago se
+		 * prende a pedido.
+		 *
+		 * 🔴 Se lee con `Number(x) == 1` y NO con el flag pelado. El API devuelve estos booleanos
+		 * como string, y `"0"` es TRUTHY en JavaScript: con un `v-if` derecho el boton se
+		 * encenderia en toda tienda que lo tenga apagado, que es justo lo contrario del default.
+		 * Mismo criterio que `App.vue` (tienda_pausada) y `nav/footer/ItemsList.vue`. No lo
+		 * "simplifiques" a truthy.
+		 *
+		 * @returns {boolean}
+		 */
+		mostrar_comprar_ahora() {
+			/* El comercio llega asincronico y esta caja puede montarse antes: hasta que llegue, se
+			   trata como apagado. */
+			if (!this.commerce || !this.commerce.online_configuration) {
+				return false
+			}
+			return Number(this.commerce.online_configuration.mostrar_comprar_ahora) == 1
+		},
 		/**
 		 * Si este articulo se puede comprar AHORA.
 		 *
