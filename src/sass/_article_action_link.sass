@@ -13,7 +13,13 @@
 	gap: 0.45rem
 	width: 100%
 	margin: 0
-	padding: 0.5rem 0.6rem
+	// 🔴 44px DE ALTO MINIMO, y va como `min-height` y no solo como padding. Medido a 375px:
+	// 39,6px de alto, contra los 44 que piden la HIG de Apple y la WCAG 2.5.5 (Target Size). El
+	// padding solo no alcanza -- sube a ~42,8 -- y ademas depende de la metrica de la fuente, que
+	// cambia con el `--font-family-sans` que elige cada comercio. El minimo explicito no depende
+	// de nada. Es el mismo numero que ya usan `.envio-cotizador__input` y `.envio-cotizador__btn`.
+	min-height: 44px
+	padding: 0.6rem
 	border-radius: 8px
 	// 🔴 Eran una caja crema con borde tostado (`--secondary-color` al 22% y al 5%) de 45px de
 	// alto, justo debajo del precio: dos bloques pintados que competian con la caja de compra, que
@@ -36,9 +42,22 @@
 	box-sizing: border-box
 	transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease
 
+	// 🔴 EL ICONO SIGUE AL TEXTO, no al color de marca. Los dos estaban pintados de
+	// `--secondary-color` (medido: `rgb(254, 120, 2)` en los dos), con la misma forma de pildora y
+	// el mismo ancho exacto: lo unico que los distinguia era el dibujo, y el color los volvia a
+	// igualar. Estas son acciones SECUNDARIAS y no llevan color, que es lo que dirian tanto Apple
+	// como Mercado Libre; el que distingue es el icono.
+	//
+	// No se eligio el verde de WhatsApp para "Consultar": #25D366 sobre blanco da contraste ~2,0
+	// -- seria un icono debil ademas de meter el color de OTRA marca al lado del color del
+	// comercio. Y este repo ya tiene la regla escrita: lo unico que se copia literal de las
+	// capturas es el verde del descuento.
+	//
+	// `inherit` y no un gris fijo: asi el icono acompaña tambien al hover, donde el boton entero
+	// pasa a `--primary-color`. El color de marca se gana el lugar, no decora el reposo.
 	.bi
 		font-size: 1rem
-		color: var(--secondary-color)
+		color: inherit
 		flex-shrink: 0
 
 	// En una fila de dos mitades el texto no puede empujar: si no entra, se recorta con puntos
