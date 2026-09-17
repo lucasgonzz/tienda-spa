@@ -236,13 +236,28 @@ export default {
 	box-sizing: border-box
 	text-align: left
 
-	// El recuadro propio de la columna derecha, con los numeros de la captura. Solo cuando hay
-	// algo adentro: ver `tiene_recuadro`.
+	// 🔴 YA NO DIBUJA UN RECUADRO PROPIO: era una caja adentro de otra caja. La ficha entera
+	// vive dentro de UNA tarjeta blanca (`.ficha-ml__tarjeta`), y esta caja dibujaba encima su
+	// borde de 1px. Medido: el borde de la tarjeta es `rgba(0, 0, 0, .08)` y el de esta caja era
+	// `rgba(0, 0, 0, .12)` -- o sea que el recuadro chico de adentro se marcaba MAS fuerte que el
+	// contenedor que lo envuelve, que es al reves de como se lee una jerarquia. Mercado Libre no
+	// encuadra la caja de compra: la separa con espacio.
+	//
+	// La clase no queda muerta: sigue decidiendo el separador de abajo, y `tiene_recuadro` sigue
+	// siendo el que sabe si hay algo que separar (ver su comentario).
 	&.caja-compra--recuadro
-		border: 1px solid rgba(0, 0, 0, .12)
-		border-radius: 6px
-		padding: 16px
-		background: #FFF
+		border: none
+		border-radius: 0
+		padding: 0
+		background: transparent
+
+		// Apilada -- tablet y telefono, donde esta columna baja a lo ancho debajo de los datos --
+		// el espacio solo no la separa de nada: queda pegada a lo de arriba. Ahi va la misma linea
+		// de pelo con la que esta ficha ya separa sus bloques (ver `.envio-cotizador` en
+		// `data/Index.vue`). En escritorio es una columna al costado y no hace falta.
+		@media screen and (max-width: 1024px)
+			border-top: 1px solid rgba(0, 0, 0, .08)
+			padding-top: 16px
 
 	.caja-compra__stock
 		margin: .85rem 0 .35rem 0
