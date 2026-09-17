@@ -26,9 +26,15 @@
 				Comprar ahora
 			</b-button>
 
+			<!--
+				Cuando "Comprar ahora" esta apagado —que es como viene de fabrica— este es el UNICO
+				boton de la caja, asi que toma el tratamiento primario. Con el tratamiento secundario
+				quedaba la unica accion de compra de la ficha pintada como accion al costado.
+			-->
 			<b-button
 			v-if="!is_item_in_cart(article)"
-			class="caja-compra__btn caja-compra__btn--carrito"
+			class="caja-compra__btn"
+			:class="mostrar_comprar_ahora ? 'caja-compra__btn--carrito' : 'caja-compra__btn--comprar'"
 			@click="agregar_al_carrito">
 				Agregar al carrito
 			</b-button>
