@@ -39,10 +39,14 @@
 			Envío por correo (Zipnova): el comprador ve cuánto sale y cuánto tarda con su código
 			postal antes de agregar al carrito. Solo si el comercio lo tiene conectado. Se ve
 			también en el modal de agregar al carrito (mismo componente).
+			Va por `articulos_extra` y no por `articulos`: con cosas ya en el carrito el envio es
+			UNO SOLO, asi que lo que se muestra aca es cuanto MAS sale por sumar este articulo, no
+			otro envio entero. Y la cantidad sale del store —la misma que leen el desplegable de la
+			ficha y el modal—, porque 3 unidades no pagan el mismo envio que 1.
 		-->
 		<cotizador-envio
 		v-if="commerce.envios_zipnova"
-		:articulos="[{ id: article_to_show.id, amount: 1 }]"></cotizador-envio>
+		:articulos_extra="[{ id: article_to_show.id, amount: $store.state.articles.amount }]"></cotizador-envio>
 
 		<variants></variants>
 
