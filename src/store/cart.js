@@ -648,17 +648,67 @@ export default {
 				return
 			}
 
-			let pivot = coleccion[index].pivot
+			/*
+			 * 🔴 LA LINEA SE REEMPLAZA ENTERA, no se le escriben los campos encima. Y no es
+			 * cuestion de estilo: sin esto el dato queda bien y la PANTALLA no se entera.
+			 *
+			 * El carrito del invitado lo arma `saveCart()` con asignaciones planas sobre un objeto
+			 * que Vue YA venia observando (`article.amount = ...`, `article.pivot = {...}`). En Vue 2
+			 * eso deja esas claves SIN getter reactivo, y `Vue.set` tampoco lo arregla: cuando la
+			 * clave ya existe se degrada a una asignacion comun. Medido en la tienda corriendo el
+			 * 17/9/2026, sobre la linea del carrito de un invitado:
+			 *
+			 *   linea.amount -> plana     linea.notes -> plana     linea.pivot -> plana, sin __ob__
+			 *   linea.price  -> REACTIVA (esa si vino de la API)
+			 *
+			 * O sea que escribir `pivot.amount` y `linea.amount` encima dejaba el numerito del icono
+			 * del carrito clavado en 1 despues de actualizar a 4.
+			 *
+			 * `Vue.set` sobre el INDICE del array si notifica —usa el splice parcheado, que dispara
+			 * el dep DEL ARRAY, que es justo del que dependen `cant_cart_items()` y `total()` de
+			 * mixins/cart.js porque los dos lo recorren— y ademas observa entero el objeto nuevo.
+			 * Los dos numeros se rehacen juntos.
+			 *
+			 * La identidad no importa: `get_item_cart()` y las tres busquedas de este archivo
+			 * matchean por `id`, nunca por referencia.
+			 */
+			let linea = coleccion[index]
 
-			Vue.set(pivot, 'amount', amount)
+			/*
+			 * 🔴 LA CANTIDAD VIAJA DOS VECES, en el pivote y en la copia plana, y las DOS se
+			 * escriben. Es el invariante que `setCart()` sostiene unas mutaciones mas abajo
+			 * (`article.amount = article.pivot.amount`, idem `price` y `notes`) y que el alta del
+			 * invitado ya sostenia a mano en `saveCart()`. Media tienda lee la copia PLANA:
+			 *
+			 *   - `mixins/cart.js :: cant_cart_items()`  -> el numerito del icono del carrito
+			 *   - `article-card/body/Cantidad.vue`       -> el "Cantidad: N" de la linea
+			 *   - `article-card/body/CartInfo.vue`       -> el subtotal de la linea
+			 *   - `mixins/articles.js :: checkCartArticleAmount()` -> con que cantidad vuelve a
+			 *     abrir la ficha
+			 *
+			 * mientras que `mixins/cart.js :: total()` suma por el PIVOTE. Escribir uno solo deja los
+			 * dos numeros peleados, y el que queda mal es el que el comprador ve: medido el 17/9/2026
+			 * con un articulo de $27.999 agregado en 1 y actualizado a 4, la linea decia
+			 * "Cantidad: 1" y el resumen "1 producto / 1 unidad" con el TOTAL en $111.996,00 —las 4.
+			 * La pantalla mostraba una unidad y el total cobraba cuatro.
+			 */
+			let pivot_nuevo = Object.assign({}, linea.pivot, { amount: amount })
+			let linea_nueva = Object.assign({}, linea, { amount: amount })
 
+			/* `price` y `notes` solo pisan si el llamador los mando, y van a los dos lugares. */
 			if (price !== null && typeof price != 'undefined') {
-				Vue.set(pivot, 'price', price)
+				pivot_nuevo.price = price
+				linea_nueva.price = price
 			}
 
 			if (typeof notes != 'undefined') {
-				Vue.set(pivot, 'notes', notes)
+				pivot_nuevo.notes = notes
+				linea_nueva.notes = notes
 			}
+
+			linea_nueva.pivot = pivot_nuevo
+
+			Vue.set(coleccion, index, linea_nueva)
 		},
 		removeArticle(state, {item, remove_only_one_amount }) {
 			if (remove_only_one_amount == undefined) {
