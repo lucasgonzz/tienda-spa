@@ -271,12 +271,37 @@ export default {
 		border-color: var(--primary-color)
 		color: #FFF
 
-	// El boton suave de la captura: el mismo color de accion, pero apoyado sobre un fondo
-	// tenue en vez de lleno.
+	// El boton secundario de la caja, con el tratamiento del "Agregar al carrito" de Mercado
+	// Libre: fondo claro del MISMO color de accion, texto en ese color, sin borde.
+	//
+	// 🔴 El fondo era `rgba(0, 0, 0, .04)` —un gris del 4%— y sobre la tarjeta blanca no se
+	// distinguia de la tarjeta: parecia texto suelto, no un boton. Se tiñe con `color-mix` sobre
+	// blanco en vez de clavar un celeste: el color de accion lo elige cada comercio
+	// (`--primary-color`, rojo #c5111d de fabrica), asi que un azul fijo seria de una sola tienda.
+	// Misma tecnica que ya usa `_article_action_link.sass`.
+	//
+	// Lo comparten "Agregar al carrito" y "Actualizar carrito": los dos son la accion secundaria
+	// de la caja y en Mercado Libre se ven igual. No hay motivo para separarlos.
 	.caja-compra__btn--carrito
-		background: rgba(0, 0, 0, .04)
+		background: color-mix(in srgb, var(--primary-color) 15%, #FFF)
 		border-color: transparent
 		color: var(--primary-color)
+
+		// El hover sube el mismo tinte; no cambia de color ni levanta el boton. La regla existe
+		// porque `b-button` sin variante nace `btn-secondary`, y el hover gris de Bootstrap
+		// —(0,1,1)— le ganaba a la regla base de arriba.
+		&:hover
+			background: color-mix(in srgb, var(--primary-color) 22%, #FFF)
+			border-color: transparent
+			color: var(--primary-color)
+
+		// El halo gris de `.btn-secondary:focus` tampoco es del comercio: se reemplaza por un
+		// anillo del color de accion, que ademas es la unica senal de foco que queda sin borde.
+		&:focus
+			background: color-mix(in srgb, var(--primary-color) 22%, #FFF)
+			border-color: transparent
+			color: var(--primary-color)
+			box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--primary-color) 28%, transparent)
 
 	.caja-compra__btn--quitar
 		height: auto
@@ -284,11 +309,27 @@ export default {
 		font-weight: 400
 		color: rgba(0, 0, 0, .55)
 
-	// Mismo tratamiento que ".add-to-cart__btn-actualizar--disabled" del componente viejo:
-	// sin "disabled" nativo (el tooltip tiene que poder recibir hover igual), la corta de
-	// verdad el guard de adentro de update_article_cart(); esto es solo la senal visual.
-	.caja-compra__btn--actualizar-disabled
-		opacity: 0.65
+	// Sin "disabled" nativo (el tooltip tiene que poder recibir hover igual): la corta de verdad
+	// el guard de adentro de update_article_cart(); esto es solo la senal visual.
+	//
+	// 🔴 Era `opacity: .65` y con el fondo nuevo dejaba de servir: la opacidad aclara el tinte
+	// Y el texto a la vez, asi que el boton quedaba casi blanco sobre blanco en vez de
+	// deshabilitado. Ahora se sale del color de accion y se va al gris, que es la senal de
+	// "esto no se puede tocar" y no depende de cual sea el color del comercio.
+	//
+	// Las tres lineas del selector no son adorno: el `&:hover` / `&:focus` de `--carrito` vale
+	// (0,2,1) y le ganaba a esta regla apenas se pasaba el mouse por encima, devolviendole al
+	// boton deshabilitado el aspecto de habilitado.
+	// Y el `.caja-compra__btn` de mas es lo que le gana el `cursor` a Bootstrap: su
+	// `.btn:not(:disabled):not(.disabled) { cursor: pointer }` vale (0,3,0) — lo mismo que
+	// valdria esta regla sin ese nivel de mas—, y en un empate decide el orden de
+	// compilacion. Medido en la app: con un solo nivel el cursor seguia siendo `pointer`.
+	.caja-compra__btn.caja-compra__btn--actualizar-disabled,
+	.caja-compra__btn.caja-compra__btn--actualizar-disabled:hover,
+	.caja-compra__btn.caja-compra__btn--actualizar-disabled:focus
+		background: rgba(0, 0, 0, .05)
+		border-color: transparent
+		color: rgba(0, 0, 0, .38)
 		cursor: not-allowed
 		box-shadow: none
 
