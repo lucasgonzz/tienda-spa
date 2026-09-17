@@ -131,6 +131,24 @@ export function firma_de_lineas(lineas) {
  * `POST /api/envios/cotizar` (`articles: [{id, amount}]`). Las promociones de vinoteca quedan
  * afuera: no son artículos y no tienen peso ni medidas propias.
  *
+ * 🔴 Las líneas con cantidad 0 (o negativa, o no numérica) se DESCARTAN, y esto no es una
+ * prolijidad: el servidor exige `articles.*.amount >= 1` y una sola línea rara del carrito hacía
+ * fallar la cotización de CADA artículo que el comprador mirara, con un 422 que encima le echaba
+ * la culpa al código postal ("Revisá el código postal e intentá de nuevo").
+ *
+ * Y se descarta en vez de mandarse como 1 por dos motivos:
+ *
+ *   - una línea en 0 no es algo que el comprador esté comprando; contarla como un bulto infla el
+ *     envío de la base y deja la diferencia que se le muestra en la ficha MÁS BARATA que la real;
+ *   - es lo que el servidor ya hace con esa misma línea: `ZipnovaPaquetesHelper::items_desde_lineas`
+ *     castea a `(int)` y saltea la línea si queda por debajo de 1. Mandarla como 1 lo contradice.
+ *
+ * El truncado a entero es el mismo `(int)` del servidor, por la misma razón: que los dos lados
+ * cuenten los mismos bultos.
+ *
+ * ⚠️ Distinto es el 0 de la FICHA (el selector de cantidad arranca vacío): ese significa "todavía
+ * no eligió", no "cero unidades", y lo normaliza a 1 `lineas_normalizadas` en `Cotizador.vue`.
+ *
  * @param {object} cart
  * @returns {Array}
  */
@@ -144,9 +162,13 @@ export function lineas_del_carrito(cart) {
 		if ((amount === undefined || amount === null) && article.pivot) {
 			amount = article.pivot.amount
 		}
+		amount = Math.floor(Number(amount))
+		if (!isFinite(amount) || amount < 1) {
+			return
+		}
 		lineas.push({
 			id: article.id,
-			amount: Number(amount) || 0,
+			amount: amount,
 		})
 	})
 	return lineas
