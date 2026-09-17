@@ -123,7 +123,30 @@
 				el problema que reportó Lucas.
 			-->
 			<template v-else>
+				<!--
+					Ficha con el carrito ya empezado: lo primero que se lee es la DIFERENCIA, no
+					el total. El envío es uno solo y el comprador ya lo está pagando; lo que
+					decide su compra es cuánto MÁS le sale sumar esto.
+				-->
+				<p
+				v-if="texto_incremental"
+				class="envio-cotizador__incremental"
+				:class="{'envio-cotizador__incremental--sin-costo': incremental_sin_costo}">
+					{{ texto_incremental }}
+				</p>
+
 				<envio-opcion-card :opcion="opcion_mas_barata"></envio-opcion-card>
+
+				<!--
+					Y el precio de la tarjeta se aclara: con base, ese número es el envío del
+					carrito ENTERO con este producto adentro, no lo que cuesta mandarlo solo.
+					Sin esta línea el comprador vuelve a leer el mismo número de antes.
+				-->
+				<p
+				v-if="incremental"
+				class="envio-cotizador__envio-completo">
+					Es el envío de todo tu carrito, con este producto incluido.
+				</p>
 
 				<button
 				type="button"
@@ -184,6 +207,22 @@ export default {
 			type: Array,
 			default: null,
 		},
+		/**
+		 * Líneas que el comprador está por AGREGAR, `[{id, amount}]`, separadas de la base: es la
+		 * ficha del artículo con la cantidad que eligió en el selector.
+		 *
+		 * Con esto el cotizador deja de preguntar "cuánto sale mandar esto" y pasa a preguntar
+		 * "cuánto MÁS me sale mandar esto además de lo que ya tengo", que es lo único que el
+		 * comprador necesita saber en la ficha: el envío es uno solo y ya lo está pagando. La base
+		 * es el carrito del store; con el carrito vacío el costo que se muestra es el completo,
+		 * igual que siempre.
+		 *
+		 * Es excluyente con `articulos`: si vienen las dos, manda esta.
+		 */
+		articulos_extra: {
+			type: Array,
+			default: null,
+		},
 		/** Cotizar el carrito del store (y volver a cotizar solo si cambia). */
 		usar_carrito: {
 			type: Boolean,
@@ -206,6 +245,13 @@ export default {
 			zipcode_resuelto_con_google: null,
 			/* Temporizador de la re-cotización automática al cambiar el carrito. */
 			timer_recotizar: null,
+			/*
+			 * Ids que este cotizador estaba mostrando la última vez que cambió la firma. Sirve
+			 * para una sola cosa: distinguir "cambió la CANTIDAD del mismo artículo" (se vuelve a
+			 * cotizar solo) de "el comprador se fue a OTRO artículo" (no se cotiza nada que no
+			 * pidió). Ver el watcher `firma`.
+			 */
+			ids_de_la_ficha_anterior: null,
 		}
 	},
 	computed: {
@@ -255,14 +301,61 @@ export default {
 			return this.envio.error
 		},
 		/**
-		 * Líneas que este cotizador cotiza: las del carrito o las que le pasaron por prop.
+		 * Las líneas que le pasaron por la prop `articulos` (la ficha de siempre, sin base).
+		 * @returns {Array}
+		 */
+		lineas_de_la_prop() {
+			return this.lineas_normalizadas(this.articulos)
+		},
+		/**
+		 * Las líneas que el comprador está por agregar (prop `articulos_extra`).
+		 * @returns {Array}
+		 */
+		lineas_extra() {
+			return this.lineas_normalizadas(this.articulos_extra)
+		},
+		/**
+		 * Se está cotizando una DIFERENCIA y no un envío suelto: hay algo por agregar y esto no
+		 * es el carrito ni el checkout.
+		 * @returns {boolean}
+		 */
+		modo_incremental() {
+			return !this.usar_carrito && this.lineas_extra.length > 0
+		},
+		/**
+		 * La base de la cotización: lo que el comprador YA tiene. El carrito en el carrito, en el
+		 * checkout y también en la ficha cuando hay algo por agregar; las líneas de la prop en la
+		 * ficha de siempre. Con el carrito vacío queda vacía, y entonces no hay diferencia que
+		 * mostrar: el servidor devuelve `hay_base: false` y se ve el costo completo.
+		 * @returns {Array}
+		 */
+		lineas_base() {
+			if (this.usar_carrito || this.modo_incremental) {
+				return lineas_del_carrito(this.$store.state.cart.cart)
+			}
+			return this.lineas_de_la_prop
+		},
+		/**
+		 * Todo lo que se cotiza: la base más lo que se está por agregar.
 		 * @returns {Array}
 		 */
 		lineas() {
+			return this.lineas_base.concat(this.lineas_extra)
+		},
+		/**
+		 * Los ids que este cotizador muestra por sí mismo (sin el carrito), para distinguir un
+		 * cambio de cantidad de un cambio de artículo. Ver el watcher `firma`.
+		 * @returns {string}
+		 */
+		ids_de_la_ficha() {
 			if (this.usar_carrito) {
-				return lineas_del_carrito(this.$store.state.cart.cart)
+				return ''
 			}
-			return this.articulos ? this.articulos : []
+			let ids = []
+			this.lineas_de_la_prop.concat(this.lineas_extra).forEach(function(linea) {
+				ids.push(String(linea.id))
+			})
+			return ids.join(',')
 		},
 		/**
 		 * Firma de esas líneas, para saber si las opciones del store son de ESTO o de otra cosa.
@@ -351,6 +444,96 @@ export default {
 				return mas_barata
 			}, null)
 		},
+		/**
+		 * El bloque `incremental` del servidor, SOLO si corresponde a lo que este cotizador está
+		 * mostrando (mismo criterio que `opciones_visibles`) y si hay base contra la cual
+		 * comparar. Sin base —carrito vacío, carrito vencido, nada que viaje— no hay diferencia:
+		 * lo que se ve es el costo completo, igual que siempre.
+		 * @returns {object|null}
+		 */
+		incremental() {
+			if (!this.modo_incremental || !this.opciones_visibles.length) {
+				return null
+			}
+			let incremental = this.envio.incremental
+			if (!incremental || !incremental.hay_base) {
+				return null
+			}
+			return incremental
+		},
+		/**
+		 * Cuántas unidades se están por agregar, para hablarle al comprador de lo que eligió y no
+		 * de "un producto" cuando puso tres.
+		 * @returns {number}
+		 */
+		unidades_a_agregar() {
+			return this.lineas_extra.reduce(function(total, linea) {
+				return total + (Number(linea.amount) || 0)
+			}, 0)
+		},
+		/** "este producto" / "estas 3 unidades". @returns {string} */
+		texto_lo_que_agrega() {
+			return this.unidades_a_agregar > 1
+				? 'estas ' + this.unidades_a_agregar + ' unidades'
+				: 'este producto'
+		},
+		/**
+		 * La línea que resuelve el problema: cuánto MÁS le cuesta el envío por sumar esto. Tres
+		 * casos, y ninguno se puede decir con el número solo:
+		 *
+		 *   - cuesta una diferencia  → el número, que es lo único que tiene que decidir;
+		 *   - no suma nada           → el envío que ya paga alcanza para llevarlo también;
+		 *   - lo deja gratis         → la diferencia da NEGATIVA (el envío pasa de $10.000 a $0
+		 *     porque con este artículo llega al mínimo de envío gratis), y eso no se muestra
+		 *     nunca como "-$10.000".
+		 *
+		 * 🔴 Con `misma_opcion: false` el servidor avisa que la opción más barata del carrito no
+		 * existe en el conjunto (más peso, menos transportistas) y que tuvo que comparar dos
+		 * servicios distintos. Ahí el número es una estimación y se dice como tal; y si además no
+		 * daría diferencia, no se afirma nada y se muestra el costo completo a secas.
+		 *
+		 * @returns {string}
+		 */
+		texto_incremental() {
+			let incremental = this.incremental
+			if (!incremental) {
+				return ''
+			}
+			if (incremental.queda_gratis) {
+				return 'Sumar ' + this.texto_lo_que_agrega + ' te deja el envío gratis.'
+			}
+			if (incremental.diferencia === null || incremental.diferencia === undefined) {
+				return ''
+			}
+			let diferencia = Number(incremental.diferencia)
+			if (!isFinite(diferencia)) {
+				return ''
+			}
+			if (diferencia > 0) {
+				return incremental.misma_opcion
+					? 'Sumar ' + this.texto_lo_que_agrega + ' a tu envío te cuesta ' + this.price(diferencia, false) + ' más.'
+					: 'Sumar ' + this.texto_lo_que_agrega + ' a tu envío te cuesta alrededor de ' + this.price(diferencia, false) + ' más.'
+			}
+			return incremental.misma_opcion
+				? 'Sumar ' + this.texto_lo_que_agrega + ' a tu envío no te cuesta nada más.'
+				: ''
+		},
+		/** La diferencia es buena noticia (gratis o sin costo): se pinta distinto. @returns {boolean} */
+		incremental_sin_costo() {
+			if (!this.incremental) {
+				return false
+			}
+			if (this.incremental.queda_gratis) {
+				return true
+			}
+			// Sin diferencia calculable no se pinta nada de verde: `Number(null)` es 0 y diría
+			// que no cuesta nada cuando lo que pasa es que no se sabe.
+			if (this.incremental.diferencia === null || this.incremental.diferencia === undefined) {
+				return false
+			}
+			let diferencia = Number(this.incremental.diferencia)
+			return isFinite(diferencia) && diferencia <= 0
+		},
 	},
 	watch: {
 		/**
@@ -370,10 +553,35 @@ export default {
 				this.programar_recotizacion()
 				return
 			}
+
+			/*
+			 * En la ficha la firma cambia por dos motivos muy distintos, y no se responden igual:
+			 *
+			 *   - el comprador se fue a OTRO artículo: no se cotiza nada que no haya pedido (cada
+			 *     artículo que mira sería una cotización), salvo la excepción de siempre del
+			 *     comprador logueado con su código postal guardado;
+			 *   - cambió la CANTIDAD del mismo artículo, o cambió el carrito que es su base: lo
+			 *     que está a la vista quedó viejo y hay que volver a cotizar, con el mismo respiro
+			 *     de 400 ms del carrito para no disparar una cotización por cada toque del "+".
+			 *
+			 * Solo se recotiza si ya había una cotización a la vista (`items_firma`): a un
+			 * visitante que nunca tocó "Calcular" no se le pide nada por cambiar una cantidad.
+			 */
+			let ids_ahora = this.ids_de_la_ficha
+			let mismo_articulo = this.ids_de_la_ficha_anterior !== null && this.ids_de_la_ficha_anterior === ids_ahora
+			this.ids_de_la_ficha_anterior = ids_ahora
+
+			if (mismo_articulo && this.envio.items_firma !== null) {
+				this.programar_recotizacion()
+				return
+			}
+
 			this.cotizar_de_nuevo_si_el_buyer_tiene_cp_guardado()
 		},
 	},
 	created() {
+		this.ids_de_la_ficha_anterior = this.ids_de_la_ficha
+
 		// Carrito y checkout: si hay código postal y las opciones no son de estas líneas, se
 		// cotiza solo. En la página del artículo NO, salvo la excepción de abajo: cada artículo
 		// que se mira sería una cotización, y el comprador toca "Calcular" cuando le interesa.
@@ -389,6 +597,32 @@ export default {
 		}
 	},
 	methods: {
+		/**
+		 * Líneas `{id, amount}` con la cantidad ya normalizada a un entero de 1 para arriba.
+		 *
+		 * 🔴 No es una defensa de más. La cantidad de la ficha sale de `articles.amount` del
+		 * store, que arranca en '' (cadena vacía) para un artículo que todavía no está en el
+		 * carrito y vuelve a quedar en '' después de agregar (lo vacía `add-to-cart/Index.vue`).
+		 * Mandar `amount: 0` es un 422 de validación del servidor —`articles.*.amount` exige
+		 * min:1—, o sea el cotizador roto sin ninguna explicación en pantalla.
+		 *
+		 * @param {Array} lista
+		 * @returns {Array}
+		 */
+		lineas_normalizadas(lista) {
+			let lineas = []
+			;(lista || []).forEach(function(linea) {
+				if (!linea || !linea.id) {
+					return
+				}
+				let amount = Math.floor(Number(linea.amount))
+				if (!amount || isNaN(amount) || amount < 1) {
+					amount = 1
+				}
+				lineas.push({ id: linea.id, amount: amount })
+			})
+			return lineas
+		},
 		/**
 		 * Cotiza si hay código postal, hay líneas, y las opciones del store no son de estas
 		 * líneas. Con una cotización en curso no dispara otra: el carrito monta este componente
@@ -449,10 +683,21 @@ export default {
 				return
 			}
 			let self = this
-			let payload = { articles: this.lineas }
-			if (this.usar_carrito && this.cart && this.cart.id) {
+
+			/*
+			 * `articles` es SIEMPRE la base (lo que ya tiene) y `articles_extra` lo que está por
+			 * agregar. `cart_id` va cuando el carrito ya está guardado del lado del servidor: es
+			 * la base de verdad, con las cantidades y el subtotal que resolvió el servidor, y la
+			 * copia local queda como respaldo para el carrito que todavía no se guardó.
+			 */
+			let payload = { articles: this.lineas_base }
+			if (this.modo_incremental) {
+				payload.articles_extra = this.lineas_extra
+			}
+			if ((this.usar_carrito || this.modo_incremental) && this.cart && this.cart.id) {
 				payload.cart_id = this.cart.id
 			}
+
 			this.$store.dispatch('cart/cotizar_envio', payload)
 			.then(function() {
 				self.$emit('cotizado')
@@ -655,6 +900,25 @@ export default {
 	font-size: .82rem
 	color: rgba(0, 0, 0, .55)
 	margin: 0 0 .5rem
+
+// La diferencia que el comprador paga por sumar este producto a un envío que ya tiene. Va ARRIBA
+// de la tarjeta y con más peso que el resto: es el número que decide la compra, y el de la
+// tarjeta (el envío del carrito entero) es el que ya venía pagando.
+.envio-cotizador__incremental
+	font-size: .95rem
+	font-weight: 700
+	line-height: 1.35
+	color: #1a1a1a
+	margin: 0 0 .5rem
+
+// Buena noticia (no suma nada, o queda gratis): el mismo verde del precio gratis de la tarjeta.
+.envio-cotizador__incremental--sin-costo
+	color: #1b7a3d
+
+.envio-cotizador__envio-completo
+	font-size: .82rem
+	color: rgba(0, 0, 0, .55)
+	margin: .4rem 0 0
 
 // Resumen no seleccionable (artículo, carrito): texto-link que abre el modal con el resto de
 // las opciones. Sin fondo ni borde a propósito — no compite con "Calcular" ni con "Agregar".

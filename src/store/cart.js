@@ -88,6 +88,13 @@ function envio_inicial() {
 		 */
 		items_firma: null,
 		envio_gratis: false,
+		/*
+		 * Bloque `incremental` de la última cotización, o null. Solo viene cuando se cotizó con
+		 * `articles_extra` (la ficha de un artículo con el carrito ya empezado): dice cuánto MÁS
+		 * cuesta el envío por sumar ese artículo, que es lo único que el comprador necesita saber
+		 * ahí —el envío es uno solo y ya lo está pagando—. Ver el docblock de `cotizar_envio`.
+		 */
+		incremental: null,
 		destino: destino_vacio(),
 		cotizando: false,
 		error: null,
@@ -151,6 +158,9 @@ function hidratar_envio(state, cart) {
 	}
 	state.envio.opciones = cotizacion.opciones
 	state.envio.items_firma = firma_de_lineas(lineas_del_carrito(cart))
+	// El snapshot guardado del carrito es el envío del carrito ENTERO: no hay diferencia contra
+	// nada. Si quedara colgada la de la última ficha, el carrito mostraría un cartel que no es suyo.
+	state.envio.incremental = null
 	// El snapshot trae `envio_gratis`; si es viejo y no lo trae, vale lo que diga la opción elegida.
 	state.envio.envio_gratis = cotizacion.envio_gratis !== undefined
 		? !!cotizacion.envio_gratis
@@ -335,6 +345,7 @@ export default {
 			state.envio.point_id = null
 			state.envio.items_firma = null
 			state.envio.envio_gratis = false
+			state.envio.incremental = null
 			state.envio.error = null
 			state.envio.needs_location = false
 			guardar_zipcode(zipcode)
@@ -363,12 +374,15 @@ export default {
 		 * de cantidades); si desapareció, se suelta para que la vuelva a elegir.
 		 *
 		 * @param {object} state
-		 * @param {object} payload { opciones, zipcode, city, state, envio_gratis, items_firma }
+		 * @param {object} payload { opciones, zipcode, city, state, envio_gratis, items_firma, incremental }
 		 */
 		set_envio_opciones(state, payload) {
 			state.envio.opciones = payload.opciones || []
 			state.envio.items_firma = payload.items_firma || null
 			state.envio.envio_gratis = !!payload.envio_gratis
+			// Sin `incremental` en el payload queda en null: es lo que corresponde para el
+			// carrito y el checkout, que cotizan el envío entero y no una diferencia.
+			state.envio.incremental = payload.incremental || null
 			if (payload.zipcode) {
 				state.envio.zipcode = String(payload.zipcode)
 				guardar_zipcode(state.envio.zipcode)
@@ -794,20 +808,34 @@ export default {
 		 * que vuelve son las opciones YA normalizadas y con el precio que cobra el servidor: acá
 		 * no se calcula nada.
 		 *
+		 * `articles_extra` son las líneas que el comprador está por AGREGAR (la ficha del
+		 * artículo, con la cantidad que eligió) sobre lo que ya tiene. Con eso el servidor cotiza
+		 * dos veces —el carrito solo y el carrito con el artículo—, devuelve las opciones del
+		 * conjunto (es lo que va a pagar si agrega) y suma un bloque `incremental` con la
+		 * diferencia. Sin `articles_extra` la respuesta es la de siempre.
+		 *
+		 * 🔴 La firma (`items_firma`) se arma con las DOS listas juntas: si se armara solo con
+		 * `articles`, dos fichas distintas sobre el mismo carrito tendrían la misma firma y la
+		 * segunda mostraría la diferencia de la primera.
+		 *
 		 * Resuelve con la respuesta. Rechaza con el error de axios para que el cotizador decida
 		 * qué hacer (por ejemplo, intentar resolver la localidad con Google Maps ante
 		 * `needs_location`); el mensaje legible ya queda en `envio.error`.
 		 *
 		 * @param {object} context
-		 * @param {object} payload { articles: [{id, amount}], cart_id?: number }
+		 * @param {object} payload { articles: [{id, amount}], articles_extra?: [{id, amount}], cart_id?: number }
 		 * @returns {Promise}
 		 */
 		cotizar_envio({ state, commit }, payload) {
 			let articles = payload && payload.articles ? payload.articles : []
+			let articles_extra = payload && payload.articles_extra ? payload.articles_extra : []
 			let body = {
 				commerce_id: process.env.VUE_APP_COMMERCE_ID,
 				zipcode: state.envio.zipcode,
 				articles: articles,
+			}
+			if (articles_extra.length) {
+				body.articles_extra = articles_extra
 			}
 			if (state.envio.city) {
 				body.city = state.envio.city
@@ -831,7 +859,8 @@ export default {
 					city: res.data.city,
 					state: res.data.state,
 					envio_gratis: res.data.envio_gratis,
-					items_firma: firma_de_lineas(articles),
+					incremental: res.data.incremental,
+					items_firma: firma_de_lineas(articles.concat(articles_extra)),
 				})
 				if (!res.data.opciones || !res.data.opciones.length) {
 					commit('set_envio_error', 'Ningún correo llega a ese código postal. Probá con otro o elegí retiro por el local.')
