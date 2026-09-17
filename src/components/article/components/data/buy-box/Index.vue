@@ -245,10 +245,13 @@ export default {
 		line-height: 1.3
 		color: rgba(0, 0, 0, .9)
 
+	// Los 15px son el pedido de Lucas: los botones estaban amontonados uno contra otro. El
+	// `+ .caja-compra__add-to-cart` de mas abajo estira esa misma separacion hasta el textarea
+	// de notas, que se monta afuera de este contenedor.
 	.caja-compra__botones
 		display: flex
 		flex-direction: column
-		gap: .5rem
+		gap: 15px
 		margin-top: 1rem
 
 	.caja-compra__btn
@@ -288,6 +291,13 @@ export default {
 		opacity: 0.65
 		cursor: not-allowed
 		box-shadow: none
+
+	// El textarea de notas vive adentro de `add-to-cart`, o sea AFUERA de
+	// `.caja-compra__botones`: sin esto quedaba pegado al ultimo boton mientras los botones
+	// entre si ya respiraban. El selector de hermano lo acota al caso en que hay botones arriba;
+	// con el articulo agotado `add-to-cart` dibuja el aviso y ahi no corresponde.
+	.caja-compra__botones + .caja-compra__add-to-cart
+		margin-top: 15px
 
 	// Ver el comentario del template: el componente se monta igual, lo que se esconde es su
 	// fila de controles, que estos botones reemplazan.
