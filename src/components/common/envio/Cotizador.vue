@@ -135,7 +135,7 @@
 					{{ texto_incremental }}
 				</p>
 
-				<envio-opcion-card :opcion="opcion_mas_barata"></envio-opcion-card>
+				<envio-opcion-card :opcion="opcion_a_mostrar"></envio-opcion-card>
 
 				<!--
 					Y el precio de la tarjeta se aclara: con base, ese número es el envío del
@@ -443,6 +443,28 @@ export default {
 				}
 				return mas_barata
 			}, null)
+		},
+		/**
+		 * La opción que se muestra como resumen (artículo y carrito): la más barata, salvo cuando
+		 * hay una diferencia a la vista.
+		 *
+		 * 🔴 Con diferencia se muestra la opción que el servidor comparó (`incremental.key`, la
+		 * más barata del carrito buscada en el conjunto), aunque no sea la más barata del
+		 * conjunto. Si no, los dos números de la pantalla no cerrarían: "te cuesta $1.007 más"
+		 * arriba de una tarjeta de $4.800 cuando el carrito venía pagando $3.993. No se le
+		 * esconde nada al comprador: el resto de las opciones están en el modal de siempre.
+		 * @returns {object}
+		 */
+		opcion_a_mostrar() {
+			if (this.incremental && this.incremental.key) {
+				let comparada = this.opciones_visibles.find(opcion => {
+					return opcion.key == this.incremental.key
+				})
+				if (comparada) {
+					return comparada
+				}
+			}
+			return this.opcion_mas_barata
 		},
 		/**
 		 * El bloque `incremental` del servidor, SOLO si corresponde a lo que este cotizador está
