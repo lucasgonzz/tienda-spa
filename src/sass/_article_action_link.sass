@@ -1,12 +1,17 @@
 /* Botones secundarios de la ficha de artículo (compartir / WhatsApp). */
+//
+// Los dos unicos que usan esta clase (`Compartir.vue` y `WhatsappLink.vue`) viven desde el
+// 17/9/2026 en la MISMA fila, cada uno con la mitad del ancho: por eso el contenido va centrado y
+// no alineado a la izquierda, y por eso el padding lateral bajo de 0.85rem a 0.6rem — a 360px esos
+// 0.25rem por lado son la diferencia entre que el texto entre y que se corte.
 .article-action-link
 	display: flex
 	align-items: center
-	justify-content: flex-start
-	gap: 0.55rem
+	justify-content: center
+	gap: 0.45rem
 	width: 100%
 	margin: 0
-	padding: 0.65rem 0.85rem
+	padding: 0.65rem 0.6rem
 	border-radius: 8px
 	border: 1px solid color-mix(in srgb, var(--secondary-color) 22%, #ddd)
 	background: color-mix(in srgb, var(--secondary-color) 5%, #fff)
@@ -25,12 +30,18 @@
 	transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease
 
 	.bi
-		font-size: 1.15rem
+		font-size: 1.05rem
 		color: var(--secondary-color)
 		flex-shrink: 0
 
+	// En una fila de dos mitades el texto no puede empujar: si no entra, se recorta con puntos
+	// suspensivos y el boton conserva su mitad. Sin el `nowrap` "Compartir" partia en dos
+	// renglones a 360px y los dos botones quedaban de distinta altura.
 	span
-		text-align: left
+		text-align: center
+		white-space: nowrap
+		overflow: hidden
+		text-overflow: ellipsis
 
 	&:hover,
 	&:focus

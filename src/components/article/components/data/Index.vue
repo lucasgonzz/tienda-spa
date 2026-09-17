@@ -117,13 +117,26 @@ export default {
 		margin-bottom: .25rem
 
 /* Acciones secundarias del artículo (compartir y WhatsApp). */
+//
+// 🔴 Una sola fila y no una columna (17/9/2026, pedido de Lucas). Son dos acciones cortas y
+// secundarias; apiladas a lo ancho de la columna ocupaban dos renglones enteros y pesaban mas que
+// la caja de compra. Reparten el ancho en partes iguales con `flex: 1 1 0`, que le gana al
+// `width: 100%` que trae `.article-action-link` de su parcial.
+//
+// El `min-width: 0` es lo unico que hace que esto sobreviva a 360px: sin el, el ancho minimo de
+// contenido de cada boton manda y la fila desborda la columna en vez de achicarse. El texto se
+// acorto a "Consultar" en el mismo cambio, por lo mismo.
 .ficha-datos__actions
 	margin-top: 1rem
 	display: flex
-	flex-direction: column
+	flex-direction: row
 	align-items: stretch
 	gap: 0.5rem
 	width: 100%
+
+	> *
+		flex: 1 1 0
+		min-width: 0
 
 // El nombre del producto con los tamaños de la captura: 22px y peso 600.
 //
