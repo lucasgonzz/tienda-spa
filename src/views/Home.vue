@@ -3,10 +3,12 @@
 		<add-to-cart-modal></add-to-cart-modal>
 
 
+		<title-jumbotron></title-jumbotron>
+
+		<categorias-home></categorias-home>
+
 		<sub-categories-sidebar></sub-categories-sidebar>
-		
-		<title-jumbotron></title-jumbotron>	
-		
+
 
 		<order-by></order-by>
 
@@ -28,6 +30,7 @@ import SubCategoriesSidebar from '@/components/categories/components/SubCategori
 import CanSeePrices from '@/components/home/components/CanSeePrices'
 import ArticlesList from '@/components/home/components/articles-list/Index'
 import TitleJumbotron from '@/components/home/components/TitleJumbotron'
+import CategoriasHome from '@/components/home/components/categorias-home/Index'
 import OrderPhone from '@/components/home/components/OrderPhone'
 import UpdateButton from '@/components/home/components/UpdateButton'
 import Platelets from '@/components/home/components/platelets/Index'
@@ -48,6 +51,7 @@ export default {
 		ContactInfo: () => import('@/components/common/ContactInfo'),
 		SubCategoriesSidebar,
 		TitleJumbotron,
+		CategoriasHome,
 		OrderPhone,
 		CategoriesButton,
 		UpdateButton,
