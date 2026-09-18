@@ -119,12 +119,17 @@ Vue.use({
 })
 
 // Laravel-echo
+// La key y el cluster salen del build (VUE_APP_PUSHER_KEY / VUE_APP_PUSHER_CLUSTER, inyectadas por
+// EcommerceInstallationService::build_spa_env_file_content() en admin-api). Hasta el 18/9/2026 acá
+// vivían hardcodeadas, y encima eran las de una app de Pusher que ya no existe en la cuenta
+// (1561202/7fc3a66c...) — rompía el tiempo real (pedidos, mensajes, notificaciones) en el 100% de
+// las tiendas, no solo en las que tenían el .env del lado API roto.
 window.Pusher = require('pusher-js')
 import Echo from "laravel-echo"
 Vue.prototype.Echo = new Echo({
     broadcaster: 'pusher',
-    key: '7fc3a66cec31239fc44e',
-    cluster: 'sa1',
+    key: process.env.VUE_APP_PUSHER_KEY,
+    cluster: process.env.VUE_APP_PUSHER_CLUSTER || 'sa1',
     forceTLS: false
 })
 
