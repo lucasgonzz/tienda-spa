@@ -164,11 +164,17 @@ export default {
 			return this.cantidad + (this.cantidad === 1 ? ' unidad' : ' unidades')
 		},
 		/**
-		 * "(+50 disponibles)", o null si el articulo no lleva control de stock.
+		 * "(+50 disponibles)", o null si el articulo no lleva control de stock o si el
+		 * comercio apago `online_configuration.mostrar_stock_disponible` (ver el comentario
+		 * del computed homonimo en `buy-box/Index.vue`: mismo criterio de `!== false`, no
+		 * `flag_activo()`).
 		 *
 		 * @returns {string|null}
 		 */
 		texto_disponibles() {
+			if (this.commerce.online_configuration.mostrar_stock_disponible === false) {
+				return null
+			}
 			if (this.max === null || isNaN(this.max) || this.max <= 0) {
 				return null
 			}

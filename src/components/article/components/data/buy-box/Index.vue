@@ -7,7 +7,7 @@
 		:article="article"></envio>
 
 		<p
-		v-if="puede_comprar"
+		v-if="puede_comprar && mostrar_stock_disponible"
 		class="caja-compra__stock">
 			Stock disponible
 		</p>
@@ -163,6 +163,23 @@ export default {
 				return false
 			}
 			return !!this.article && !this.hasStock(this.article)
+		},
+		/**
+		 * Si se muestra el texto fijo "Stock disponible" de esta caja.
+		 *
+		 * Lo apaga cada comercio desde su configuracion
+		 * (`online_configuration.mostrar_stock_disponible`), y viene PRENDIDO de fabrica.
+		 *
+		 * 🔴 La condicion es `!== false`, no `flag_activo()` ni un chequeo de `=== true`. La
+		 * columna la agrega empresa-api en paralelo a este cambio: mientras un comercio no
+		 * tenga esa migracion corrida, el campo llega `undefined` en el JSON, y el
+		 * comportamiento tiene que seguir siendo el de siempre (mostrar). Solo se oculta
+		 * cuando el valor es explicitamente `false`.
+		 *
+		 * @returns {boolean}
+		 */
+		mostrar_stock_disponible() {
+			return this.commerce.online_configuration.mostrar_stock_disponible !== false
 		},
 		/**
 		 * Si "Actualizar carrito" tiene que verse deshabilitado: sin cantidad valida no hay
