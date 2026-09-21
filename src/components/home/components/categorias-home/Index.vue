@@ -8,6 +8,7 @@
 			v-for="category in categories"
 			:key="category.id"
 			:item="category"
+			:active="is_selected(category)"
 			@select="on_category_selected"></card>
 		</div>
 	</section>
@@ -54,6 +55,15 @@ export default {
 		enabled() {
 			return Number(this.commerce.online_configuration.mostrar_catalogo_categorias_home) == 1
 		},
+		/**
+		 * Categoria en la que esta parado el visitante -- la misma que lee el sidebar
+		 * de categorias (nav/categories/Index.vue::is_row_active_category) para su
+		 * propio resaltado. null si no hay ninguna seleccionada (portada sin filtrar).
+		 * @returns {object|null}
+		 */
+		selected_category() {
+			return this.$store.state.categories.selected_category
+		},
 	},
 	methods: {
 		/**
@@ -62,20 +72,30 @@ export default {
 		on_category_selected(category) {
 			this.setSelectedCategory(category)
 		},
+		/**
+		 * @param {object} category
+		 * @returns {boolean}
+		 */
+		is_selected(category) {
+			return !!this.selected_category && this.selected_category.id == category.id
+		},
 	},
 }
 </script>
 <style lang="sass" scoped>
 .categorias-home
 	padding: 1.5rem 1rem
+	// Flexbox y no CSS Grid: con "repeat(N, 1fr)" el grid siempre arma N columnas del ancho
+	// completo del contenedor, y con menos de N categorias las tarjetas ocupan las primeras
+	// columnas y quedan pegadas a la izquierda -- no queda ancho sobrante para centrar (el bug
+	// medido en la captura de Grupo Quino2, 3 categorias contra una grilla de 4 columnas en
+	// escritorio). Con flex-wrap + justify-content: center, una fila incompleta se centra sola,
+	// para cualquier cantidad de categorias -- no hace falta saber cuantas hay de antemano.
 	&__grid
-		display: grid
-		grid-template-columns: repeat(2, 1fr)
+		display: flex
+		flex-wrap: wrap
+		justify-content: center
 		gap: 1rem
 		max-width: 1200px
 		margin: 0 auto
-		@media screen and (min-width: 768px)
-			grid-template-columns: repeat(3, 1fr)
-		@media screen and (min-width: 1200px)
-			grid-template-columns: repeat(4, 1fr)
 </style>
