@@ -94,6 +94,22 @@ function resolve_font_family_sans(online_configuration) {
 }
 
 /**
+ * Resuelve el color del boton "Agregar al carrito": usa el propio si esta cargado,
+ * y si no, el mismo color que ya usan el resto de los botones outline-primary
+ * (el color secundario), que es el comportamiento de siempre.
+ *
+ * @param {object|null|undefined} online_configuration
+ * @returns {string}
+ */
+function resolve_add_to_cart_button_color(online_configuration) {
+	let secondary_color = normalize_hex_color(online_configuration && online_configuration.secondary_color, default_theme_colors.secondary_color)
+	if (!online_configuration || !online_configuration.add_to_cart_button_color) {
+		return secondary_color
+	}
+	return normalize_hex_color(online_configuration.add_to_cart_button_color, secondary_color)
+}
+
+/**
  * Aplica la paleta y variables de tema de online_configuration en :root.
  *
  * @param {object|null|undefined} online_configuration
@@ -113,6 +129,7 @@ export function apply_online_configuration_theme(online_configuration) {
 	/* El único fallback que depende de la plantilla: ver `background_color_por_plantilla`. */
 	let background_color = normalize_hex_color(online_configuration.background_color, resolve_default_background_color(online_configuration))
 	let font_family_sans = resolve_font_family_sans(online_configuration)
+	let add_to_cart_button_color = resolve_add_to_cart_button_color(online_configuration)
 
 	/* Publica los colores como variables CSS consumidas por SASS y componentes. */
 	document.documentElement.style.setProperty('--primary-color', primary_color)
@@ -122,4 +139,5 @@ export function apply_online_configuration_theme(online_configuration) {
 	document.documentElement.style.setProperty('--category-color-text', category_color_text)
 	document.documentElement.style.setProperty('--background-color', background_color)
 	document.documentElement.style.setProperty('--font-family-sans', font_family_sans)
+	document.documentElement.style.setProperty('--add-to-cart-button-color', add_to_cart_button_color)
 }
