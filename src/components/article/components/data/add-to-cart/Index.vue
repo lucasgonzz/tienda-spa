@@ -426,6 +426,20 @@ export default {
 			flex: 1
 			min-width: 0
 
+		.add-to-cart__btn-add
+			color: var(--add-to-cart-button-color) !important
+			border-color: var(--add-to-cart-button-color) !important
+
+			&:hover, &:focus, &:active
+				color: #fff !important
+				background-color: var(--add-to-cart-button-color) !important
+				border-color: var(--add-to-cart-button-color) !important
+
+			&.disabled, &:disabled
+				color: color-mix(in srgb, var(--add-to-cart-button-color) 45%, white 55%) !important
+				background-color: transparent !important
+				border-color: color-mix(in srgb, var(--add-to-cart-button-color) 45%, white 55%) !important
+
 	.add-to-cart__btn-actualizar--disabled
 		opacity: 0.65
 		cursor: not-allowed
