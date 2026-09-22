@@ -255,7 +255,7 @@ export default {
 	margin-top: 1.25rem
 	margin-bottom: 0
 	a
-		color: var(--primary-color)
+		color: var(--auth-link-color)  // antes var(--primary-color) a secas: con un color claro se fundia contra el panel casi blanco
 		font-weight: 600
 		text-decoration: none
 		&:hover

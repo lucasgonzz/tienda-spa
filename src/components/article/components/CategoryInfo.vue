@@ -79,7 +79,12 @@ export default {
 	// 4,90 sobre el gris y 5,74 sobre blanco. Se ve igual y pasa en los dos.
 	font-weight: 400
 	font-size: 13px
-	color: rgba(0, 0, 0, .6)
+	// --breadcrumb-text-color (online_configuration_theme.js): el mismo gris de siempre si
+	// sigue pasando WCAG AA contra el background_color configurado, si no el de mayor
+	// contraste posible. Antes era rgba(0, 0, 0, .6) fijo, afinado a mano (ver el comentario
+	// de arriba) solo contra los dos fondos que existian en ese momento -- con un
+	// background_color oscuro configurable quedaba casi invisible.
+	color: var(--breadcrumb-text-color)
 
 	.item
 		display: inline-flex
