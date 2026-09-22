@@ -65,6 +65,11 @@ export default {
 			Esta version es propia y pura, en base solo a los datos de "model".
 		*/
 		hay_stock() {
+			// ignorar_stock: mismo criterio que hasStock() del mixin (no se usa aca a
+			// proposito, ver el comentario de arriba) -- con el flag prendido, siempre hay stock.
+			if (this.commerce && this.commerce.online_configuration && this.commerce.online_configuration.ignorar_stock) {
+				return true
+			}
 			// Configuracion opcional del comercio: si esta prendida, un stock null se interpreta como 0.
 			let stock_null_equal_0 = this.commerce
 				&& this.commerce.online_configuration

@@ -119,6 +119,13 @@ export default {
 		 * @returns {number|null}
 		 */
 		max() {
+			/* ignorar_stock: mismo criterio que hasStock() del mixin -- sin tope, exactamente
+			   como ya se comporta un articulo con stock null (con max en null, opciones ofrece
+			   1-6 sin recorte, cantidad_manual_valida no compara contra nada, recortar_al_stock
+			   no recorta nada y texto_disponibles no muestra "(+N disponibles)"). */
+			if (this.commerce.online_configuration.ignorar_stock) {
+				return null
+			}
 			if (
 				this.article
 				&& this.article.article_variants

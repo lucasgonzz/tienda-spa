@@ -479,9 +479,14 @@ export default {
 				return null
 			}
 			let cantidad = Number(mejor_tramo.min)
-			let stock = Number(article.stock)
-			if (article.stock !== null && typeof article.stock != 'undefined' && !isNaN(stock) && stock < cantidad) {
-				cantidad = stock
+			/* ignorar_stock: sin tope que recortar -- mismo criterio que hasStock() del mixin,
+			   y consistente con que el chequeo de abajo YA saltea el recorte cuando
+			   article.stock es null (el criterio de "sin tope" de siempre). */
+			if (!this.commerce.online_configuration.ignorar_stock) {
+				let stock = Number(article.stock)
+				if (article.stock !== null && typeof article.stock != 'undefined' && !isNaN(stock) && stock < cantidad) {
+					cantidad = stock
+				}
 			}
 			if (cantidad < 1) {
 				return null

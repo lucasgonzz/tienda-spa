@@ -45,6 +45,13 @@ export default {
 			}
 		},
 		hasStock(article) {
+			/* ignorar_stock (Online Configurations -> Stock): la tienda entera pasa a tratar
+			   TODO articulo como ya se trata hoy uno con stock null -- siempre disponible, sin
+			   tope -- asi que va primero, antes de mirar variantes y stock_null_equal_0 (que
+			   con esto prendido dejan de importar). */
+			if (this.commerce.online_configuration.ignorar_stock) {
+				return true
+			}
 			if (article.article_variants && article.article_variants.length) {
 				console.log('has_stock variants')
 				return !this.selected_article_variant || this.selected_article_variant.stock === null || this.selected_article_variant.stock > 0
