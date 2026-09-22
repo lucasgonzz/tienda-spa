@@ -34,7 +34,6 @@
 <script>
 import PausarTiendaOnline from '@/components/common/PausarTiendaOnline'
 import NavComponent from '@/components/nav/Index'
-import UpdateButton from '@/components/common/UpdateButton'
 import BtnWhatsApp from '@/components/common/BtnWhatsApp'
 import LogoLoading from '@/components/common/LogoLoading'
 import FooterComponent from '@/components/common/footer/Index'
@@ -50,7 +49,6 @@ export default {
     components: {
         PausarTiendaOnline,
         NavComponent,
-        UpdateButton,
         BtnWhatsApp,
         // NotificationsPermissions,
         LogoLoading,
@@ -267,6 +265,7 @@ export default {
                 ])
                 .then(() => {
                     this.getCategory()
+                    this.getSearchFromUrl()
                 })
                 .catch(err => {
                     console.log(err)
@@ -370,6 +369,32 @@ export default {
 
             }
             return null
+        },
+        /**
+         * Reproduce una busqueda que llego por URL (?q=<termino>), mismo estilo que
+         * getCategory(): lee la ruta al arrancar y dispara la accion que ya usa el
+         * buscador del navbar, sin volver a tocar la URL (ya la trae puesta).
+         *
+         * Caso borde, decidido para que no rompa (no es lo que pidio Lucas): si la URL
+         * trae a la vez `q` Y una categoria/marca (`/inicio/marca/nike?q=...`), gana la
+         * categoria/marca -- getCategory() corre primero arriba y ya disparo su propia
+         * carga -- y esta busqueda no se dispara encima.
+         *
+         * @returns {Promise<void>|null}
+         */
+        getSearchFromUrl() {
+            if (this.$route.name != 'Home') {
+                return null
+            }
+            if (this.$route.params.category && this.$route.params.category != 'ultimos-ingresados') {
+                return null
+            }
+            let termino = this.$route.query.q
+            if (!termino) {
+                return null
+            }
+            this.$store.commit('categories/setSearchQuery', termino)
+            return this.$store.dispatch('categories/searchArticles')
         },
         async callAuthMethods() {
             console.log('callAuthMethods')
