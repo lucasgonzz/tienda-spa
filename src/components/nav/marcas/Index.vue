@@ -17,10 +17,12 @@
 				<span>
 					{{ brand.name }}
 				</span>
-				<div
-				class="j-end">
-					({{ brand.articles_count }})
-				</div>
+				<span
+				class="nav-marcas__badge"
+				:title="brand.articles_count + ' productos de esta marca'">
+					{{ brand.articles_count }}
+					<span class="nav-marcas__badge-label">prod.</span>
+				</span>
 			</div>
 		</div>
 	</b-sidebar>
@@ -103,3 +105,38 @@ export default {
 	}
 }
 </script>
+<style lang="scss" scoped>
+/*
+ * Contador de cada marca: misma pildora que usa el sidebar de categorias
+ * (nav-categories__badge--articles en categories/Index.vue) para el conteo de
+ * articulos, portada con su propio prefijo para no acoplar los dos componentes.
+ */
+.nav-marcas__badge {
+	/* pisa el "div width: 15%" heredado de _sidebars.sass (".header span"),
+	que sin este override estira la pildora al 85% del ancho de la fila */
+	width: auto;
+	flex: 0 0 auto;
+	align-self: center;
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.2rem;
+	font-size: 0.8rem;
+	font-weight: 700;
+	padding: 0.2rem 0.5rem;
+	border-radius: 999px;
+	line-height: 1.2;
+	white-space: nowrap;
+	background: rgba(0, 0, 0, 0.06);
+	color: #444;
+}
+
+.nav-marcas__badge-label {
+	/* mismo motivo: es un span anidado, tambien alcanzado por ".header span" */
+	width: auto;
+	font-size: 0.65rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.9;
+}
+</style>
