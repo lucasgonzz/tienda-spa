@@ -1,6 +1,22 @@
 <template>
 	<ul class="nav-subcategories">
 		<li
+		v-if="mostrar_subcategorias_al_click_categoria"
+		class="nav-subcategories__item nav-subcategories__item--all">
+			<button
+			type="button"
+			class="nav-subcategories__btn nav-subcategories__btn--all"
+			@click.stop="on_pick_all()">
+				<i class="bi bi-grid nav-subcategories__icon" aria-hidden="true"></i>
+				<span class="nav-subcategories__name">Todos</span>
+				<span
+				class="nav-subcategories__count"
+				:title="category.articles_count + ' artículos'">
+					{{ category.articles_count }}
+				</span>
+			</button>
+		</li>
+		<li
 		v-for="sub_category in category.sub_categories"
 		:key="sub_category.id"
 		class="nav-subcategories__item">
@@ -36,6 +52,15 @@ export default {
 			required: true,
 		},
 	},
+	computed: {
+		/**
+		 * Config global: tocar el nombre de una categoría despliega sus subcategorías en vez de navegar directo.
+		 * @returns {boolean}
+		 */
+		mostrar_subcategorias_al_click_categoria() {
+			return Number(this.commerce.online_configuration.mostrar_subcategorias_al_click_categoria) == 1
+		},
+	},
 	methods: {
 		/**
 		 * Navega a la subcategoría (mixin) y cierra el panel lateral de categorías.
@@ -44,6 +69,12 @@ export default {
 		 */
 		on_pick_sub(category, sub_category) {
 			this.setSubCategory(category, sub_category)
+		},
+		/**
+		 * "Todos": filtra por la categoría completa, mismo mecanismo que el click directo en el nombre.
+		 */
+		on_pick_all() {
+			this.setSelectedCategory(this.category)
 		},
 	},
 }
@@ -87,6 +118,15 @@ export default {
   &:focus {
     outline: 2px solid var(--secondary-color);
     outline-offset: 1px;
+  }
+}
+
+.nav-subcategories__btn--all {
+  background: color-mix(in srgb, var(--secondary-color) 10%, #fff);
+  font-weight: 700;
+
+  &:hover {
+    background: color-mix(in srgb, var(--secondary-color) 22%, #fff);
   }
 }
 
