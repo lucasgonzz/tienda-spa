@@ -19,6 +19,7 @@ export default {
 		categories_sidebar_visibility: false,
 		bodegas_sidebar_visibility: false,
 		cepas_sidebar_visibility: false,
+		brands_sidebar_visibility: false,
 	},
 	getters: {
 
@@ -71,6 +72,9 @@ export default {
 		},
 		set_cepas_sidebar_visibility(state, value) {
 			state.cepas_sidebar_visibility = value
+		},
+		set_brands_sidebar_visibility(state, value) {
+			state.brands_sidebar_visibility = value
 		},
 	},
 	actions: {

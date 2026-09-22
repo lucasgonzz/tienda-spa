@@ -8,18 +8,29 @@
 				Inicio	
 			</span>
 		</div>
-		<div 
+		<div
 		class="item">
 			<div
 			@click="showCategories"
 			class="cont-item">
 				<span class="item-text">
-					Productos	
+					Productos
 				</span>
 			</div>
-		</div>	
+		</div>
 
-		<div 
+		<div
+		class="item">
+			<div
+			@click="show_marcas"
+			class="cont-item">
+				<span class="item-text">
+					Marca
+				</span>
+			</div>
+		</div>
+
+		<div
 		v-if="Number(commerce.online_configuration.mostrar_catalogo) == 1"
 		class="item">
 			<router-link 
@@ -121,6 +132,7 @@ export default {
 		showCategories() {
 			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
 			this.$store.commit('auth/set_cepas_sidebar_visibility', false)
+			this.$store.commit('auth/set_brands_sidebar_visibility', false)
 			let will_open = !this.$store.state.auth.categories_sidebar_visibility
 			if (will_open) {
 				this.$store.commit('auth/setMobileSidebarVisibility', false)
@@ -133,6 +145,7 @@ export default {
 		show_bodegas() {
 			this.$store.commit('auth/set_categories_sidebar_visibility', false)
 			this.$store.commit('auth/set_cepas_sidebar_visibility', false)
+			this.$store.commit('auth/set_brands_sidebar_visibility', false)
 			let will_open = !this.$store.state.auth.bodegas_sidebar_visibility
 			if (will_open) {
 				this.$store.commit('auth/setMobileSidebarVisibility', false)
@@ -145,11 +158,27 @@ export default {
 		show_cepas() {
 			this.$store.commit('auth/set_categories_sidebar_visibility', false)
 			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
+			this.$store.commit('auth/set_brands_sidebar_visibility', false)
 			let will_open = !this.$store.state.auth.cepas_sidebar_visibility
 			if (will_open) {
 				this.$store.commit('auth/setMobileSidebarVisibility', false)
 			}
 			this.$store.commit('auth/set_cepas_sidebar_visibility', will_open)
+		},
+		/**
+		 * Abre o cierra el sidebar de marcas vía store. Mismo patrón que las tres
+		 * anteriores: cierra los otros tres paneles antes de togglear el propio, para
+		 * que los cuatro sidebars del nav sigan siendo mutuamente excluyentes.
+		 */
+		show_marcas() {
+			this.$store.commit('auth/set_categories_sidebar_visibility', false)
+			this.$store.commit('auth/set_bodegas_sidebar_visibility', false)
+			this.$store.commit('auth/set_cepas_sidebar_visibility', false)
+			let will_open = !this.$store.state.auth.brands_sidebar_visibility
+			if (will_open) {
+				this.$store.commit('auth/setMobileSidebarVisibility', false)
+			}
+			this.$store.commit('auth/set_brands_sidebar_visibility', will_open)
 		},
 		to_promociones_vinotecas() {
 			this.$router.push({name: 'PromocionesVinoteca'})
