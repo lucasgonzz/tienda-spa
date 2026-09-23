@@ -212,11 +212,27 @@ export default {
 			if (!this.article) {
 				return ''
 			}
-			let html = this.article.description
-			if (!html && this.article.descriptions && this.article.descriptions.length) {
-				html = this.article.descriptions[0].content
+			/*
+			 * 🔴 MISMA regla, en el mismo orden, que `fichaDeArticulo()` de tienda-api (el HTML que
+			 * le llega a Google): (1) titulo + contenido de TODAS las descripciones con titulo;
+			 * (2) si eso no da texto, el campo "Descripcion" del articulo (`descripcion`, en
+			 * español: `description` no existe en ninguna base y por eso el respaldo no andaba);
+			 * (3) la generica. Antes tomaba solo el contenido de la primera descripcion, sin
+			 * titulo, y el SPA pisaba con vue-meta lo que el servidor habia dicho.
+			 */
+			let partes = []
+			if (Array.isArray(this.article.descriptions)) {
+				this.article.descriptions.forEach(descripcion_con_titulo => {
+					if (descripcion_con_titulo) {
+						partes.push(this.seo_texto_plano(descripcion_con_titulo.title))
+						partes.push(this.seo_texto_plano(descripcion_con_titulo.content))
+					}
+				})
 			}
-			let texto = this.seo_texto_plano(html)
+			let texto = partes.filter(parte => parte).join(' ')
+			if (!texto) {
+				texto = this.seo_texto_plano(this.article.descripcion)
+			}
 			if (texto) {
 				return this.seo_recortar(texto)
 			}

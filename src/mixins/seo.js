@@ -60,7 +60,10 @@ export default {
 			if (!html) {
 				return ''
 			}
-			let texto = String(html)
+			/* Las etiquetas de bloque cortan renglon, igual que SeoContexto::textoConRenglones de
+			   tienda-api: sin esto textContent pega "<p>a</p><p>b</p>" como "ab" y el SPA diria
+			   otra cosa que el HTML que ya le llego a Google del servidor. */
+			let texto = String(html).replace(/<\s*br\s*\/?>|<\/?\s*(p|div|li|ul|ol|h[1-6]|tr|td|th|table|section|article|blockquote|header|footer)\b[^>]*>/gi, ' ')
 			try {
 				let documento = new DOMParser().parseFromString(texto, 'text/html')
 				texto = documento.body ? documento.body.textContent : texto
