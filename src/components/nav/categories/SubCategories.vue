@@ -3,10 +3,11 @@
 		<li
 		v-if="mostrar_subcategorias_al_click_categoria"
 		class="nav-subcategories__item nav-subcategories__item--all">
-			<button
-			type="button"
-			class="nav-subcategories__btn nav-subcategories__btn--all"
-			@click.stop="on_pick_all()">
+			<!-- <a> y no <button>: link real para los buscadores (mision seo-tiendas); el click es el mismo. -->
+			<a
+			class="nav-subcategories__btn nav-subcategories__btn--all seo-link"
+			:href="href_categoria(category)"
+			@click.stop.prevent="on_pick_all()">
 				<i class="bi bi-grid nav-subcategories__icon" aria-hidden="true"></i>
 				<span class="nav-subcategories__name">Todos</span>
 				<span
@@ -14,16 +15,16 @@
 				:title="category.articles_count + ' artículos'">
 					{{ category.articles_count }}
 				</span>
-			</button>
+			</a>
 		</li>
 		<li
 		v-for="sub_category in category.sub_categories"
 		:key="sub_category.id"
 		class="nav-subcategories__item">
-			<button
-			type="button"
-			class="nav-subcategories__btn"
-			@click.stop="on_pick_sub(category, sub_category)">
+			<a
+			class="nav-subcategories__btn seo-link"
+			:href="href_categoria(category, sub_category)"
+			@click.stop.prevent="on_pick_sub(category, sub_category)">
 				<i
 				class="bi bi-chevron-right nav-subcategories__icon"
 				aria-hidden="true"></i>
@@ -33,7 +34,7 @@
 				:title="sub_category.articles_count + ' artículos'">
 					{{ sub_category.articles_count }}
 				</span>
-			</button>
+			</a>
 		</li>
 	</ul>
 </template>

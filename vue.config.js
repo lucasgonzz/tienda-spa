@@ -17,6 +17,18 @@ function escapeHtmlAttribute(value) {
         .replace(/'/g, '&#39;')
 }
 
+/**
+ * Escapa un valor para meterlo dentro de un string PHP entre comillas simples (public/seo.php).
+ * Adentro de '...' PHP solo interpreta la barra invertida y la comilla simple.
+ * @param {*} value URL de la API o id del comercio.
+ * @returns {string}
+ */
+function escapePhpSingleQuoted(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+}
+
 module.exports = {
     lintOnSave: false,
     // configureWebpack: {
@@ -70,6 +82,26 @@ module.exports = {
                 }
             })
 
+            // Capa SEO (mision seo-tiendas, 23/9/2026): public/seo.php es PHP que corre en el
+            // docroot de la tienda y le pide a tienda-api el head y el cuerpo de cada pagina.
+            // Mismo mecanismo que el service worker de arriba: se excluye del copiado generico y
+            // se copia aparte reemplazando la URL de la API y el id del comercio del build. Los
+            // valores quedan dentro de un string PHP entre comillas simples, por eso se escapan.
+            copyArgs[0][0].ignore = copyArgs[0][0].ignore.concat({
+                glob: 'seo.php',
+                matchBase: false
+            })
+
+            copyArgs[0].push({
+                from: 'public/seo.php',
+                to: 'seo.php',
+                transform(content) {
+                    return content.toString()
+                        .replace(/__VUE_APP_API_URL__/g, () => escapePhpSingleQuoted(process.env.VUE_APP_API_URL || ''))
+                        .replace(/__VUE_APP_COMMERCE_ID__/g, () => escapePhpSingleQuoted(process.env.VUE_APP_COMMERCE_ID || ''))
+                }
+            })
+
             return copyArgs
         })
 
@@ -85,11 +117,28 @@ module.exports = {
             // "Que NO tocar" del prompt 270-03).
             const siteName = process.env.VUE_APP_SITE_NAME || 'Tienda'
 
+            // Descripcion por defecto si el comercio no cargo meta_description en el admin: hasta
+            // el 23/9/2026 salia content="" y Google armaba el snippet con el <noscript>.
+            const siteDescription = process.env.VUE_APP_SITE_DESCRIPTION
+                || (siteName + ' - Tienda online. Comprá online con envío o retiro en el local.')
+
             args[0].title           = escapeHtmlAttribute(siteName)
             args[0].siteName        = escapeHtmlAttribute(siteName)
-            args[0].siteDescription = escapeHtmlAttribute(process.env.VUE_APP_SITE_DESCRIPTION || '')
+            args[0].siteDescription = escapeHtmlAttribute(siteDescription)
             args[0].siteImage       = escapeHtmlAttribute(process.env.VUE_APP_SITE_IMAGE || '')
             args[0].siteUrl         = escapeHtmlAttribute(process.env.VUE_APP_SITE_URL || '')
+
+            // Los marcadores <!--seo:head--> / <!--/seo:head--> de public/index.html tienen que
+            // llegar al dist: public/seo.php reemplaza lo que hay entre los dos. En produccion
+            // Vue CLI minifica con removeComments y se los comeria; ignoreCustomComments los
+            // preserva. Se agrega a las opciones que ya arma @vue/cli-service (no se reemplazan)
+            // y se conserva el /^!/ que html-minifier trae por defecto. En `serve` no hay
+            // minificacion (minify no es un objeto) y no se toca nada.
+            if (args[0].minify && typeof args[0].minify === 'object') {
+                args[0].minify = Object.assign({}, args[0].minify, {
+                    ignoreCustomComments: [/^!/, /^\/?seo:/],
+                })
+            }
 
             return args
         })
@@ -100,7 +149,12 @@ module.exports = {
     },
     pwa: {
         workboxOptions: {
-            skipWaiting: true
+            skipWaiting: true,
+            // Los cuatro primeros son los que excluye @vue/cli-plugin-pwa por defecto (este array
+            // los reemplaza, no se suma). seo.php y .htaccess son archivos de servidor: si entran al
+            // precache, el service worker baja /seo.php al instalarse y lo guarda como si fuera un
+            // asset (misión seo-tiendas).
+            exclude: [/\.map$/, /img\/icons\//, /favicon\.ico$/, /^manifest.*\.js?$/, /seo\.php$/, /\.htaccess$/]
         },
 
         // Estos valores son un fallback: en produccion admin-api los reescribe por cliente antes

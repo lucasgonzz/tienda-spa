@@ -1,12 +1,16 @@
 <template>
-	<div
-	class="categoria-home-card c-p"
+	<!--
+		<a> real a la categoria (mision seo-tiendas) en lugar de un div con role=button: los
+		buscadores siguen el href y el click hace lo mismo que antes. Un link ya es enfocable y
+		dispara click con Enter, por eso se van tabindex y @keyup.enter (si no, Enter navegaria
+		dos veces).
+	-->
+	<a
+	class="categoria-home-card c-p seo-link"
 	:class="{ 'categoria-home-card--active': active }"
-	role="button"
-	tabindex="0"
+	:href="href_categoria(item)"
 	:aria-current="active ? 'true' : null"
-	@click="on_card_click"
-	@keyup.enter="on_card_click">
+	@click.prevent="on_card_click">
 		<div class="categoria-home-card__image-wrap">
 			<img
 			v-if="resolved_image_url"
@@ -27,7 +31,7 @@
 		class="categoria-home-card__description">
 			{{ item.descripcion }}
 		</p>
-	</div>
+	</a>
 </template>
 <script>
 /**

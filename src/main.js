@@ -77,6 +77,7 @@ Vue.use(VueCookies, { expire: '7d'})
 import App from './App.vue'
 import './registerServiceWorker'
 import router from './router'
+import { limpiar_head_del_servidor, soltar_ld_del_servidor } from '@/utils/seo_servidor'
 import store from './store'
 
 // Notifications
@@ -142,6 +143,8 @@ import generals from './mixins/generals'
 Vue.mixin(generals)
 import whatsapp from './mixins/whatsapp'
 Vue.mixin(whatsapp)
+import seo from './mixins/seo'
+Vue.mixin(seo)
 
 Vue.config.productionTip = false
 
@@ -156,6 +159,20 @@ store.dispatch('commerce/getCommerce')
 	console.log(err)
 })
 .finally(() => {
+	/*
+	 * SEO (mision seo-tiendas): las etiquetas del head que vienen del HTML del servidor llevan
+	 * data-seo y vue-meta no las administra. Titulo, descripcion, canonica y Open Graph se sacan
+	 * ya (vue-meta los repone); los JSON-LD se quedan hasta la primera navegacion interna. El
+	 * detalle, en src/utils/seo_servidor.js.
+	 */
+	limpiar_head_del_servidor()
+	router.afterEach((to, from) => {
+		/* from.matched vacio = la navegacion inicial (incluido el redirect de / a la home). */
+		if (from.matched.length && from.path !== to.path) {
+			soltar_ld_del_servidor()
+		}
+	})
+
 	new Vue({
 		router,
 		store,

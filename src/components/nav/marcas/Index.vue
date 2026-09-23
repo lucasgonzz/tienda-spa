@@ -11,9 +11,11 @@
 		:key="brand.id"
 		:class="is_active_brand(brand) ? 'active-item' : ''"
 		class="item">
-			<div
-			@click.stop="setBrand(brand)"
-			class="header">
+			<!-- <a> real a la marca para los buscadores (mision seo-tiendas); el click es el mismo. -->
+			<a
+			:href="href_filtro('marca', brand)"
+			@click.stop.prevent="setBrand(brand)"
+			class="header seo-link">
 				<span>
 					{{ brand.name }}
 				</span>
@@ -23,7 +25,7 @@
 					{{ brand.articles_count }}
 					<span class="nav-marcas__badge-label">prod.</span>
 				</span>
-			</div>
+			</a>
 		</div>
 	</b-sidebar>
 </template>

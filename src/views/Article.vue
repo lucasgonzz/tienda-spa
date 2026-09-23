@@ -96,6 +96,7 @@ import Platelets from '@/components/home/components/platelets/Index'
 import articles from '@/mixins/articles'
 import { tiene_descripcion as tiene_descripcion_del_articulo } from '@/helpers/descripcion_articulo'
 import { abrir_vista_de_producto, cerrar_vista } from '@/utils/tracking'
+import { seo_servidor } from '@/utils/seo_servidor'
 
 /**
  * Vista detalle de artículo: layout envuelto para alinearlo con el resto de páginas retail de la tienda.
@@ -103,10 +104,47 @@ import { abrir_vista_de_producto, cerrar_vista } from '@/utils/tracking'
 export default {
 	name: 'Article',
 	mixins: [articles],
+	/**
+	 * Head de la ficha (mision seo-tiendas), con las mismas reglas que tienda-api usa para el HTML
+	 * del servidor: titulo "<nombre>[ - <bodega>]" (App.vue le agrega " | <comercio>"),
+	 * descripcion en texto plano de hasta 160 caracteres, canonica /articulos/<slug>/<commerce_id>,
+	 * Open Graph de producto y JSON-LD Product. Todo con vmid para que vue-meta no duplique.
+	 */
 	metaInfo() {
+		if (!this.article) {
+			if (this.articulo_no_encontrado) {
+				return {
+					meta: [{ vmid: 'robots', name: 'robots', content: 'noindex,follow' }],
+					link: [],
+				}
+			}
+			return {}
+		}
+		let comercio = this.commerce.company_name
+		let titulo_completo = comercio ? this.title + ' | ' + comercio : this.title
+		let imagen = this.seo_imagen
+		let meta = [
+			{ vmid: 'description', name: 'description', content: this.description },
+			{ vmid: 'og:type', property: 'og:type', content: 'product' },
+			{ vmid: 'og:title', property: 'og:title', content: titulo_completo },
+			{ vmid: 'og:description', property: 'og:description', content: this.description },
+			{ vmid: 'og:url', property: 'og:url', content: this.seo_canonica },
+			{ vmid: 'twitter:card', name: 'twitter:card', content: imagen ? 'summary_large_image' : 'summary' },
+		]
+		if (imagen) {
+			meta.push({ vmid: 'og:image', property: 'og:image', content: imagen })
+		}
 		return {
-			titleTemplate: this.title,
-			meta: [{ vmid: 'description', name: 'description', content: this.description }],
+			title: this.title,
+			meta,
+			link: [
+				{ vmid: 'canonical', rel: 'canonical', href: this.seo_canonica },
+			],
+			// Si el visitante entro directo a esta ficha, el Product (con sus migas) ya lo trajo el
+			// servidor: no se duplica (ver src/utils/seo_servidor.js).
+			script: seo_servidor.ld_del_servidor ? [] : [
+				{ vmid: 'ld-product', type: 'application/ld+json', json: this.seo_json_ld },
+			],
 		}
 	},
 	components: {
@@ -161,13 +199,109 @@ export default {
 			}
 			return ''
 		},
+		/**
+		 * Descripcion para buscadores: la del articulo en texto plano, cortada a 160 en palabra.
+		 * Si no tiene, "<nombre> en <comercio>[, a <precio>]. Comprá online con envío o retiro en
+		 * el local." — el precio solo si es publico para un visitante sin sesion
+		 * (seo_precio_publico, mixins/seo.js). Antes salia siempre `article.price` crudo, aunque
+		 * la tienda escondiera los precios.
+		 *
+		 * @returns {string}
+		 */
 		description() {
-			if (this.article) {
-				let description = this.article.name
-				description += ' a solo ' + this.article.price + '. Retira por el local o pedi que te lo enviemos'
-				return description
+			if (!this.article) {
+				return ''
 			}
-			return ''
+			let html = this.article.description
+			if (!html && this.article.descriptions && this.article.descriptions.length) {
+				html = this.article.descriptions[0].content
+			}
+			let texto = this.seo_texto_plano(html)
+			if (texto) {
+				return this.seo_recortar(texto)
+			}
+			let descripcion = this.article.name + ' en ' + this.commerce.company_name
+			let precio = this.seo_precio_numerico
+			if (precio !== null) {
+				descripcion += ', a ' + this.price(precio)
+			}
+			return this.seo_recortar(descripcion + '. ' + this.seo_sufijo_compra())
+		},
+		/**
+		 * Canonica de la ficha: misma formula que tienda-api, <origen>/articulos/<slug>/<commerce_id>.
+		 * @returns {string}
+		 */
+		seo_canonica() {
+			return this.seo_origen() + '/articulos/' + this.seo_segmento(this.article.slug) + '/' + process.env.VUE_APP_COMMERCE_ID
+		},
+		/**
+		 * Todas las fotos del articulo (la primera es la de og:image). Si no tiene, la imagen por
+		 * defecto del comercio, igual que la tarjeta (articleImage, mixins/generals.js).
+		 * @returns {Array<string>}
+		 */
+		seo_imagenes() {
+			let imagenes = (this.article.images || []).map(image => image.hosting_url).filter(url => !!url)
+			if (!imagenes.length) {
+				let por_defecto = this.articleImage(this.article)
+				if (por_defecto) {
+					imagenes.push(por_defecto)
+				}
+			}
+			return imagenes
+		},
+		seo_imagen() {
+			return this.seo_imagenes.length ? this.seo_imagenes[0] : null
+		},
+		/**
+		 * El precio como numero, SOLO si un visitante anonimo lo ve (seo_precio_publico). null si
+		 * no: en ese caso el JSON-LD va sin `offers`, no se filtra un precio que la tienda esconde.
+		 * @returns {number|null}
+		 */
+		seo_precio_numerico() {
+			if (this.article.is_promocion_vinoteca || !this.seo_precio_publico(this.article)) {
+				return null
+			}
+			let precio = Number(this.articlePriceEfectivo(this.article, false))
+			if (!isFinite(precio) || precio <= 0) {
+				return null
+			}
+			return precio
+		},
+		/**
+		 * JSON-LD Product. Los textos van sin < ni >: vue-meta mete el JSON como innerHTML del
+		 * script y un cierre de script dentro de un nombre lo cortaria.
+		 * @returns {object}
+		 */
+		seo_json_ld() {
+			let limpiar = valor => String(valor === null || valor === undefined ? '' : valor).replace(/[<>]/g, '')
+			let producto = {
+				'@context': 'https://schema.org',
+				'@type': 'Product',
+				name: limpiar(this.article.name),
+				url: this.seo_canonica,
+			}
+			if (this.seo_imagenes.length) {
+				producto.image = this.seo_imagenes
+			}
+			if (this.description) {
+				producto.description = limpiar(this.description)
+			}
+			if (this.article.bar_code) {
+				producto.sku = limpiar(this.article.bar_code)
+			}
+			if (this.article.brand && this.article.brand.name) {
+				producto.brand = { '@type': 'Brand', name: limpiar(this.article.brand.name) }
+			}
+			if (this.seo_precio_numerico !== null) {
+				producto.offers = {
+					'@type': 'Offer',
+					price: this.seo_precio_numerico,
+					priceCurrency: 'ARS',
+					availability: this.hasStock(this.article) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+					url: this.seo_canonica,
+				}
+			}
+			return producto
 		},
 		/**
 		 * "Quienes vieron este producto también compraron". Vacio = seccion oculta.

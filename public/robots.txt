@@ -1,2 +1,28 @@
+# Respaldo para servidores sin la capa SEO (nginx, etc.). En Apache este archivo no se sirve:
+# public/.htaccess manda /robots.txt a seo.php, que arma el mismo contenido mas la linea Sitemap
+# con el dominio real de la tienda.
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /buscar
+Disallow: /carrito
+Disallow: /compras
+Disallow: /favoritos
+Disallow: /login
+Disallow: /registro
+Disallow: /recuperar-clave
+Disallow: /confirmar-compra
+Disallow: /pagar
+Disallow: /pago-
+Disallow: /configuracion
+Disallow: /mensajes
+Disallow: /notificaciones
+Disallow: /cupones
+Disallow: /cuenta-corriente
+Disallow: /tarjetas
+Disallow: /ubicacion
+Disallow: /mapas
+Disallow: /social-login
+Disallow: /auth/
+Disallow: /gracias-por-tu-compra
+Disallow: /preguntas
+Disallow: /seleccion-especial/
