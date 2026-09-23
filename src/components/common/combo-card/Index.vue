@@ -461,6 +461,9 @@ export default {
 		border-radius: 3px
 		white-space: nowrap
 		color: #FFF
+		// sass/_nav.sass le da `z-index: 100` a todo .badge y este badge es flex item: sin
+		// esto se pinta encima del menu lateral del telefono.
+		z-index: auto
 
 	// El verde del badge de descuento de la tienda (#00A650) y el ambar del recargo.
 	.combo-card__badge-descuento

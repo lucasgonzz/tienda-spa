@@ -90,6 +90,11 @@ export default {
 .auth-btn
 	span, .dropdown-toggle
 		color: $color_text !important
+	// La regla de arriba pinta TODO span del boton con el color del texto del nav (claro, para ir
+	// sobre la barra de color), y el nombre de cada ajuste del cliente es un span que vive adentro
+	// del menu blanco: sin esta excepcion quedaba blanco sobre blanco. Mismo !important para ganarle.
+	.ajustes-de-cliente__nombre
+		color: rgba(0, 0, 0, .8) !important
 
 .active-link
 	.nav-link

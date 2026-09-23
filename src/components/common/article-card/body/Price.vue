@@ -285,6 +285,9 @@ export default {
 	white-space: nowrap
 	background-color: #00A650
 	color: #FFF
+	// sass/_nav.sass le da `z-index: 100` a todo .badge y este badge es flex item: sin
+	// esto se pinta encima del menu lateral del telefono.
+	z-index: auto
 
 // El badge de un RECARGO del cliente: el mismo diseño que el de descuento, en ambar (decision 3
 // de Lucas). Tono oscuro para que el texto blanco se lea igual que sobre el verde.
@@ -297,4 +300,7 @@ export default {
 	white-space: nowrap
 	background-color: #C25E00
 	color: #FFF
+	// sass/_nav.sass le da `z-index: 100` a todo .badge y este badge es flex item: sin
+	// esto se pinta encima del menu lateral del telefono.
+	z-index: auto
 </style>

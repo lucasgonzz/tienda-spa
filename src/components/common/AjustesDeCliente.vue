@@ -92,6 +92,10 @@ export default {
 		border-radius: 3px
 		white-space: nowrap
 		color: #FFF
+		// sass/_nav.sass le da a TODO .badge `z-index: 100`. En un span comun no hace nada, pero
+		// aca el badge es hijo de un flex (el item) y en un flex item el z-index SI aplica: los
+		// badges del resumen del carrito quedaban pintados encima del menu lateral del telefono.
+		z-index: auto
 
 	.ajustes-de-cliente__badge--descuento
 		background-color: #00A650
