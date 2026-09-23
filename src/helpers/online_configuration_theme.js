@@ -175,7 +175,8 @@ function resolve_add_to_cart_button_color(online_configuration) {
  * no cargó nada (el tratamiento de siempre del botón de las tarjetas), mientras que los botones
  * de la ficha siempre se pintaron con el color PRIMARIO. Si acá cayera al secundario, todo
  * comercio que nunca tocó el campo vería cambiar los botones de su ficha. Sin color propio se
- * devuelve exactamente lo de antes: el primario con texto blanco.
+ * devuelve exactamente lo de antes en reposo: el primario con texto blanco. (Los estados hover /
+ * focus / click de "Comprar ahora" son nuevos para todos: antes los mandaba el gris de Bootstrap.)
  *
  * Con color propio el texto se elige por contraste (blanco o casi negro), porque un color
  * claro con texto blanco fijo dejaría el botón ilegible.

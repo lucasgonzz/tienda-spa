@@ -317,15 +317,19 @@ export default {
 
 		// Estas tres reglas no existian: `b-button` sin variante nace `btn-secondary` y el hover /
 		// focus / active gris de Bootstrap le ganaba al color del comercio apenas se pasaba el
-		// mouse por encima. Se oscurece un poco el MISMO color en vez de cambiarlo.
+		// mouse por encima. La senal de hover es una leve transparencia del MISMO color y no un
+		// tono mas oscuro: con un color ya negro (el que eligio Truvari) oscurecer no cambia nada.
 		// `:not(:disabled):not(.disabled):active` replica el selector de Bootstrap (0,4,0) para
 		// no perder el empate del click sostenido contra su `.btn-secondary:...:active` gris.
 		&:hover, &:not(:disabled):not(.disabled):active
-			background: color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 85%, #000)
-			border-color: color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 85%, #000)
+			background: var(--buy-box-button-color, var(--primary-color))
+			border-color: var(--buy-box-button-color, var(--primary-color))
 			color: var(--buy-box-button-text-color, #FFF)
+			opacity: .88
 
-		&:focus
+		// El `:active:focus` es el que Bootstrap usa para el halo del click sostenido: con el
+		// `:focus` a secas ese halo seguia siendo gris.
+		&:focus, &:not(:disabled):not(.disabled):active:focus
 			background: var(--buy-box-button-color, var(--primary-color))
 			border-color: var(--buy-box-button-color, var(--primary-color))
 			color: var(--buy-box-button-text-color, #FFF)
@@ -359,7 +363,9 @@ export default {
 
 		// El halo gris de `.btn-secondary:focus` tampoco es del comercio: se reemplaza por un
 		// anillo del color de accion, que ademas es la unica senal de foco que queda sin borde.
-		&:focus
+		// El click sostenido (`:active`, y `:active:focus` para el halo) tambien lo pisaba el gris
+		// de Bootstrap (0,4,0): se replica su selector para no perder el empate.
+		&:focus, &:not(:disabled):not(.disabled):active, &:not(:disabled):not(.disabled):active:focus
 			background: color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 22%, #FFF)
 			border-color: transparent
 			color: var(--buy-box-button-color, var(--primary-color))
@@ -388,7 +394,9 @@ export default {
 	// compilacion. Medido en la app: con un solo nivel el cursor seguia siendo `pointer`.
 	.caja-compra__btn.caja-compra__btn--actualizar-disabled,
 	.caja-compra__btn.caja-compra__btn--actualizar-disabled:hover,
-	.caja-compra__btn.caja-compra__btn--actualizar-disabled:focus
+	.caja-compra__btn.caja-compra__btn--actualizar-disabled:focus,
+	.caja-compra__btn.caja-compra__btn--actualizar-disabled:not(:disabled):not(.disabled):active,
+	.caja-compra__btn.caja-compra__btn--actualizar-disabled:not(:disabled):not(.disabled):active:focus
 		background: rgba(0, 0, 0, .05)
 		border-color: transparent
 		color: rgba(0, 0, 0, .38)
