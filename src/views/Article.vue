@@ -94,6 +94,7 @@ import Preguntar from '@/components/article/components/Preguntar'
 import Categories from '@/components/categories/components/Categories'
 import Platelets from '@/components/home/components/platelets/Index'
 import articles from '@/mixins/articles'
+import { tiene_descripcion as tiene_descripcion_del_articulo } from '@/helpers/descripcion_articulo'
 import { abrir_vista_de_producto, cerrar_vista } from '@/utils/tracking'
 
 /**
@@ -140,17 +141,15 @@ export default {
 		},
 		/**
 		 * Si hay algo que mostrar en la descripcion completa. Mismo criterio que el "show"
-		 * de `Description.vue`, que es lo que dibuja adentro: la seccion se armaba igual sin
-		 * esto -sin v-if propio- y un articulo sin descripcion dejaba una raya horizontal y
-		 * aire en blanco antes del contacto.
+		 * de `Description.vue`, que es lo que dibuja adentro (los dos leen de
+		 * `helpers/descripcion_articulo.js`): la seccion se armaba igual sin esto -sin v-if
+		 * propio- y un articulo sin descripcion dejaba una raya horizontal y aire en blanco
+		 * antes del contacto.
 		 *
 		 * @returns {boolean}
 		 */
 		tiene_descripcion() {
-			if (!this.article) {
-				return false
-			}
-			return !!((this.article.descriptions && this.article.descriptions.length) || this.article.description)
+			return tiene_descripcion_del_articulo(this.article)
 		},
 		title() {
 			if (this.article) {

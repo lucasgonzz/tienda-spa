@@ -24,6 +24,8 @@
 	</div>
 </template>
 <script>
+import { descripciones_a_mostrar } from '@/helpers/descripcion_articulo'
+
 export default {
 	name: 'SaberDelProducto',
 	computed: {
@@ -68,26 +70,23 @@ export default {
 		/**
 		 * Toda la descripcion del articulo, en un solo texto.
 		 *
-		 * Son las mismas dos fuentes que dibuja `Description.vue` mas abajo en la pagina: la
-		 * descripcion suelta del articulo y las descripciones con titulo. Se unen para poder
-		 * medir el largo de una sola vez.
+		 * Es lo mismo que dibuja `Description.vue` mas abajo en la pagina, y sale de la misma
+		 * regla (`helpers/descripcion_articulo.js`): las descripciones con titulo y, solo si no
+		 * hay ninguna, el texto suelto del articulo. Se unen para poder medir el largo de una
+		 * sola vez.
 		 *
 		 * @returns {string}
 		 */
 		texto_completo() {
-			if (!this.article) {
-				return ''
-			}
+			let descripcion = descripciones_a_mostrar(this.article)
 			let partes = []
-			if (this.article.description) {
-				partes.push(String(this.article.description))
-			}
-			if (Array.isArray(this.article.descriptions)) {
-				this.article.descriptions.forEach(descripcion => {
-					if (descripcion && descripcion.content) {
-						partes.push(String(descripcion.content))
-					}
-				})
+			descripcion.estructuradas.forEach(estructurada => {
+				if (estructurada.content) {
+					partes.push(String(estructurada.content))
+				}
+			})
+			if (descripcion.texto) {
+				partes.push(descripcion.texto)
 			}
 			return partes.join('\n\n').trim()
 		},

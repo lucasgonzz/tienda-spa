@@ -9,7 +9,7 @@
 				Descripcion
 			</h5>
 			<div 
-			v-for="(description, index) in article.descriptions"
+			v-for="(description, index) in descripcion_a_mostrar.estructuradas"
 			:key="description.id ? 'description-'+description.id : 'description-index-'+index"
 			class="body description">
 				<p
@@ -20,17 +20,23 @@
 				:style="description_content_style"
 				v-html="descripcionConSaltos(description.content)"></p>
 			</div>
-			<div 
-			v-if="article.description"
+			<!--
+				Respaldo: el texto suelto del articulo se muestra SOLO si no hay descripciones
+				con titulo (el helper devuelve '' si las hay).
+			-->
+			<div
+			v-if="descripcion_a_mostrar.texto"
 			class="body description">
 				<p
 				:style="description_content_style"
-				v-html="descripcionConSaltos(article.description)"></p>
+				v-html="descripcionConSaltos(descripcion_a_mostrar.texto)"></p>
 			</div>
 		</div>
 	</div>
 </template>
 <script>
+import { descripciones_a_mostrar, tiene_descripcion } from '@/helpers/descripcion_articulo'
+
 export default {
 	computed: {
 		/**
@@ -42,18 +48,22 @@ export default {
 			return this.$store.state.articles.article_to_show
 		},
 		/**
+		 * Que se muestra: las descripciones con titulo o, si no hay ninguna, el texto suelto.
+		 * La regla vive en `helpers/descripcion_articulo.js`, compartida con el resumen
+		 * recortado y con la ficha.
+		 *
+		 * @returns {{estructuradas: Array, texto: string}}
+		 */
+		descripcion_a_mostrar() {
+			return descripciones_a_mostrar(this.article)
+		},
+		/**
 		 * Define si existe contenido de descripcion para renderizar el bloque.
 		 *
 		 * @returns {boolean}
 		 */
 		show() {
-			if (
-				(this.article.descriptions && this.article.descriptions.length) 
-				|| this.article.description
-			) {
-				return true
-			}
-			return false
+			return tiene_descripcion(this.article)
 		},
 		/**
 		 * Estilo inline para aplicar el tamaño de fuente configurado.
@@ -80,7 +90,8 @@ export default {
 	},
 	methods: {
 		descripcionConSaltos(text) {
-			return text.replace(/\n/g, '<br>');
+			/* Una descripcion con titulo puede venir sin contenido: no debe romper el render. */
+			return String(text || '').replace(/\n/g, '<br>');
 		}
 	}
 }
