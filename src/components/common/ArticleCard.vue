@@ -76,16 +76,22 @@
 					descuentos_visibles() devuelve [] apenas hay una oferta personalizada activa.
 				-->
 				<span
-				v-if="precio_original_con_descuentos"
+				v-if="precio_original_con_descuentos || badges_de_descuento.length"
 				class="price__linea-descuento">
+					<!--
+						Verde para los descuentos (del articulo y del cliente), ambar para los
+						recargos del cliente (decision 3 de Lucas). Con un recargo que domina no hay
+						tachado: el renglon queda con los badges solos.
+					-->
 					<b-badge
-					v-for="(descuento, index) in badges_de_descuento"
-					:key="'descuento-'+index"
-					variant="success"
-					class="price__badge-descuento">
-						{{ texto_de_descuento(descuento) }}
+					v-for="badge in badges_de_descuento"
+					:key="badge.clave"
+					:class="badge.tipo == 'recargo' ? 'price__badge-recargo' : 'price__badge-descuento'">
+						{{ badge.texto }}
 					</b-badge>
-					<span class="price__original-arriba">
+					<span
+					v-if="precio_original_con_descuentos"
+					class="price__original-arriba">
 						{{ precio_original_con_descuentos }}
 					</span>
 				</span>
@@ -190,15 +196,13 @@ export default {
 			return this.precio_sin_descuentos(this.article)
 		},
 		/**
-		 * Los badges de descuento, atados al tachado de arriba: sin tachado no hay badges.
+		 * Los badges del precio: los descuentos del articulo (atados a su tachado) y los ajustes
+		 * del cliente. Ver badges_de_precio() en el mixin.
 		 *
 		 * @returns {Array}
 		 */
 		badges_de_descuento() {
-			if (!this.precio_original_con_descuentos) {
-				return []
-			}
-			return this.descuentos_visibles(this.article)
+			return this.badges_de_precio(this.article)
 		},
  	},
 	methods: {
@@ -277,6 +281,17 @@ export default {
 		border-radius: 3px
 		white-space: nowrap
 		background-color: #00A650
+		color: #FFF
+	// El badge de un RECARGO del cliente: mismo diseño que el de descuento, en ambar (decision
+	// 3 de Lucas). Tono oscuro para que el texto blanco se lea igual que sobre el verde.
+	.price__badge-recargo
+		font-size: 12px
+		font-weight: 600
+		line-height: 1.3
+		padding: 2px 5px
+		border-radius: 3px
+		white-space: nowrap
+		background-color: #C25E00
 		color: #FFF
 </style>
  

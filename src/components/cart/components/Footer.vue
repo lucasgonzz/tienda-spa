@@ -24,6 +24,16 @@
 		</div>
 
 		<!--
+			Los descuentos y recargos del cliente con los que se pricearon ESTAS lineas (mision
+			descuentos-recargos-por-cliente). Salen del carrito y no del comprador: los precios de
+			arriba ya los incluyen, esto dice cuales son.
+		-->
+		<ajustes-de-cliente
+		class="cart-summary__ajustes"
+		titulo="Este carrito ya tiene aplicados:"
+		:ajustes="ajustes_del_carrito(cart)"></ajustes-de-cliente>
+
+		<!--
 			Envío por correo (Zipnova): cotiza el carrito entero con el código postal. Este pie se
 			monta DOS veces (arriba en el teléfono, a la derecha en escritorio): el cotizador no
 			guarda nada en su data(), todo vive en el store, así que las dos copias muestran lo mismo.
@@ -78,6 +88,7 @@ export default {
 	mixins: [cart],
 	components: {
 		CotizadorEnvio,
+		AjustesDeCliente: () => import('@/components/common/AjustesDeCliente'),
 	},
 	methods: {
 		/**
@@ -258,4 +269,8 @@ export default {
 
 	.cart-summary__secondary-row
 		gap: 0.45rem
+
+// La lista de ajustes del cliente, entre el total y el cotizador de envio.
+.cart-summary__ajustes
+	margin-top: .25rem
 </style>

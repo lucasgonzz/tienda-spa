@@ -50,6 +50,27 @@
 
 			<div
 			v-if="puede_ver_precios()">
+				<!--
+					Los descuentos y recargos del cliente del comprador (decision 2 de Lucas: van
+					sobre todo lo comprable). Mismo renglon que la tarjeta de articulo: badges y el
+					precio de antes tachado, arriba del precio. Con un recargo que domina no hay
+					tachado.
+				-->
+				<span
+				v-if="badges.length"
+				class="combo-card__linea-ajustes">
+					<b-badge
+					v-for="badge in badges"
+					:key="badge.clave"
+					:class="badge.tipo == 'recargo' ? 'combo-card__badge-recargo' : 'combo-card__badge-descuento'">
+						{{ badge.texto }}
+					</b-badge>
+					<span
+					v-if="precio_sin_ajustes"
+					class="combo-card__tachado">
+						{{ precio_sin_ajustes }}
+					</span>
+				</span>
 				<p class="product-price combo-card__price">
 					{{ precio_mostrado }}
 				</p>
@@ -240,6 +261,25 @@ export default {
 			}
 			return this.price(this.combo.final_price)
 		},
+		/**
+		 * Los badges de los ajustes del cliente. En la home y en el carrito: el combo del
+		 * carrito vuelve de la API con `ajustes_de_cliente` igual que el de la home.
+		 *
+		 * @returns {Array}
+		 */
+		badges() {
+			return this.badges_de_ajustes(this.combo)
+		},
+		/**
+		 * El precio de antes de los ajustes del cliente, reconstruido desde el que se muestra al
+		 * lado (el pivote en el carrito, `final_price` en la home) con el factor de los badges.
+		 *
+		 * @returns {string|null}
+		 */
+		precio_sin_ajustes() {
+			let precio = this.en_carrito && this.combo.pivot ? this.combo.pivot.price : this.combo.final_price
+			return this.precio_sin_ajustes_de_cliente(this.combo, precio)
+		},
 		/** Lo que suma la línea del carrito: precio del pivote por la cantidad. */
 		total_de_linea() {
 			if (!this.combo.pivot) {
@@ -402,6 +442,40 @@ export default {
 	.combo-card__name
 		font-weight: 600
 		margin-bottom: 4px
+
+	// El renglon de los ajustes del cliente, ARRIBA del precio: badges y tachado. Mismas
+	// medidas que el de la tarjeta de articulo (article-card/body/Price.vue).
+	.combo-card__linea-ajustes
+		display: flex
+		flex-direction: row
+		align-items: center
+		flex-wrap: wrap
+		gap: .35rem
+		margin-bottom: .1rem
+
+	.combo-card__badge-descuento, .combo-card__badge-recargo
+		font-size: 12px
+		font-weight: 600
+		line-height: 1.3
+		padding: 2px 5px
+		border-radius: 3px
+		white-space: nowrap
+		color: #FFF
+
+	// El verde del badge de descuento de la tienda (#00A650) y el ambar del recargo.
+	.combo-card__badge-descuento
+		background-color: #00A650
+
+	.combo-card__badge-recargo
+		background-color: #C25E00
+
+	.combo-card__tachado
+		font-size: 12px
+		font-weight: 400
+		line-height: 1.2
+		color: rgba(0, 0, 0, .45)
+		text-decoration: line-through
+		white-space: nowrap
 
 	.combo-card__detalle
 		list-style: none

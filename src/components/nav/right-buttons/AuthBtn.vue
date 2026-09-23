@@ -33,6 +33,20 @@
 					<i class="bi bi-box-arrow-right icon-black"></i>
 					Salir
 				</b-dropdown-item>
+			<!--
+				Debajo de "Salir", los descuentos y recargos que el comerciante le vinculo al
+				cliente del comprador (mision descuentos-recargos-por-cliente). Salen de
+				`user.ajustes_de_cliente`; sin ninguno no se dibuja ni el separador.
+			-->
+			<template
+			v-if="ajustes_del_comprador().length">
+				<b-dropdown-divider></b-dropdown-divider>
+				<b-dropdown-text>
+					<ajustes-de-cliente
+					titulo="Se te están aplicando estos descuentos y recargos en tus precios:"
+					:ajustes="ajustes_del_comprador()"></ajustes-de-cliente>
+				</b-dropdown-text>
+			</template>
 			</b-dropdown>
 		</div>
 		<div
@@ -53,6 +67,9 @@ import mixin from '@/mixins/nav'
 import auth from '@/mixins/auth'
 export default {
 	mixins: [mixin, auth],
+	components: {
+		AjustesDeCliente: () => import('@/components/common/AjustesDeCliente'),
+	},
 }
 </script>
 <style lang="sass">
@@ -63,6 +80,11 @@ export default {
 		border: none !important
 		box-shadow: none !important
 		color: $color_text
+	// El bloque de ajustes del cliente debajo de "Salir": el menu es angosto y el titulo
+	// quedaria partido en cinco renglones. Ancho propio, sin pasarse del de un telefono.
+	.ajustes-de-cliente
+		min-width: 240px
+		max-width: 300px
 
 .auth-btn
 	span, .dropdown-toggle

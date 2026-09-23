@@ -535,7 +535,15 @@ export default {
 			if (!rango) {
 				return null
 			}
+			/* El tramo viene de la base SIN los ajustes del cliente (el servidor no se los aplica
+			   al mandarlo, porque el carrito lo relee de la base y le aplica el factor ahi). Para
+			   mostrar lo mismo que se va a cobrar, el factor se aplica aca, con el mismo redondeo
+			   a centavos que el servidor. */
+			let factor_del_cliente = this.factor_de_ajustes(this.ajustes_de_cliente(article))
 			let price = Number(rango.price)
+			if (factor_del_cliente != 1) {
+				price = Math.round(price * factor_del_cliente * 100) / 100
+			}
 			/* Mismo recargo y mismo redondeo que articlePriceEfectivo. Ver el bloque de arriba. */
 			if (this.commerce.online_configuration.online_price_surchage) {
 				price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
@@ -652,6 +660,15 @@ export default {
 			if (this.commerce.online_configuration.online_price_surchage) {
 				price += price * Number(this.commerce.online_configuration.online_price_surchage) / 100
 				price = Math.round(price)
+			}
+			/* Nunca un tachado igual o menor al precio de al lado. Sin ajustes del cliente no
+			   pasa nunca (la oferta siempre baja el precio), pero con un recargo del cliente
+			   encima de la oferta el precio final puede quedar por ENCIMA de la base. */
+			if (this.ajustes_de_cliente(article).length) {
+				let mostrado = Number(this.articlePriceEfectivo(article, false))
+				if (!isNaN(mostrado) && price <= mostrado) {
+					return null
+				}
 			}
 			return formated ? this.price(price) : price
 		},
@@ -1008,8 +1025,15 @@ export default {
 		 * @returns {string|number|null}
 		 */
 		precio_sin_descuentos(article, formated = true) {
+			/* Con oferta personalizada manda SU tachado (precio_sin_oferta, al lado del precio) y
+			   los ajustes del cliente se suman como badges: decision del plan de la mision
+			   descuentos-recargos-por-cliente. Un solo tachado por precio, siempre. */
+			if (this.oferta_personalizada(article)) {
+				return null
+			}
 			let descuentos = this.descuentos_visibles(article)
-			if (!descuentos.length) {
+			let ajustes = this.ajustes_de_cliente(article)
+			if (!descuentos.length && !ajustes.length) {
 				return null
 			}
 			let base = this.articlePriceEfectivo(article, false)
@@ -1026,10 +1050,20 @@ export default {
 					suma_montos += Number(descuento.amount)
 				}
 			})
-			if (!(factor > 0) || factor > 1) {
+			/*
+				🔴 Los ajustes del cliente se aplicaron DESPUES de los descuentos del articulo (el
+				ERP deja final_price con esos, y la tienda multiplica por el factor del cliente
+				encima). La cuenta inversa va en el orden inverso: primero se saca el factor del
+				cliente, despues se suman los montos fijos y al final se divide por los
+				porcentajes del articulo. Con un recargo que domina el factor pasa de 1 y el
+				original sale MENOR que el precio: ahi no hay tachado (lo corta el chequeo de
+				abajo) y solo quedan los badges.
+			*/
+			let factor_del_cliente = this.factor_de_ajustes(ajustes)
+			if (!(factor > 0) || factor > 1 || !(factor_del_cliente > 0)) {
 				return null
 			}
-			let original = Math.round((base + suma_montos) / factor)
+			let original = Math.round((base / factor_del_cliente + suma_montos) / factor)
 			/* La regla que no se negocia, la misma que precio_base_de_oferta() y llamadores:
 			   nunca mostrar un tachado igual o menor al precio de al lado. */
 			if (original <= base) {
@@ -1063,6 +1097,256 @@ export default {
 				return this.price(Number(descuento.amount), false) + ' off'
 			}
 			return ''
+		},
+		/**
+		 * ¿Ese porcentaje sirve para un recargo? Mismo criterio que
+		 * AjustesDeClienteHelper::porcentajeUsable() del servidor: numerico y mayor a 0.
+		 *
+		 * @param {number|string|null} porcentaje
+		 * @returns {boolean}
+		 */
+		porcentaje_de_recargo_usable(porcentaje) {
+			if (porcentaje === null || typeof porcentaje == 'undefined' || porcentaje === '') {
+				return false
+			}
+			let numero = Number(porcentaje)
+			if (isNaN(numero)) {
+				return false
+			}
+			return numero > 0
+		},
+		/**
+		 * ¿Ese ajuste del cliente (descuento o recargo) se puede usar?
+		 *
+		 * @param {object} ajuste {tipo, percentage}
+		 * @returns {boolean}
+		 */
+		ajuste_de_cliente_usable(ajuste) {
+			if (!ajuste) {
+				return false
+			}
+			if (ajuste.tipo == 'recargo') {
+				return this.porcentaje_de_recargo_usable(ajuste.percentage)
+			}
+			return this.porcentaje_de_descuento_usable(ajuste.percentage)
+		},
+		/**
+		 * Los descuentos y recargos del cliente del comprador que la API YA le aplico a este
+		 * articulo (o combo, o promo), o [] (mision descuentos-recargos-por-cliente).
+		 *
+		 * 🔴 Es la UNICA puerta de lectura de `article.ajustes_de_cliente` en todo el SPA. El
+		 * precio NO se recalcula aca: `final_price` llega de la API con el factor ya aplicado
+		 * (encima de la oferta personalizada, si la hay). Esta lista sirve para los badges y
+		 * para reconstruir el tachado.
+		 *
+		 * El contrato es ADITIVO: una API vieja, un comprador sin cliente del ERP o un
+		 * articulo que llego por un camino sin checkPriceTypes no traen el campo y aca sale [].
+		 *
+		 * @param {object} article
+		 * @returns {Array} cada uno {id, tipo: 'descuento'|'recargo', name, percentage}
+		 */
+		ajustes_de_cliente(article) {
+			if (!this.puede_ver_precios()) {
+				return []
+			}
+			if (!article || !Array.isArray(article.ajustes_de_cliente) || !article.ajustes_de_cliente.length) {
+				return []
+			}
+			/* Con el precio pausado no hay importe: el servidor tampoco ajusta nada. */
+			if (this.flag_activo(article.precio_pausado)) {
+				return []
+			}
+			return article.ajustes_de_cliente.filter(ajuste => {
+				return this.ajuste_de_cliente_usable(ajuste)
+			})
+		},
+		/**
+		 * El factor combinado de una lista de ajustes: Π(1 − d/100) × Π(1 + r/100). La MISMA
+		 * formula que Vender en el ERP y que AjustesDeClienteHelper::factor() en la tienda.
+		 *
+		 * @param {Array} ajustes
+		 * @returns {number} 1 sin ajustes
+		 */
+		factor_de_ajustes(ajustes) {
+			let factor = 1
+			if (!Array.isArray(ajustes)) {
+				return factor
+			}
+			ajustes.forEach(ajuste => {
+				if (!this.ajuste_de_cliente_usable(ajuste)) {
+					return
+				}
+				if (ajuste.tipo == 'recargo') {
+					factor *= (1 + Number(ajuste.percentage) / 100)
+				} else {
+					factor *= (1 - Number(ajuste.percentage) / 100)
+				}
+			})
+			return factor
+		},
+		/**
+		 * El texto del badge de un ajuste del cliente. El descuento sigue el estilo de
+		 * texto_de_descuento() ("10% off") y el recargo es su espejo ("5% recargo"). El
+		 * porcentaje va por porcentaje_legible() y no por formatDecimals(), que con un 100
+		 * se come los ceros.
+		 *
+		 * @param {object} ajuste
+		 * @returns {string}
+		 */
+		texto_de_ajuste(ajuste) {
+			let porcentaje = this.porcentaje_legible(ajuste ? ajuste.percentage : null)
+			if (!porcentaje) {
+				return ''
+			}
+			if (ajuste.tipo == 'recargo') {
+				return porcentaje + '% recargo'
+			}
+			return porcentaje + '% off'
+		},
+		/**
+		 * TODOS los badges del precio de un articulo en un listado o en la ficha, en el orden en
+		 * que se aplicaron: los descuentos generales visibles del articulo y despues los ajustes
+		 * del cliente. Cada uno {clave, tipo: 'descuento'|'recargo', texto}.
+		 *
+		 * Los descuentos del articulo siguen atados a su tachado (regla del 3/9/2026: sin
+		 * tachado no hay badges)... salvo que haya ajustes del cliente: con un recargo que
+		 * domina no hay tachado (el precio final es mayor que el de lista), y mostrar solo el
+		 * recargo sin el descuento del articulo dejaria una cuenta que no cierra.
+		 *
+		 * @param {object} article
+		 * @returns {Array}
+		 */
+		badges_de_precio(article) {
+			let badges = []
+			let ajustes = this.ajustes_de_cliente(article)
+			let descuentos = this.descuentos_visibles(article)
+			if (descuentos.length && (ajustes.length || this.precio_sin_descuentos(article))) {
+				descuentos.forEach((descuento, index) => {
+					badges.push({
+						clave: 'articulo-' + index,
+						tipo: 'descuento',
+						texto: this.texto_de_descuento(descuento),
+					})
+				})
+			}
+			ajustes.forEach((ajuste, index) => {
+				badges.push({
+					clave: 'cliente-' + ajuste.tipo + '-' + index,
+					tipo: ajuste.tipo == 'recargo' ? 'recargo' : 'descuento',
+					texto: this.texto_de_ajuste(ajuste),
+				})
+			})
+			return badges
+		},
+		/**
+		 * Los badges de los ajustes del cliente solos (sin los descuentos del articulo). Es lo
+		 * que va en el carrito, en los combos y en las promociones, donde no se muestran los
+		 * descuentos generales del articulo.
+		 *
+		 * @param {object} item
+		 * @returns {Array}
+		 */
+		badges_de_ajustes(item) {
+			let badges = []
+			this.ajustes_de_cliente(item).forEach((ajuste, index) => {
+				badges.push({
+					clave: 'cliente-' + ajuste.tipo + '-' + index,
+					tipo: ajuste.tipo == 'recargo' ? 'recargo' : 'descuento',
+					texto: this.texto_de_ajuste(ajuste),
+				})
+			})
+			return badges
+		},
+		/**
+		 * El precio de antes de los ajustes del cliente para algo con precio FIJO (combo o
+		 * promo de vinoteca), para tacharlo al lado del ajustado. null si no hay nada honesto
+		 * que tachar: sin ajustes, o si los recargos dominan (el de antes no es mayor).
+		 *
+		 * `precio` es el que se esta mostrando al lado (final_price en un listado, pivot.price
+		 * en el carrito): el tachado se reconstruye dividiendo por el factor, asi los badges
+		 * que se muestran alcanzan para rehacer la cuenta.
+		 *
+		 * @param {object} item
+		 * @param {number|string} precio
+		 * @returns {string|null}
+		 */
+		precio_sin_ajustes_de_cliente(item, precio) {
+			let ajustes = this.ajustes_de_cliente(item)
+			if (!ajustes.length) {
+				return null
+			}
+			let mostrado = Number(precio)
+			let factor = this.factor_de_ajustes(ajustes)
+			if (!isFinite(mostrado) || mostrado <= 0 || !(factor > 0)) {
+				return null
+			}
+			let original = Math.round(mostrado / factor * 100) / 100
+			/* En centavos, para no comparar flotantes: nunca un tachado igual o menor al precio de
+			   al lado. */
+			if (Math.round(original * 100) <= Math.round(mostrado * 100)) {
+				return null
+			}
+			return this.price(original)
+		},
+		/**
+		 * La lista de ajustes del comprador logueado, para el desplegable del nombre. Sale de
+		 * `user.ajustes_de_cliente` ({descuentos, recargos}), que la API cuelga en /api/user y en
+		 * el login. [] con una API vieja o un comprador sin cliente del ERP.
+		 *
+		 * @returns {Array} cada uno {id, tipo, name, percentage}
+		 */
+		ajustes_del_comprador() {
+			if (!this.authenticated || !this.user || !this.user.ajustes_de_cliente) {
+				return []
+			}
+			let lista = []
+			let ajustes = this.user.ajustes_de_cliente
+			if (Array.isArray(ajustes.descuentos)) {
+				ajustes.descuentos.forEach(descuento => {
+					lista.push(Object.assign({}, descuento, { tipo: 'descuento' }))
+				})
+			}
+			if (Array.isArray(ajustes.recargos)) {
+				ajustes.recargos.forEach(recargo => {
+					lista.push(Object.assign({}, recargo, { tipo: 'recargo' }))
+				})
+			}
+			return lista.filter(ajuste => {
+				return this.ajuste_de_cliente_usable(ajuste)
+			})
+		},
+		/**
+		 * Los ajustes que YA tiene aplicados el carrito: los que el servidor le colgo a sus
+		 * lineas (articulos, promos y combos), sin repetir. Es lo que se lista en el resumen del
+		 * carrito y del checkout, y sale del carrito y no del comprador a proposito: dice con
+		 * que se pricearon ESTAS lineas.
+		 *
+		 * @param {object} cart
+		 * @returns {Array}
+		 */
+		ajustes_del_carrito(cart) {
+			let lista = []
+			let vistos = {}
+			if (!cart) {
+				return lista
+			}
+			let colecciones = [cart.articles, cart.promociones_vinoteca, cart.combos]
+			colecciones.forEach(coleccion => {
+				if (!Array.isArray(coleccion)) {
+					return
+				}
+				coleccion.forEach(item => {
+					this.ajustes_de_cliente(item).forEach(ajuste => {
+						let clave = ajuste.tipo + '-' + ajuste.id
+						if (vistos[clave]) {
+							return
+						}
+						vistos[clave] = true
+						lista.push(ajuste)
+					})
+				})
+			})
+			return lista
 		},
 		checkAuth() {
 			if (this.authenticated) {

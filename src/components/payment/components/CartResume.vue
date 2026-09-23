@@ -34,6 +34,15 @@
 			:combo="combo"></combo-card>
 		</div>
 
+		<!--
+			Los descuentos y recargos del cliente que ya tienen aplicados los precios de arriba
+			(mision descuentos-recargos-por-cliente). Mismo bloque que el resumen del carrito.
+		-->
+		<ajustes-de-cliente
+		class="checkout-summary__ajustes"
+		titulo="Este carrito ya tiene aplicados:"
+		:ajustes="ajustes_del_carrito(cart)"></ajustes-de-cliente>
+
 		<total></total>
 
 		<before-confirm-notice></before-confirm-notice>
@@ -51,6 +60,7 @@ export default {
 		BeforeConfirmNotice,
 		Total: () => import('@/components/payment/components/payment-method/Total'),
 		BtnSave: () => import('@/components/payment/components/BtnSave'),
+		AjustesDeCliente: () => import('@/components/common/AjustesDeCliente'),
 	},
 	computed: {
 		cart() {

@@ -47,12 +47,16 @@
 						izquierda del tachado. Son dos disposiciones distintas y las dos salen de
 						las capturas de Mercado Libre que paso Lucas.
 					-->
+					<!--
+						Y a continuacion los de los descuentos y recargos del cliente del
+						comprador: verde el descuento, ambar el recargo (decision 3 de Lucas).
+					-->
 					<b-badge
-					v-for="(descuento, index) in badges_de_descuento"
-					:key="'descuento-'+index"
-					variant="success"
-					class="precio-ficha__badge">
-						{{ texto_de_descuento(descuento) }}
+					v-for="badge in badges_de_descuento"
+					:key="badge.clave"
+					class="precio-ficha__badge"
+					:class="{'precio-ficha__badge--recargo': badge.tipo == 'recargo'}">
+						{{ badge.texto }}
 					</b-badge>
 				</p>
 				<!--
@@ -154,6 +158,13 @@ export default {
 			if (!base || base === this.precio_del_tramo) {
 				return null
 			}
+			/* Con un recargo del cliente encima del tramo el precio puede quedar por ENCIMA de la
+			   base: ahi no hay nada que tachar. Se compara en numeros, no en texto formateado. */
+			let base_numero = Number(this.precio_base_de_oferta(this.article_to_show, false))
+			let tramo_numero = Number(this.precio_con_oferta_por_cantidad(this.article_to_show, this.cantidad_elegida, false))
+			if (!isNaN(base_numero) && !isNaN(tramo_numero) && base_numero <= tramo_numero) {
+				return null
+			}
 			return base
 		},
 		/**
@@ -186,15 +197,13 @@ export default {
 			return this.precio_sin_descuentos(this.article_to_show)
 		},
 		/**
-		 * Los badges de descuento, atados al tachado de arriba: sin tachado no hay badges.
+		 * Los badges del precio: los descuentos del articulo (atados a su tachado) y los ajustes
+		 * del cliente. Ver badges_de_precio() en el mixin.
 		 *
 		 * @returns {Array}
 		 */
 		badges_de_descuento() {
-			if (!this.precio_original_con_descuentos) {
-				return []
-			}
-			return this.descuentos_visibles(this.article_to_show)
+			return this.badges_de_precio(this.article_to_show)
 		},
 	},
 }
@@ -259,6 +268,10 @@ export default {
 		white-space: nowrap
 		background-color: #00A650
 		color: #FFF
+
+	// El RECARGO del cliente: mismo badge, en ambar (decision 3 de Lucas).
+	.precio-ficha__badge--recargo
+		background-color: #C25E00
 
 // La linea que explica a partir de cuantas unidades mejora el precio. Va a media voz: una
 // sola linea, gris, chica, pegada al precio. No es un cartel de oferta.

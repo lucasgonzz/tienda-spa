@@ -5,6 +5,20 @@
 		<p
 		v-if="$route.name == 'Cart' || $route.name == 'Orders'"
 		class="product-price">
+			<!--
+				Los badges de los descuentos y recargos del cliente, ARRIBA del precio, igual que
+				en la tarjeta del listado. Solo en el CARRITO: ver badges_de_linea.
+			-->
+			<span
+			v-if="badges_de_linea.length"
+			class="price__linea-descuento">
+				<b-badge
+				v-for="badge in badges_de_linea"
+				:key="badge.clave"
+				:class="clase_de_badge(badge)">
+					{{ badge.texto }}
+				</b-badge>
+			</span>
 			{{ price(article.pivot.price) }}
 			<!--
 				El precio original tachado al lado de lo que se cobra, solo en el CARRITO. Ver
@@ -23,7 +37,23 @@
 			<p
 			class="product-price"
 			v-if="is_promocion_vinoteca">
-				{{ price(article.final_price) }}				
+				<!-- Los ajustes del cliente tambien van sobre las promos (decision 2 de Lucas). -->
+				<span
+				v-if="badges_de_promo.length"
+				class="price__linea-descuento">
+					<b-badge
+					v-for="badge in badges_de_promo"
+					:key="badge.clave"
+					:class="clase_de_badge(badge)">
+						{{ badge.texto }}
+					</b-badge>
+					<span
+					v-if="precio_original_de_promo"
+					class="price__original-arriba">
+						{{ precio_original_de_promo }}
+					</span>
+				</span>
+				{{ price(article.final_price) }}
 			</p>
 			<div
 			v-else>
@@ -58,16 +88,22 @@
 						activa, asi que los dos nunca se dibujan juntos.
 					-->
 					<span
-					v-if="precio_original_con_descuentos"
+					v-if="precio_original_con_descuentos || badges_de_descuento.length"
 					class="price__linea-descuento">
+						<!--
+							Verde para los descuentos (los del articulo y los del cliente), ambar
+							para los recargos del cliente (decision 3 de Lucas). Con un recargo que
+							domina no hay tachado: el renglon queda con los badges solos.
+						-->
 						<b-badge
-						v-for="(descuento, index) in badges_de_descuento"
-						:key="'descuento-'+index"
-						variant="success"
-						class="price__badge-descuento">
-							{{ texto_de_descuento(descuento) }}
+						v-for="badge in badges_de_descuento"
+						:key="badge.clave"
+						:class="clase_de_badge(badge)">
+							{{ badge.texto }}
 						</b-badge>
-						<span class="price__original-arriba">
+						<span
+						v-if="precio_original_con_descuentos"
+						class="price__original-arriba">
 							{{ precio_original_con_descuentos }}
 						</span>
 					</span>
@@ -127,7 +163,42 @@ export default {
 			if (this.$route.name != 'Cart') {
 				return null
 			}
-			return this.precio_base_de_linea(this.article)
+			/* Con oferta personalizada manda su base; si no, la de antes de los ajustes del
+			   cliente, reconstruida desde el pivot con el factor de los badges de al lado. */
+			let base_de_oferta = this.precio_base_de_linea(this.article)
+			if (base_de_oferta) {
+				return base_de_oferta
+			}
+			return this.precio_sin_ajustes_de_cliente(this.article, this.article.pivot.price)
+		},
+		/**
+		 * Los badges de los ajustes del cliente en la linea del CARRITO. En pedidos ya
+		 * cerrados no van: el precio del pivot es historico y los ajustes de hoy pueden no ser
+		 * los de ese dia.
+		 *
+		 * @returns {Array}
+		 */
+		badges_de_linea() {
+			if (this.$route.name != 'Cart') {
+				return []
+			}
+			return this.badges_de_ajustes(this.article)
+		},
+		/**
+		 * Los badges de la promo de vinoteca: solo los ajustes del cliente.
+		 *
+		 * @returns {Array}
+		 */
+		badges_de_promo() {
+			return this.badges_de_ajustes(this.article)
+		},
+		/**
+		 * El precio de la promo antes de los ajustes del cliente, para tacharlo.
+		 *
+		 * @returns {string|null}
+		 */
+		precio_original_de_promo() {
+			return this.precio_sin_ajustes_de_cliente(this.article, this.article.final_price)
 		},
 		/**
 		 * El precio original a tachar arriba, por los descuentos generales visibles del
@@ -140,18 +211,25 @@ export default {
 			return this.precio_sin_descuentos(this.article)
 		},
 		/**
-		 * Los badges de descuento, atados al tachado de arriba: sin tachado no hay badges.
+		 * Los badges del precio: los descuentos del articulo (atados a su tachado) y los ajustes
+		 * del cliente. Ver badges_de_precio() en el mixin.
 		 *
 		 * @returns {Array}
 		 */
 		badges_de_descuento() {
-			if (!this.precio_original_con_descuentos) {
-				return []
-			}
-			return this.descuentos_visibles(this.article)
+			return this.badges_de_precio(this.article)
 		},
 	},
 	methods: {
+		/**
+		 * La clase de un badge segun su tipo: el verde de siempre o el ambar del recargo.
+		 *
+		 * @param {object} badge
+		 * @returns {string}
+		 */
+		clase_de_badge(badge) {
+			return badge.tipo == 'recargo' ? 'price__badge-recargo' : 'price__badge-descuento'
+		},
 		toLogin() {
 			this.$router.push({name: 'Login'})
 		},
@@ -206,5 +284,17 @@ export default {
 	border-radius: 3px
 	white-space: nowrap
 	background-color: #00A650
+	color: #FFF
+
+// El badge de un RECARGO del cliente: el mismo diseño que el de descuento, en ambar (decision 3
+// de Lucas). Tono oscuro para que el texto blanco se lea igual que sobre el verde.
+.price__badge-recargo
+	font-size: 12px
+	font-weight: 600
+	line-height: 1.3
+	padding: 2px 5px
+	border-radius: 3px
+	white-space: nowrap
+	background-color: #C25E00
 	color: #FFF
 </style>

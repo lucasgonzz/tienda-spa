@@ -115,6 +115,17 @@
 				class="item">
 					Cerrar sesion	
 				</div>
+				<!--
+					Debajo de "Cerrar sesion", el mismo bloque que el desplegable del nombre en
+					escritorio: los descuentos y recargos del cliente del comprador.
+				-->
+				<div
+				v-if="ajustes_del_comprador().length"
+				class="item item--ajustes-de-cliente">
+					<ajustes-de-cliente
+					titulo="Se te están aplicando estos descuentos y recargos en tus precios:"
+					:ajustes="ajustes_del_comprador()"></ajustes-de-cliente>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -124,6 +135,9 @@ import nav from '@/mixins/nav'
 import auth from '@/mixins/auth'
 export default {
 	mixins: [nav, auth],
+	components: {
+		AjustesDeCliente: () => import('@/components/common/AjustesDeCliente'),
+	},
 	methods: {
 		/**
 		 * Abre o cierra el sidebar de categorías vía store (sin v-b-toggle).
@@ -222,4 +236,11 @@ export default {
 		/* Mantiene consistencia de color hover en links del nav. */
 		&:hover
 			color: $hover_color_text
+	// El bloque de los ajustes del cliente no es un link: sin negrita, sin puntero y sin el
+	// color de hover de los items de arriba.
+	.item--ajustes-de-cliente
+		cursor: default
+		font-weight: normal
+		&:hover
+			color: $color_text
 </style>
