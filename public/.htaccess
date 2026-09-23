@@ -1,8 +1,27 @@
+# Tienda en Apache (shared de Hostinger): capa SEO + history mode de Vue Router.
+#
+# Hasta el 23/9/2026 toda ruta que no era un archivo real iba a /index.html: los buscadores y las
+# vistas previas de WhatsApp/Facebook recibian siempre el mismo HTML vacio, y cualquier URL
+# inexistente (o /sitemap.xml) respondia 200 con ese index. Ahora esas rutas pasan por seo.php,
+# que le pide a tienda-api el titulo, la descripcion, el JSON-LD y el contenido de cada pagina,
+# los inyecta en index.html y responde con el estado real (404 incluido). Si la API no contesta,
+# seo.php sirve index.html tal cual con 200: la tienda anda igual que antes.
+#
+# - DirectoryIndex: la home ("/") tambien pasa por seo.php; index.html queda de respaldo.
+# - robots.txt y sitemap.xml los arma seo.php (robots.txt existe en el build solo como respaldo
+#   para servidores sin esta capa, p. ej. nginx).
+# - seo.php e index.html pedidos directo se sirven tal cual, sin reescribir.
+# - Todo lo que no es archivo ni directorio va a seo.php (antes: a /index.html).
+#
+# 🔴 Los deploys (admin-api EcommerceInstallationService y actualizar-tienda-shared.php) respetan
+# este archivo si viene en el build; si lo pisaran con el viejo, seo.php no se ejecuta nunca.
 <IfModule mod_rewrite.c>
+  DirectoryIndex seo.php index.html
   RewriteEngine On
   RewriteBase /
-  RewriteRule ^index\.html$ - [L]
+  RewriteRule ^(seo\.php|index\.html)$ - [L]
+  RewriteRule ^(robots\.txt|sitemap\.xml)$ /seo.php [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
+  RewriteRule . /seo.php [L]
 </IfModule>

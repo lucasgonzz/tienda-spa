@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="utf-8">
     <!-- Tipografía ecommerce: Plus Jakarta Sans (legible en catálogo y checkout) -->
@@ -94,28 +94,49 @@
       El favicon.ico sigue existiendo en public/ y se sirve en la raiz del sitio: es el que buscan
       por su cuenta los navegadores y crawlers viejos cuando no encuentran un link declarado.
     -->
-    <title><%= htmlWebpackPlugin.options.title %></title>
     <!--
-      Open Graph / Twitter Card: es lo que leen WhatsApp, Instagram y Facebook para armar la vista
-      previa cuando el comercio comparte el link de su tienda. Tiene que estar en el HTML estatico:
-      el crawler de Meta NO ejecuta JavaScript, asi que nada que haga Vue en runtime lo afecta.
-      Los valores los inyecta vue.config.js desde las VUE_APP_SITE_* que admin-api escribe en el
-      .env del clone antes de compilar, una vez por cliente.
+      Etiquetas estaticas que valen igual para cualquier pagina de la tienda: quedan AFUERA de la
+      region seo:head para que ni seo.php ni la limpieza de main.js las toquen.
     -->
-    <meta name="description" content="<%= htmlWebpackPlugin.options.siteDescription %>">
-    <meta property="og:type" content="website">
     <meta property="og:locale" content="es_AR">
     <meta property="og:site_name" content="<%= htmlWebpackPlugin.options.siteName %>">
-    <meta property="og:title" content="<%= htmlWebpackPlugin.options.siteName %>">
-    <meta property="og:description" content="<%= htmlWebpackPlugin.options.siteDescription %>">
-    <meta property="og:url" content="<%= htmlWebpackPlugin.options.siteUrl %>">
-    <meta property="og:image" content="<%= htmlWebpackPlugin.options.siteImage %>">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="<%= htmlWebpackPlugin.options.siteName %>">
-    <meta name="twitter:description" content="<%= htmlWebpackPlugin.options.siteDescription %>">
-    <meta name="twitter:image" content="<%= htmlWebpackPlugin.options.siteImage %>">
+    <!--
+      Sin JavaScript no hay Vue que tape el contenido estatico que inyecta seo.php: el overlay
+      blanco (.seo-cargando, ver public/seo.php) se esconde y el visitante ve ese HTML.
+    -->
+    <noscript><style>.seo-cargando{display:none}</style></noscript>
+    <!--
+      Region SEO (mision seo-tiendas, 23/9/2026). Lo que esta entre los dos marcadores es el
+      "head por defecto" de la tienda:
+        - public/seo.php (capa PHP del servidor) REEMPLAZA esta region entera por las etiquetas de
+          la pagina pedida (titulo, descripcion, canonica, robots, Open Graph, Twitter y JSON-LD),
+          que le arma tienda-api. Si la API falla, el index se sirve tal cual, con esto adentro.
+        - src/main.js SACA del head todo lo que tiene data-seo justo antes de montar Vue: a partir
+          de ahi el dueño del head es vue-meta, que no toca etiquetas que no creo el y si no se
+          sacaran quedarian duplicadas.
+      Los marcadores sobreviven a la minificacion porque vue.config.js los excluye con
+      minify.ignoreCustomComments. No cambiarles el texto sin cambiar tambien seo.php y esa regex.
+
+      Open Graph / Twitter Card: es lo que leen WhatsApp, Instagram y Facebook para armar la vista
+      previa cuando el comercio comparte el link de su tienda. El crawler de Meta NO ejecuta
+      JavaScript. Los valores por defecto los inyecta vue.config.js desde las VUE_APP_SITE_* que
+      admin-api escribe en el .env del clone antes de compilar, una vez por cliente.
+    -->
+    <!--seo:head-->
+    <title data-seo><%= htmlWebpackPlugin.options.title %></title>
+    <meta data-seo name="description" content="<%= htmlWebpackPlugin.options.siteDescription %>">
+    <meta data-seo property="og:type" content="website">
+    <meta data-seo property="og:title" content="<%= htmlWebpackPlugin.options.siteName %>">
+    <meta data-seo property="og:description" content="<%= htmlWebpackPlugin.options.siteDescription %>">
+    <meta data-seo property="og:url" content="<%= htmlWebpackPlugin.options.siteUrl %>">
+    <meta data-seo property="og:image" content="<%= htmlWebpackPlugin.options.siteImage %>">
+    <meta data-seo property="og:image:width" content="1200">
+    <meta data-seo property="og:image:height" content="630">
+    <meta data-seo name="twitter:card" content="summary_large_image">
+    <meta data-seo name="twitter:title" content="<%= htmlWebpackPlugin.options.siteName %>">
+    <meta data-seo name="twitter:description" content="<%= htmlWebpackPlugin.options.siteDescription %>">
+    <meta data-seo name="twitter:image" content="<%= htmlWebpackPlugin.options.siteImage %>">
+    <!--/seo:head-->
     <script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>
     <script src="https://product-gallery.cloudinary.com/all.js" type="text/javascript"></script>
 
@@ -125,8 +146,14 @@
   </head>
   <body>
     <noscript>
-      <strong>We're sorry but <%= htmlWebpackPlugin.options.title %> doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
+      <strong>Para comprar en <%= htmlWebpackPlugin.options.title %> necesitás tener JavaScript activado.</strong>
     </noscript>
+    <!--
+      public/seo.php mete aca adentro el HTML estatico de la pagina (cuerpo_html de tienda-api) para
+      los buscadores y las vistas previas. Vue REEMPLAZA este div al montar, asi que el visitante
+      sigue viendo la SPA de siempre. seo.php lo busca con una regex tolerante a comillas porque
+      minificado queda <div id=app></div>.
+    -->
     <div id="app"></div>
     <!-- built files will be auto injected -->
     <!--
