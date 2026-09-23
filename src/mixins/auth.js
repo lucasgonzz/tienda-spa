@@ -23,6 +23,7 @@ export default {
 					})
 					.then(() => {
 						if (this.authenticated) {
+							this.recargar_articulos_con_la_sesion()
 							this.checkCart()
 							if (this.route_name == 'Register') {
 								this.$router.replace({name : this.route_name, params: {view: 'codigo-de-verificacion'}})
@@ -64,10 +65,31 @@ export default {
 			} else if (redirect == 'Payment') {
 				this.$router.replace({name: 'Payment'})
 			}
-			// if (this.commerce.online_prices == 'only_buyers_with_comerciocity_client') {
-            //     this.$store.dispatch('categories/getIndex')
-			// }
-		}
+		},
+		/**
+		 * Vuelve a pedir los artículos de la home después de un login exitoso, para que los
+		 * listados del store se reemplacen por los resueltos CON la sesión.
+		 *
+		 * Lo que había en el store se pidió como anónimo: en una tienda que solo muestra
+		 * precios a los registrados (o a los vinculados a un cliente del ERP) el backend manda
+		 * esos artículos con `final_price` en null, y en un comercio con listas por cliente,
+		 * con el precio público. Sin esto quedaban así hasta recargar la página, y con
+		 * `puede_ver_precios()` ya en true la tarjeta mostraba el artículo sin precio y sin el
+		 * cartel de "Inicie sesión" (Fenix, 23/9/2026).
+		 *
+		 * Se llama desde cada camino que pasa al comprador de anónimo a logueado (usuario y
+		 * contraseña, Google, blanqueo de contraseña, alta que deja logueado), y NO desde el
+		 * `auth/me` del arranque de App.vue: ahí los artículos ya salen con la cookie correcta
+		 * y sería un request repetido en cada carga.
+		 *
+		 * @returns {Promise}
+		 */
+		recargar_articulos_con_la_sesion() {
+			if (!this.$store.state.auth.authenticated) {
+				return Promise.resolve()
+			}
+			return this.$store.dispatch('categories/getIndex')
+		},
 
 	}
 }

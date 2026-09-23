@@ -293,7 +293,9 @@ export default {
 
 			this.$store.commit('auth/setAuthenticated', true)
 			this.$store.commit('auth/setUser', res.data.buyer)
-			
+
+			this.recargar_articulos_con_la_sesion()
+
 			this.redirectAfterLogin()
 		},
 		checkForm() {
