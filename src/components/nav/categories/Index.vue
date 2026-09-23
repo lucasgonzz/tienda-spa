@@ -32,12 +32,17 @@
 					class="nav-categories__toggle-spacer"
 					aria-hidden="true"></span>
 
-					<button
-					type="button"
-					class="nav-categories__name"
-					@click.stop="on_click_category_name(category)">
+					<!--
+						<a> y no <button> (mision seo-tiendas): link real a la categoria para los
+						buscadores. El click hace lo mismo que antes (navega o despliega las
+						subcategorias segun la config); .seo-link le saca el subrayado.
+					-->
+					<a
+					class="nav-categories__name seo-link"
+					:href="href_categoria(category)"
+					@click.stop.prevent="on_click_category_name(category)">
 						{{ category.name }}
-					</button>
+					</a>
 
 					<button
 					v-if="subcategories_count(category) > 0"

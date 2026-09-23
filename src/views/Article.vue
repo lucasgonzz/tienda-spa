@@ -267,7 +267,7 @@ export default {
 		},
 		/**
 		 * JSON-LD Product. Los textos van sin < ni >: vue-meta mete el JSON como innerHTML del
-		 * <script> y un "</script>" dentro de un nombre lo cortaria.
+		 * script y un cierre de script dentro de un nombre lo cortaria.
 		 * @returns {object}
 		 */
 		seo_json_ld() {
