@@ -7,7 +7,9 @@
 # los inyecta en index.html y responde con el estado real (404 incluido). Si la API no contesta,
 # seo.php sirve index.html tal cual con 200: la tienda anda igual que antes.
 #
-# - DirectoryIndex: la home ("/") tambien pasa por seo.php; index.html queda de respaldo.
+# - La home ("/") tambien pasa por seo.php, con una RewriteRule y NO con DirectoryIndex: cambiar el
+#   DirectoryIndex desde .htaccess exige AllowOverride Indexes, y un hosting que no lo permita
+#   devuelve 500 en toda la tienda.
 # - robots.txt y sitemap.xml los arma seo.php (robots.txt existe en el build solo como respaldo
 #   para servidores sin esta capa, p. ej. nginx).
 # - seo.php e index.html pedidos directo se sirven tal cual, sin reescribir.
@@ -16,10 +18,10 @@
 # 🔴 Los deploys (admin-api EcommerceInstallationService y actualizar-tienda-shared.php) respetan
 # este archivo si viene en el build; si lo pisaran con el viejo, seo.php no se ejecuta nunca.
 <IfModule mod_rewrite.c>
-  DirectoryIndex seo.php index.html
   RewriteEngine On
   RewriteBase /
   RewriteRule ^(seo\.php|index\.html)$ - [L]
+  RewriteRule ^$ /seo.php [L]
   RewriteRule ^(robots\.txt|sitemap\.xml)$ /seo.php [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d

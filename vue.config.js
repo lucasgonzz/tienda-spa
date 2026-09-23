@@ -149,7 +149,12 @@ module.exports = {
     },
     pwa: {
         workboxOptions: {
-            skipWaiting: true
+            skipWaiting: true,
+            // Los cuatro primeros son los que excluye @vue/cli-plugin-pwa por defecto (este array
+            // los reemplaza, no se suma). seo.php y .htaccess son archivos de servidor: si entran al
+            // precache, el service worker baja /seo.php al instalarse y lo guarda como si fuera un
+            // asset (misión seo-tiendas).
+            exclude: [/\.map$/, /img\/icons\//, /favicon\.ico$/, /^manifest.*\.js?$/, /seo\.php$/, /\.htaccess$/]
         },
 
         // Estos valores son un fallback: en produccion admin-api los reescribe por cliente antes
