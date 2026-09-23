@@ -41,6 +41,27 @@ export default {
 		loading_sub_categories: false,
 		loading_articles: false,
 		loading_brands: false,
+
+		/*
+		 * 🔴 Número del último pedido del LISTADO de artículos (getIndex, getArticles y
+		 * searchArticles). Cada una de esas acciones lo incrementa al salir y se guarda el suyo;
+		 * a la vuelta, si ya no es el último, la respuesta se descarta entera: no commitea nada
+		 * ni toca el loading, que es del pedido vigente.
+		 *
+		 * Por qué (Fenix, 23/9/2026): el getIndex anónimo del arranque —o una búsqueda— puede
+		 * tardar mucho, y si el comprador se loguea antes de que vuelva, la recarga de
+		 * `recargar_articulos_con_la_sesion()` vuelve primero y la vieja la pisaba después con
+		 * los precios en null. Mismo patrón que store/client_offers.js, que descarta cuando
+		 * cambió el comprador.
+		 */
+		pedido_del_listado: 0,
+		/*
+		 * Lo mismo, pero solo de getIndex: los carruseles de la home (destacados, ofertas,
+		 * novedades, promociones, rangos y combos) solo los trae getIndex. Una búsqueda que sale
+		 * después descarta el LISTADO de un getIndex en vuelo, pero no sus carruseles: esos solo
+		 * los reemplaza un getIndex más nuevo (el de después del login).
+		 */
+		pedido_de_la_home: 0,
 	},
 	mutations: {
 		setCategories(state, categories) {
@@ -174,6 +195,22 @@ export default {
 		setLoadingBrands(state, value) {
 			state.loading_brands = value
 		},
+		/**
+		 * Un pedido nuevo del listado de artículos: ver `pedido_del_listado` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_del_listado(state) {
+			state.pedido_del_listado++
+		},
+		/**
+		 * Un pedido nuevo de la home: ver `pedido_de_la_home` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_de_la_home(state) {
+			state.pedido_de_la_home++
+		},
 	},
 	actions: {
 		getCategories({ commit }) {
@@ -220,6 +257,8 @@ export default {
 		getArticles({ commit, state }) {
 			commit('setPage', 1)
 			commit('setLoadingArticles', true)
+			commit('nuevo_pedido_del_listado')
+			const pedido = state.pedido_del_listado
 			if (state.selected_brand) {
 				return axios.get(
 					'api/articles/from-brand/'
@@ -227,14 +266,21 @@ export default {
 					+ '?page=1'
 				)
 					.then(res => {
+						/* Llegó tarde: otro pedido del listado ya salió después. */
+						if (pedido !== state.pedido_del_listado) {
+							return
+						}
 						commit('setLoadingArticles', false)
 						let articles = res.data.articles.data
 						commit('setArticles', articles)
 						commit('setOrder')
 					})
 					.catch(err => {
-						commit('setLoadingArticles', false)
 						console.log(err)
+						if (pedido !== state.pedido_del_listado) {
+							return
+						}
+						commit('setLoadingArticles', false)
 					})
 			}
 			let category_id = 0
@@ -258,6 +304,10 @@ export default {
 
 			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+bodega_id+'/'+cepa_id+'/'+state.order_by+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
 			.then(res => {
+				/* Llegó tarde: otro pedido del listado ya salió después. */
+				if (pedido !== state.pedido_del_listado) {
+					return
+				}
 				commit('setLoadingArticles', false)
 				let articles = res.data.articles.data 
 				// let articles_ordenados = []
@@ -287,8 +337,11 @@ export default {
 				commit('setOrder')
 			})
 			.catch(err => {
-				commit('setLoadingArticles', false)
 				console.log(err)
+				if (pedido !== state.pedido_del_listado) {
+					return
+				}
+				commit('setLoadingArticles', false)
 			})
 		},
 		getIndex({ commit, state }) {
@@ -297,11 +350,24 @@ export default {
 			commit('setSelectedCategory', null)
 			commit('setSelectedSubCategory', null)
 			commit('setLoadingArticles', true)
+			commit('nuevo_pedido_del_listado')
+			commit('nuevo_pedido_de_la_home')
+			const pedido = state.pedido_del_listado
+			const pedido_home = state.pedido_de_la_home
 			return axios.get(`api/articles/featured-last-uploads/${ process.env.VUE_APP_COMMERCE_ID }?page=1`)
 			.then(res => {
 				console.log(res)
-				commit('setLoadingArticles', false)
-				commit('setArticles', res.data.articles.data)
+				/* Un getIndex más nuevo (el de después del login) ya salió: esta respuesta no
+				   vale nada, ni el listado ni los carruseles. */
+				if (pedido_home !== state.pedido_de_la_home) {
+					return
+				}
+				/* El listado solo si ningún otro pedido del listado salió después (una búsqueda,
+				   una categoría); los carruseles son solo de getIndex y van igual. */
+				if (pedido === state.pedido_del_listado) {
+					commit('setLoadingArticles', false)
+					commit('setArticles', res.data.articles.data)
+				}
 				commit('setFeatured', res.data.featured)
 				commit('set_promociones_vinoteca', res.data.promociones_vinoteca)
 				commit('setInOffer', res.data.in_offer)
@@ -311,8 +377,11 @@ export default {
 				commit('set_combos', res.data.combos)
 			})
 			.catch(err => {
-				commit('setLoadingArticles', false)
 				console.log(err)
+				if (pedido !== state.pedido_del_listado) {
+					return
+				}
+				commit('setLoadingArticles', false)
 			})
 		},
 		searchArticles({ commit, state }) {
@@ -331,15 +400,25 @@ export default {
 			 * es peor que no tenerlo, porque nadie lo puede detectar después.
 			 */
 			const termino_buscado = state.search_query
+			commit('nuevo_pedido_del_listado')
+			const pedido = state.pedido_del_listado
 			return axios.get(`/api/articles/search/${termino_buscado}/${process.env.VUE_APP_COMMERCE_ID}`)
 			.then(res => {
-				commit('setLoadingArticles', false)
+				/* Si llegó tarde (otro pedido del listado ya salió después) no toca ni el loading
+				   ni el listado. La búsqueda igual existió: el servidor ya la registró como última
+				   búsqueda y el evento de tracking se manda igual, con sus propios datos. */
+				const vigente = pedido === state.pedido_del_listado
+				if (vigente) {
+					commit('setLoadingArticles', false)
+				}
 				console.log(res)
 				let last_search = res.data.last_search
 				if (last_search) {
 					last_searchs.state.last_searchs.unshift(last_search)
 				}
-				commit('setArticles', res.data.articles.data)
+				if (vigente) {
+					commit('setArticles', res.data.articles.data)
+				}
 				/*
 				 * El evento de búsqueda va acá, en la búsqueda COMPLETA, y no en el
 				 * autocomplete del navbar (components/nav/buscador/Index.vue), que dispara
@@ -359,8 +438,11 @@ export default {
 				})
 			})
 			.catch(err => {
-				commit('setLoadingArticles', false)
 				console.log(err)
+				if (pedido !== state.pedido_del_listado) {
+					return
+				}
+				commit('setLoadingArticles', false)
 			})
 		},
 	},

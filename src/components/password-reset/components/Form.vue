@@ -286,6 +286,7 @@ export default {
 					this.$store.dispatch('auth/me')
 					.then(() => {
 	        			this.$store.commit('auth/setLoading', false)
+	        			this.recargar_articulos_con_la_sesion()
 	        			this.$router.push({name: 'Home'})
 					})
 				})
