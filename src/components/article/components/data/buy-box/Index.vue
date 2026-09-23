@@ -302,12 +302,34 @@ export default {
 		align-items: center
 		justify-content: center
 
-	// 🔴 El azul de accion sale del tema del comercio (`--primary-color`), no del azul de
-	// Mercado Libre. Lo unico que se copia literal de las capturas es el verde del descuento.
+	// 🔴 El color de accion sale del tema del comercio, no del azul de Mercado Libre. Lo unico
+	// que se copia literal de las capturas es el verde del descuento.
+	//
+	// 🔴 Sale de `--buy-box-button-color`, NO de `--primary-color` a secas: es el "Color del boton
+	// 'Agregar al carrito'" que el comercio elige en Configuracion online -> Diseno. Si el
+	// comercio no cargo ese campo, el tema publica el primario (y texto blanco), o sea lo de
+	// siempre (ver `resolve_buy_box_button_colors` en `online_configuration_theme.js`). Los
+	// fallbacks de cada `var()` cubren el instante previo a que el tema se aplique.
 	.caja-compra__btn--comprar
-		background: var(--primary-color)
-		border-color: var(--primary-color)
-		color: #FFF
+		background: var(--buy-box-button-color, var(--primary-color))
+		border-color: var(--buy-box-button-color, var(--primary-color))
+		color: var(--buy-box-button-text-color, #FFF)
+
+		// Estas tres reglas no existian: `b-button` sin variante nace `btn-secondary` y el hover /
+		// focus / active gris de Bootstrap le ganaba al color del comercio apenas se pasaba el
+		// mouse por encima. Se oscurece un poco el MISMO color en vez de cambiarlo.
+		// `:not(:disabled):not(.disabled):active` replica el selector de Bootstrap (0,4,0) para
+		// no perder el empate del click sostenido contra su `.btn-secondary:...:active` gris.
+		&:hover, &:not(:disabled):not(.disabled):active
+			background: color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 85%, #000)
+			border-color: color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 85%, #000)
+			color: var(--buy-box-button-text-color, #FFF)
+
+		&:focus
+			background: var(--buy-box-button-color, var(--primary-color))
+			border-color: var(--buy-box-button-color, var(--primary-color))
+			color: var(--buy-box-button-text-color, #FFF)
+			box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 35%, transparent)
 
 	// El boton secundario de la caja, con el tratamiento del "Agregar al carrito" de Mercado
 	// Libre: fondo claro del MISMO color de accion, texto en ese color, sin borde.
@@ -320,26 +342,28 @@ export default {
 	//
 	// Lo comparten "Agregar al carrito" y "Actualizar carrito": los dos son la accion secundaria
 	// de la caja y en Mercado Libre se ven igual. No hay motivo para separarlos.
+	//
+	// El color de accion es el mismo `--buy-box-button-color` que usa "Comprar ahora" (ver arriba).
 	.caja-compra__btn--carrito
-		background: color-mix(in srgb, var(--primary-color) 15%, #FFF)
+		background: color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 15%, #FFF)
 		border-color: transparent
-		color: var(--primary-color)
+		color: var(--buy-box-button-color, var(--primary-color))
 
 		// El hover sube el mismo tinte; no cambia de color ni levanta el boton. La regla existe
 		// porque `b-button` sin variante nace `btn-secondary`, y el hover gris de Bootstrap
 		// —(0,1,1)— le ganaba a la regla base de arriba.
 		&:hover
-			background: color-mix(in srgb, var(--primary-color) 22%, #FFF)
+			background: color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 22%, #FFF)
 			border-color: transparent
-			color: var(--primary-color)
+			color: var(--buy-box-button-color, var(--primary-color))
 
 		// El halo gris de `.btn-secondary:focus` tampoco es del comercio: se reemplaza por un
 		// anillo del color de accion, que ademas es la unica senal de foco que queda sin borde.
 		&:focus
-			background: color-mix(in srgb, var(--primary-color) 22%, #FFF)
+			background: color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 22%, #FFF)
 			border-color: transparent
-			color: var(--primary-color)
-			box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--primary-color) 28%, transparent)
+			color: var(--buy-box-button-color, var(--primary-color))
+			box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--buy-box-button-color, var(--primary-color)) 28%, transparent)
 
 	.caja-compra__btn--quitar
 		height: auto

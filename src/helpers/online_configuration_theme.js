@@ -168,6 +168,32 @@ function resolve_add_to_cart_button_color(online_configuration) {
 }
 
 /**
+ * Resuelve el color de los botones de compra de la ficha de producto ("Comprar ahora" y
+ * "Agregar al carrito" de `buy-box/Index.vue`) y el color de su texto.
+ *
+ * 🔴 No es `resolve_add_to_cart_button_color`: ese cae al color SECUNDARIO cuando el comercio
+ * no cargó nada (el tratamiento de siempre del botón de las tarjetas), mientras que los botones
+ * de la ficha siempre se pintaron con el color PRIMARIO. Si acá cayera al secundario, todo
+ * comercio que nunca tocó el campo vería cambiar los botones de su ficha. Sin color propio se
+ * devuelve exactamente lo de antes: el primario con texto blanco.
+ *
+ * Con color propio el texto se elige por contraste (blanco o casi negro), porque un color
+ * claro con texto blanco fijo dejaría el botón ilegible.
+ *
+ * @param {object|null|undefined} online_configuration
+ * @param {string} primary_color ya normalizado (ver apply_online_configuration_theme)
+ * @returns {{color: string, text_color: string}}
+ */
+function resolve_buy_box_button_colors(online_configuration, primary_color) {
+	let own_color = online_configuration && online_configuration.add_to_cart_button_color
+	let valid_own_color = own_color ? normalize_hex_color(own_color, '') : ''
+	if (valid_own_color == '') {
+		return { color: primary_color, text_color: '#FFF' }
+	}
+	return { color: valid_own_color, text_color: best_text_on(valid_own_color) }
+}
+
+/**
  * Aplica la paleta y variables de tema de online_configuration en :root.
  *
  * @param {object|null|undefined} online_configuration
@@ -188,6 +214,7 @@ export function apply_online_configuration_theme(online_configuration) {
 	let background_color = normalize_hex_color(online_configuration.background_color, resolve_default_background_color(online_configuration))
 	let font_family_sans = resolve_font_family_sans(online_configuration)
 	let add_to_cart_button_color = resolve_add_to_cart_button_color(online_configuration)
+	let buy_box_button_colors = resolve_buy_box_button_colors(online_configuration, primary_color)
 	/* Colores derivados por contraste: ver los dos resolve_* de arriba. */
 	let breadcrumb_text_color = resolve_breadcrumb_text_color(background_color)
 	let auth_link_color = resolve_auth_link_color(primary_color)
@@ -201,6 +228,8 @@ export function apply_online_configuration_theme(online_configuration) {
 	document.documentElement.style.setProperty('--background-color', background_color)
 	document.documentElement.style.setProperty('--font-family-sans', font_family_sans)
 	document.documentElement.style.setProperty('--add-to-cart-button-color', add_to_cart_button_color)
+	document.documentElement.style.setProperty('--buy-box-button-color', buy_box_button_colors.color)
+	document.documentElement.style.setProperty('--buy-box-button-text-color', buy_box_button_colors.text_color)
 	document.documentElement.style.setProperty('--breadcrumb-text-color', breadcrumb_text_color)
 	document.documentElement.style.setProperty('--auth-link-color', auth_link_color)
 }
