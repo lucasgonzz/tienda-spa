@@ -6,11 +6,17 @@
  *   - `descripcion`: un texto suelto, columna `text` de la tabla `articles` (en el ERP es el
  *     campo "Descripción", la información complementaria del artículo).
  *
- * 🔴 El nombre es `descripcion`, en español, y NO `description`: esa columna no existe en
- * ninguna base (la crea `empresa-api`, que gobierna el esquema). Hasta el 23/9/2026 la tienda
- * leía `article.description`, que siempre llegaba `undefined`, así que el texto del campo
- * Descripción nunca se mostró y la ficha salía sin descripción aunque el ERP la tuviera cargada.
- * No "corregirlo" de vuelta a `description`: no falla, simplemente no muestra nada.
+ * 🔴 En un ARTÍCULO el campo se llama `descripcion`, en español, y NO `description`: esa columna
+ * no existe en `articles` (la crea `empresa-api`, que gobierna el esquema). Hasta el 23/9/2026 la
+ * tienda leía `article.description`, que en un artículo siempre llegaba `undefined`, así que el
+ * texto del campo Descripción nunca se mostró aunque el ERP lo tuviera cargado.
+ *
+ * 🔴 Pero una PROMOCIÓN (`PromocionVinoteca`, los "combos" de las vinotecas) llega por la misma
+ * ruta como `article_to_show` (`ArticleController@show`) y su texto SÍ vive en `description`,
+ * en inglés. Al cambiar `description` por `descripcion` sin mirar eso, las promociones perdieron
+ * su descripción en la ficha (medido el 23/9/2026, antes de que llegara a ninguna tienda). Por
+ * eso `description` sigue siendo el último respaldo: un artículo real no tiene esa propiedad, así
+ * que no molesta. No sacarlo. (Los `Combo` del ERP no tienen descripción: no se ven afectados.)
  *
  * 🔴 Regla (pedido de Lucas, 23/9/2026): si el artículo tiene descripciones estructuradas se
  * muestran SOLO esas; el texto suelto queda como respaldo únicamente cuando no hay ninguna.
@@ -63,7 +69,8 @@ export function descripciones_a_mostrar(article) {
 		return { estructuradas: estructuradas, texto: '' }
 	}
 
-	return { estructuradas: [], texto: texto_limpio(article.descripcion) }
+	/* `descripcion` (artículo) y, si no hay, `description` (promoción): ver el encabezado. */
+	return { estructuradas: [], texto: texto_limpio(article.descripcion) || texto_limpio(article.description) }
 }
 
 /**
