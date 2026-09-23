@@ -59,6 +59,59 @@ export default {
         PromocionPersonalizada: () => import('@/components/promocion-personalizada/Index'),
     },
     mixins: [WebSockets, transitions, update_app, app, firebase, articles, VueScreenSize.VueScreenSizeMixin],
+    /**
+     * Head por defecto de toda la tienda (mision seo-tiendas). Las vistas lo pisan por `vmid`
+     * (Home.vue y Article.vue ponen su descripcion, su canonica y su Open Graph).
+     *
+     * - titleTemplate: "<titulo de la vista> | <comercio>", y solo el comercio en la home. Es la
+     *   misma regla que usa tienda-api para el HTML del servidor.
+     * - robots "noindex,follow" en las rutas con `meta.noindex` (router/index.js) y en NotFound.
+     * - canonica = la misma ruta, salvo en las privadas (no llevan) y donde la vista la pise.
+     *
+     * Las etiquetas que venian en el HTML del servidor (data-seo) las saca main.js antes de
+     * montar: vue-meta no toca lo que no creo el.
+     */
+    metaInfo() {
+        let comercio = this.commerce && this.commerce.company_name ? this.commerce.company_name : ''
+        let nombre_sitio = process.env.VUE_APP_SITE_NAME || comercio
+        let descripcion = process.env.VUE_APP_SITE_DESCRIPTION
+            || (nombre_sitio + ' - Tienda online. ' + this.seo_sufijo_compra())
+        let noindex = !!(this.$route.meta && this.$route.meta.noindex)
+        let url = this.seo_origen() + this.$route.path
+        let imagen = process.env.VUE_APP_SITE_IMAGE || (this.commerce && this.commerce.image_url) || null
+
+        let meta = [
+            { vmid: 'description', name: 'description', content: descripcion },
+            { vmid: 'og:type', property: 'og:type', content: 'website' },
+            { vmid: 'og:title', property: 'og:title', content: nombre_sitio },
+            { vmid: 'og:description', property: 'og:description', content: descripcion },
+            { vmid: 'og:url', property: 'og:url', content: url },
+            { vmid: 'twitter:card', name: 'twitter:card', content: imagen ? 'summary_large_image' : 'summary' },
+        ]
+        if (imagen) {
+            meta.push({ vmid: 'og:image', property: 'og:image', content: imagen })
+        }
+        if (noindex) {
+            meta.push({ vmid: 'robots', name: 'robots', content: 'noindex,follow' })
+        }
+
+        let link = []
+        if (!noindex) {
+            link.push({ vmid: 'canonical', rel: 'canonical', href: url })
+        }
+
+        return {
+            title: comercio,
+            titleTemplate: titulo => {
+                if (!titulo || titulo == comercio) {
+                    return comercio
+                }
+                return comercio ? titulo + ' | ' + comercio : titulo
+            },
+            meta,
+            link,
+        }
+    },
     computed: {
         authenticated() {
             return this.$store.state.auth.authenticated

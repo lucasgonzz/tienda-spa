@@ -142,6 +142,8 @@ import generals from './mixins/generals'
 Vue.mixin(generals)
 import whatsapp from './mixins/whatsapp'
 Vue.mixin(whatsapp)
+import seo from './mixins/seo'
+Vue.mixin(seo)
 
 Vue.config.productionTip = false
 
@@ -156,6 +158,19 @@ store.dispatch('commerce/getCommerce')
 	console.log(err)
 })
 .finally(() => {
+	/*
+	 * SEO (mision seo-tiendas): las etiquetas del head que vienen del HTML del servidor (la region
+	 * <!--seo:head--> de public/index.html, o lo que inyecto public/seo.php en su lugar) llevan
+	 * data-seo. vue-meta solo administra las etiquetas que creo el (data-vue-meta / data-vmid):
+	 * a las otras no las toca, asi que si quedaran, la pagina tendria dos descripciones, dos
+	 * canonicas y un JSON-LD de otra ruta apenas el visitante navegue. Se sacan justo antes de
+	 * montar; desde ahi el head es de vue-meta (App.vue, Home.vue, Article.vue).
+	 */
+	let etiquetas_del_servidor = document.head.querySelectorAll('[data-seo]')
+	for (let i = 0; i < etiquetas_del_servidor.length; i++) {
+		etiquetas_del_servidor[i].parentNode.removeChild(etiquetas_del_servidor[i])
+	}
+
 	new Vue({
 		router,
 		store,
