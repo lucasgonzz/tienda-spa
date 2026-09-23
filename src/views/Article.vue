@@ -233,6 +233,15 @@ export default {
 			if (!texto) {
 				texto = this.seo_texto_plano(this.article.descripcion)
 			}
+			/*
+			 * 🔴 Una PROMOCION (PromocionVinoteca) tambien llega como `article_to_show` cuando el slug
+			 * no es de un articulo (ArticleController@show), y su texto vive en `description`, en
+			 * ingles. tienda-api ya la usa asi en `fichaDePromocion()`. Un Article real no tiene esa
+			 * propiedad, asi que no molesta; sin esto, la promo perdia su descripcion propia.
+			 */
+			if (!texto) {
+				texto = this.seo_texto_plano(this.article.description)
+			}
 			if (texto) {
 				return this.seo_recortar(texto)
 			}

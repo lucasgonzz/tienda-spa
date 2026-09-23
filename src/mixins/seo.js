@@ -85,10 +85,13 @@ export default {
 			}
 			let corte = texto.substring(0, 155)
 			let ultimo_espacio = corte.lastIndexOf(' ')
-			if (ultimo_espacio > 80) {
+			/* 60 y no 80, y con la raya y el guion largo en la limpieza final: es SeoContexto::cortar
+			   de tienda-api al pie de la letra; con otros valores el SPA cortaba a mitad de palabra
+			   un texto que el servidor cortaba en palabra (un codigo o una URL larga al final). */
+			if (ultimo_espacio > 60) {
 				corte = corte.substring(0, ultimo_espacio)
 			}
-			return corte.replace(/[\s.,;:\-]+$/, '') + '…'
+			return corte.replace(/[\s,.;:\-–—]+$/, '') + '…'
 		},
 		/**
 		 * Texto fijo que cierra las descripciones por defecto.
