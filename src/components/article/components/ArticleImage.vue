@@ -38,6 +38,7 @@
 				class="apretable galeria-miniaturas__item"
 				:class="selectedImage(index)"
 				:src="image.hosting_url"
+				:alt="article.name"
 				@mouseenter="setImage(index)"
 				@click="setImage(index)">
 			</div>

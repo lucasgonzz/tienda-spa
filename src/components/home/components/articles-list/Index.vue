@@ -20,9 +20,14 @@ id="articles-list">
 
 		<combos></combos>
 
-		<p
+		<!--
+			Con un filtro elegido este titulo es el h1 de la pagina (mision seo-tiendas; en la
+			portada el h1 lo pone Home.vue). .seo-titulo le devuelve el line-height que tenia como
+			<p>: el resto del estilo cuelga de .title y no cambia.
+		-->
+		<h1
 		v-if="selected_category || selected_sub_category || selected_bodega || selected_cepa || selected_brand"
-		class="title">
+		class="title seo-titulo">
 			<span
 			v-if="selected_category">
 				{{ selected_category.name }}
@@ -43,7 +48,7 @@ id="articles-list">
 			v-else-if="selected_brand">
 				{{ selected_brand.name }}
 			</span>
-		</p>
+		</h1>
 		<p
 		class="title"
 		v-else-if="is_from_search">

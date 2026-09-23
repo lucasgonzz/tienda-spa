@@ -1,12 +1,21 @@
 <template>
 	<div 
 	class="items-list s">
+		<!--
+			Inicio y Promociones llevan un <a> real para los buscadores (mision seo-tiendas).
+			@click.prevent sin handler: el click sigue subiendo al @click del div, como siempre.
+		-->
 		<div 
 		@click="home"
 		class="item">
-			<span class="item-text">
-				Inicio	
-			</span>
+			<a
+			class="seo-link"
+			:href="href_home()"
+			@click.prevent>
+				<span class="item-text">
+					Inicio	
+				</span>
+			</a>
 		</div>
 		<div
 		class="item">
@@ -45,9 +54,14 @@
 		v-if="commerce_has_extencion('vinoteca')"
 		@click="to_promociones_vinotecas"
 		class="item">
-			<span class="item-text">
-				Promociones	
-			</span>
+			<a
+			class="seo-link"
+			:href="$router.resolve({name: 'PromocionesVinoteca'}).href"
+			@click.prevent>
+				<span class="item-text">
+					Promociones	
+				</span>
+			</a>
 		</div>
 
 		<div
