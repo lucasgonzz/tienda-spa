@@ -145,9 +145,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@3.5.2/animate.min.css">
   </head>
   <body>
-    <noscript>
-      <strong>Para comprar en <%= htmlWebpackPlugin.options.title %> necesitás tener JavaScript activado.</strong>
-    </noscript>
     <!--
       public/seo.php mete aca adentro el HTML estatico de la pagina (cuerpo_html de tienda-api) para
       los buscadores y las vistas previas. Vue REEMPLAZA este div al montar, asi que el visitante
@@ -155,6 +152,11 @@
       minificado queda <div id=app></div>.
     -->
     <div id="app"></div>
+    <!-- El aviso va DESPUES del contenido (mision seo-tiendas): era el primer texto del body y Google
+         lo usaba como descripcion de la tienda. -->
+    <noscript>
+      <strong>Para comprar en <%= htmlWebpackPlugin.options.title %> necesitás tener JavaScript activado.</strong>
+    </noscript>
     <!-- built files will be auto injected -->
     <!--
       Repositorio publico: la API key de Google Maps se saca del codigo fuente. Esto NO la

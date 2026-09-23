@@ -95,6 +95,7 @@ import Categories from '@/components/categories/components/Categories'
 import Platelets from '@/components/home/components/platelets/Index'
 import articles from '@/mixins/articles'
 import { abrir_vista_de_producto, cerrar_vista } from '@/utils/tracking'
+import { seo_servidor } from '@/utils/seo_servidor'
 
 /**
  * Vista detalle de artículo: layout envuelto para alinearlo con el resto de páginas retail de la tienda.
@@ -138,7 +139,9 @@ export default {
 			link: [
 				{ vmid: 'canonical', rel: 'canonical', href: this.seo_canonica },
 			],
-			script: [
+			// Si el visitante entro directo a esta ficha, el Product (con sus migas) ya lo trajo el
+			// servidor: no se duplica (ver src/utils/seo_servidor.js).
+			script: seo_servidor.ld_del_servidor ? [] : [
 				{ vmid: 'ld-product', type: 'application/ld+json', json: this.seo_json_ld },
 			],
 		}
@@ -230,7 +233,7 @@ export default {
 		 * @returns {string}
 		 */
 		seo_canonica() {
-			return this.seo_origen() + '/articulos/' + this.article.slug + '/' + process.env.VUE_APP_COMMERCE_ID
+			return this.seo_origen() + '/articulos/' + this.seo_segmento(this.article.slug) + '/' + process.env.VUE_APP_COMMERCE_ID
 		},
 		/**
 		 * Todas las fotos del articulo (la primera es la de og:image). Si no tiene, la imagen por

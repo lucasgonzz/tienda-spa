@@ -39,6 +39,17 @@ export default {
 			return String(nombre || '').toLowerCase().replaceAll(' ', '-')
 		},
 		/**
+		 * Codifica un segmento de la canonica SOLO en lo que rompe la URL ('/', '?', '#', '%',
+		 * comillas, '<'...) y deja letras, tildes y eñe crudas. Es la misma regla que
+		 * SeoContexto::codificarSegmento() de tienda-api: sin esto, una categoria "Fiambres/Quesos"
+		 * daba una canonica de tres segmentos en la SPA y otra distinta en el servidor.
+		 * @param {string} segmento
+		 * @returns {string}
+		 */
+		seo_segmento(segmento) {
+			return String(segmento || '').replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@-￿]/g, caracter => encodeURIComponent(caracter))
+		},
+		/**
 		 * Texto plano de un HTML (descripciones cargadas con editor), con los espacios colapsados.
 		 * DOMParser y no innerHTML sobre un div: un documento parseado asi no ejecuta scripts ni
 		 * dispara la carga de imagenes (un <img onerror> en un div suelto si se ejecuta).

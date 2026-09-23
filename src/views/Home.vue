@@ -142,17 +142,17 @@ export default {
 			let camino = null
 			if (listas[categoria] && sub) {
 				modelo = (listas[categoria] || []).find(model => this.seo_slug(model.name) == sub) || null
-				camino = '/inicio/' + categoria + '/' + (modelo ? this.seo_slug(modelo.name) : sub)
+				camino = '/inicio/' + this.seo_segmento(categoria) + '/' + this.seo_segmento(modelo ? this.seo_slug(modelo.name) : sub)
 			} else {
 				let modelo_categoria = this.$store.state.categories.categories.find(model => this.seo_slug(model.name) == categoria) || null
 				let slug_categoria = modelo_categoria ? this.seo_slug(modelo_categoria.name) : categoria
 				if (sub) {
 					let subs = modelo_categoria && modelo_categoria.sub_categories ? modelo_categoria.sub_categories : []
 					modelo = subs.find(model => this.seo_slug(model.name) == sub) || null
-					camino = '/inicio/' + slug_categoria + '/' + (modelo ? this.seo_slug(modelo.name) : sub)
+					camino = '/inicio/' + this.seo_segmento(slug_categoria) + '/' + this.seo_segmento(modelo ? this.seo_slug(modelo.name) : sub)
 				} else {
 					modelo = modelo_categoria
-					camino = '/inicio/' + slug_categoria
+					camino = '/inicio/' + this.seo_segmento(slug_categoria)
 				}
 			}
 

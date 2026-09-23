@@ -77,6 +77,7 @@ Vue.use(VueCookies, { expire: '7d'})
 import App from './App.vue'
 import './registerServiceWorker'
 import router from './router'
+import { limpiar_head_del_servidor, soltar_ld_del_servidor } from '@/utils/seo_servidor'
 import store from './store'
 
 // Notifications
@@ -159,17 +160,18 @@ store.dispatch('commerce/getCommerce')
 })
 .finally(() => {
 	/*
-	 * SEO (mision seo-tiendas): las etiquetas del head que vienen del HTML del servidor (la region
-	 * <!--seo:head--> de public/index.html, o lo que inyecto public/seo.php en su lugar) llevan
-	 * data-seo. vue-meta solo administra las etiquetas que creo el (data-vue-meta / data-vmid):
-	 * a las otras no las toca, asi que si quedaran, la pagina tendria dos descripciones, dos
-	 * canonicas y un JSON-LD de otra ruta apenas el visitante navegue. Se sacan justo antes de
-	 * montar; desde ahi el head es de vue-meta (App.vue, Home.vue, Article.vue).
+	 * SEO (mision seo-tiendas): las etiquetas del head que vienen del HTML del servidor llevan
+	 * data-seo y vue-meta no las administra. Titulo, descripcion, canonica y Open Graph se sacan
+	 * ya (vue-meta los repone); los JSON-LD se quedan hasta la primera navegacion interna. El
+	 * detalle, en src/utils/seo_servidor.js.
 	 */
-	let etiquetas_del_servidor = document.head.querySelectorAll('[data-seo]')
-	for (let i = 0; i < etiquetas_del_servidor.length; i++) {
-		etiquetas_del_servidor[i].parentNode.removeChild(etiquetas_del_servidor[i])
-	}
+	limpiar_head_del_servidor()
+	router.afterEach((to, from) => {
+		/* from.matched vacio = la navegacion inicial (incluido el redirect de / a la home). */
+		if (from.matched.length && from.path !== to.path) {
+			soltar_ld_del_servidor()
+		}
+	})
 
 	new Vue({
 		router,

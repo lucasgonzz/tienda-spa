@@ -155,7 +155,14 @@ function seo_http_get($url, $timeout_conexion, $timeout_total)
             return null;
         }
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+        // Sigue hasta 2 redirecciones (una api_url cargada con http:// que el hosting manda a
+        // https:// apagaba la capa entera sin avisar). Solo http/https.
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 2);
+        if (defined('CURLOPT_PROTOCOLS')) {
+            curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+            curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        }
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout_conexion);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout_total);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -177,7 +184,8 @@ function seo_http_get($url, $timeout_conexion, $timeout_total)
             'method' => 'GET',
             'timeout' => $timeout_total,
             'ignore_errors' => true,
-            'follow_location' => 0,
+            'follow_location' => 1,
+            'max_redirects' => 3,
             'header' => implode("\r\n", $headers) . "\r\n",
         ),
     ));
@@ -514,10 +522,14 @@ function seo_principal()
             'ruta' => $ruta,
             'sitio' => 'https://' . $host,
         ));
-        $respuesta = seo_http_get($url, 2, 3);
+        // Timeout corto: un visitante que entra por primera vez a esta URL espera esta llamada.
+        // Pasado el limite se sirve el index de siempre (la tienda anda igual, sin la capa).
+        $respuesta = seo_http_get($url, 1, 2);
         if ($respuesta !== null && $respuesta[0] === 200) {
             $datos = seo_validar_pagina($respuesta[1]);
-            if ($datos !== null) {
+            // Los 404 no se cachean: un escaneo de miles de rutas inventadas llenaria el /tmp
+            // de la cuenta del hosting.
+            if ($datos !== null && (int) $datos['estado'] !== 404) {
                 seo_cache_escribir($archivo, $respuesta[1]);
             }
         }
