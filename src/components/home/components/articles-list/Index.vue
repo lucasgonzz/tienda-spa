@@ -335,9 +335,20 @@ export default {
 				}
 				url += `/${process.env.VUE_APP_COMMERCE_ID}?page=${this.page}`
 				console.log(url)
+				/* El listado al que pertenece esta página (ver `pedido_del_listado` en
+				   store/categories.js). Si mientras vuelve sale un listado nuevo —la recarga de
+				   después del login, una búsqueda, otra categoría—, esta página es del viejo y no
+				   se puede pegar al nuevo: en Fenix serían artículos con el precio en null. */
+				let pedido = this.$store.state.categories.pedido_del_listado
 				this.$api.get(url)
 				.then(res => {
 					console.log(res)
+					if (pedido !== this.$store.state.categories.pedido_del_listado) {
+						/* Se descarta, y el scroll queda listo para pedir la página del listado
+						   nuevo. */
+						$state.loaded()
+						return
+					}
 					let articles = res.data.articles.data
 					if (articles.length) {
 						this.$store.commit('categories/addArticles', articles)
