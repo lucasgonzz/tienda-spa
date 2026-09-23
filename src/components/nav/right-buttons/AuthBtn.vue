@@ -41,7 +41,8 @@
 			<template
 			v-if="ajustes_del_comprador().length">
 				<b-dropdown-divider></b-dropdown-divider>
-				<b-dropdown-text>
+				<!-- tag="div": por defecto es un <p>, y adentro va un <div> con una <ul> (HTML invalido). -->
+				<b-dropdown-text tag="div">
 					<ajustes-de-cliente
 					titulo="Se te están aplicando estos descuentos y recargos en tus precios:"
 					:ajustes="ajustes_del_comprador()"></ajustes-de-cliente>
