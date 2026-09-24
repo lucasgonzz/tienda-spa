@@ -626,10 +626,47 @@ export default {
 			if (!article) {
 				return null
 			}
-			let base = Number(article.precio_sin_ajustes_de_cliente)
-			if (!isFinite(base) || base <= 0) {
+			/*
+				🔴 EL FALLBACK A `final_price` SOLO CORRE SI `precio_sin_ajustes_de_cliente` NO ES
+				UN NÚMERO — nunca porque sea cero. Y la diferencia no es de estilo: decide otro
+				precio, y para el lado peligroso.
+
+				`AjustesDeClienteHelper::precio_sin_ajustes()` del lado que COBRA pregunta
+				`is_numeric()`, así que un cero ENTRA como base; después la guarda de
+				`ArticlePriceRangeHelper::precio()` (`$precio_base <= 0.0`) descarta el tramo y la
+				línea sale al precio normal. Si acá se cayera al `final_price` ante un cero, el
+				navegador tomaría OTRA base y mostraría un descuento que el servidor no hace.
+
+				Medido sobre el caso que lo dispara —`precio_sin_ajustes_de_cliente = 0`,
+				`final_price = 1000`, tramo del 20%—: el front mostraba **800** y el servidor
+				cobraba **1000**. Es la clase de error que esta familia de código ya tuvo
+				($3.000 mostrado, $3.948 cobrado) y encima para el lado que más molesta: el
+				comprador ve menos de lo que va a pagar.
+			*/
+			/*
+				`isset()` de PHP es false para null Y para la clave ausente, y `Number(null)` es 0
+				—no NaN—, así que el null hay que descartarlo a mano o este lado leería una base de
+				cero donde el servidor lee el `final_price`.
+			*/
+			let crudo = article.precio_sin_ajustes_de_cliente
+			/*
+				Tres formas de "no hay valor" que JS y PHP leen distinto, y las tres tienen que
+				terminar en el `final_price`, que es a donde cae `precio_sin_ajustes()`:
+				  · null / ausente -> `isset()` da false. `Number(null)` daría 0, no NaN.
+				  · cadena vacía o en blanco -> `is_numeric('')` da false. `Number('')` daría 0.
+				Sin esto, este lado leería una base de CERO donde el servidor lee mil.
+			*/
+			let base = (
+				crudo === null
+				|| typeof crudo == 'undefined'
+				|| (typeof crudo == 'string' && crudo.trim() === '')
+			)
+				? NaN
+				: Number(crudo)
+			if (!isFinite(base)) {
 				base = Number(article.final_price)
 			}
+			/* Base no usable -> el tramo no aplica, igual que la guarda del servidor. */
 			if (!isFinite(base) || base <= 0) {
 				return null
 			}
