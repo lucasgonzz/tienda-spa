@@ -29,6 +29,7 @@
 		</div>
 
 		<div
+		v-if="mostrar_marca_en_nav"
 		class="item">
 			<div
 			@click="show_marcas"
@@ -151,6 +152,26 @@ export default {
 	mixins: [nav, auth],
 	components: {
 		AjustesDeCliente: () => import('@/components/common/AjustesDeCliente'),
+	},
+	computed: {
+		/**
+		 * Si el item "Marca" se muestra en la barra de navegacion (este componente lo comparten
+		 * el nav de escritorio y el menu mobile).
+		 *
+		 * Lo apaga cada comercio desde `online_configuration.mostrar_marca_en_nav` y viene
+		 * PRENDIDO de fabrica. Solo se oculta con un false/0/"0" explicito (ver
+		 * flag_no_apagado): si la columna no existe todavia (API/base vieja) llega `undefined`
+		 * y el item se ve como siempre. `online_configuration` puede no estar en el primer
+		 * render: ahi tambien se muestra.
+		 *
+		 * @returns {boolean}
+		 */
+		mostrar_marca_en_nav() {
+			if (!this.commerce || !this.commerce.online_configuration) {
+				return true
+			}
+			return this.flag_no_apagado(this.commerce.online_configuration.mostrar_marca_en_nav)
+		},
 	},
 	methods: {
 		/**
