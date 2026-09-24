@@ -434,12 +434,26 @@ export default {
 		 *   2. Cualquier otro `modo` NO matchea. Nunca un default permisivo.
 		 *   3. Entre los que matchean gana el de MAYOR `amount`; con `amount` igual, el PRIMERO
 		 *      del array (por eso la comparación es `>` estricto y no `>=`).
-		 *   4. `price` nulo o cero → el rango NO aplica y el artículo sale al precio normal.
-		 *      `price` es nullable en `article_price_ranges` desde su migración original.
+		 *   4. Recién sobre el GANADOR se le pregunta el MODO, y desde la misión
+		 *      oferta-por-cantidad-porcentaje (24/9/2026) el modo tiene TRES valores, no dos:
+		 *        4.a. `price > 0` → PRECIO FIJO. Gana siempre, aunque también haya porcentaje.
+		 *             Es lo único que existía hasta esa misión, así que cualquier fila vieja de
+		 *             cualquier cliente se sigue comportando exactamente igual que antes.
+		 *        4.b. Si no, `porcentaje > 0 && porcentaje < 100` → PORCENTAJE sobre el precio
+		 *             que la línea iba a tener. El 100 queda AFUERA a propósito: dejaría el
+		 *             precio en cero, y un artículo regalado no es un descuento por cantidad,
+		 *             es un dato mal cargado.
+		 *        4.c. Cualquier otra cosa → el rango NO aplica y el artículo sale al precio
+		 *             normal. `price` y `porcentaje` son los dos nullable en la base.
 		 *
-		 * Devuelve el rango CRUDO, con su `price` tal como vino de la base — la misma escala en
-		 * la que el servidor cobra. Para mostrarlo en la tienda va `precio_por_cantidad()`, que
-		 * es el que le suma el recargo online.
+		 * 🔴 `porcentaje` la migra `empresa-api` y la tienda la despliega Lucas a mano, sitio por
+		 * sitio: va a haber clientes con la tienda nueva contra una base SIN la columna durante
+		 * días. Ahí el artículo llega sin la clave, `Number(undefined)` es `NaN` y el tramo cae
+		 * solo en el criterio 4.c — o sea, el comportamiento de antes de la misión, byte por byte.
+		 *
+		 * Devuelve el rango CRUDO, con su `price` y su `porcentaje` tal como vinieron de la base —
+		 * la misma escala en la que el servidor cobra. Para mostrarlo en la tienda va
+		 * `precio_por_cantidad()`, que es el que resuelve el modo y le suma el recargo online.
 		 *
 		 * @param {object} article artículo con su `article_price_ranges`
 		 * @param {number|string} cantidad la que el comprador tiene elegida
@@ -502,20 +516,124 @@ export default {
 				decidido con dos criterios distintos en front y back": ninguna de las dos formas
 				esta mal leida sola, el defecto vive ENTRE las dos y no lo ve ningun test que
 				ejerza un solo lado.
+
+				🔴 Y con la forma nueva —el PORCENTAJE— el orden importa exactamente igual, con
+				el mismo dato dado vuelta: un tramo perdedor con porcentaje cargado NO rescata a
+				un ganador sin ningun valor usable. El ganador se elige solo por `amount` y recien
+				ahi se le pregunta el modo, que es lo que hacen `ArticlePriceRangeHelper::rango()`
+				y `::precio()` del lado que cobra.
 			*/
 			if (elegido === null) {
 				return null
 			}
-			let precio_del_ganador = Number(elegido.price)
+			/* Criterio 4: el ganador tiene que tener ALGUNA de las dos formas usables. Si no
+			   tiene ninguna, el rango no aplica y no se le deja el lugar al segundo. */
 			if (
-				elegido.price === null
-				|| typeof elegido.price == 'undefined'
-				|| !isFinite(precio_del_ganador)
-				|| precio_del_ganador <= 0
+				this.precio_fijo_del_tramo(elegido) === null
+				&& this.porcentaje_del_tramo(elegido) === null
 			) {
 				return null
 			}
 			return elegido
+		},
+		/**
+		 * Criterio 4.a: el PRECIO FIJO usable de un tramo, o null.
+		 *
+		 * 🔴 El `<= 0` y no `== 0` es deliberado, y el gemelo de `tienda-api` lo descarta igual:
+		 * un tramo con precio negativo es un dato imposible de cargar con sentido, pero si
+		 * llegara a existir, aceptarlo sería cobrar plata al revés. Los dos lados descartan, y
+		 * descartan hacia el mismo lado.
+		 *
+		 * `Number(null)` es 0 y `Number(undefined)` es NaN: las dos formas de "no hay precio
+		 * fijo" caen acá sin necesidad de un caso especial.
+		 *
+		 * @param {object} rango
+		 * @returns {number|null}
+		 */
+		precio_fijo_del_tramo(rango) {
+			if (!rango) {
+				return null
+			}
+			/*
+				🔴 El booleano se descarta ANTES del Number(), y no es paranoia de tipos: los otros
+				tres criterios lo descartan. `Number(true)` es 1, o sea que sin esta linea un
+				`price` en true se leia acá como UN PESO —un artículo regalado— mientras
+				`ArticlePriceRangeHelper` del lado que cobra lo rechazaba y cobraba el precio
+				normal. Lo encontró el chequeo cruzado de las cuatro implementaciones (24/9/2026,
+				33 bordes): era la única divergencia de las cuatro, junto con su gemela de
+				`porcentaje_del_tramo()`.
+
+				Hoy no llega un booleano —la columna es decimal y los tramos viajan crudos de la
+				base—, pero el criterio de `criterio_de_precio.js` ya lo contempla explícitamente
+				(`typeof valor == 'boolean'` -> null) y este espejo tiene que decir lo mismo que
+				sus tres gemelos, no lo mismo "en los casos que hoy pasan".
+			*/
+			if (typeof rango.price == 'boolean') {
+				return null
+			}
+			let price = Number(rango.price)
+			if (!isFinite(price) || price <= 0) {
+				return null
+			}
+			return price
+		},
+		/**
+		 * Criterio 4.b: el PORCENTAJE de descuento usable de un tramo, o null. Mayor a 0 y menor
+		 * a 100, los dos excluidos.
+		 *
+		 * 🔴 El 100 queda afuera en las CUATRO implementaciones del criterio
+		 * (`CriterioDeOfertaPorCantidadHelper` de empresa-api, el `.js` del ABM,
+		 * `ArticlePriceRangeHelper` de tienda-api y esta): dejaría el precio en cero. Si un lado
+		 * lo aceptara y otro no, el comprador vería un número y le cobrarían otro — con la
+		 * agravante de que uno de los dos números sería cero.
+		 *
+		 * @param {object} rango
+		 * @returns {number|null}
+		 */
+		porcentaje_del_tramo(rango) {
+			if (!rango) {
+				return null
+			}
+			/* Misma razón que en `precio_fijo_del_tramo()`: `Number(true)` es 1, y sin esto un
+			   `porcentaje` en true descontaba un 1% que ninguna de las otras tres puntas descuenta. */
+			if (typeof rango.porcentaje == 'boolean') {
+				return null
+			}
+			let porcentaje = Number(rango.porcentaje)
+			if (!isFinite(porcentaje) || porcentaje <= 0 || porcentaje >= 100) {
+				return null
+			}
+			return porcentaje
+		},
+		/**
+		 * El precio del artículo en escala CRUDA: la base sobre la que muerde un tramo por
+		 * porcentaje, antes del factor del cliente y antes del recargo online.
+		 *
+		 * 🔴 Es el espejo exacto de `AjustesDeClienteHelper::precio_sin_ajustes()` de la API, que
+		 * es el número que el servidor usa para cobrar el porcentaje. `final_price` llega YA
+		 * ajustado (la API se lo manda así al SPA) y `precio_sin_ajustes_de_cliente` es la base
+		 * que la propia API cuelga al lado para poder deshacerlo; sin la clave —comprador sin
+		 * ajustes, API vieja— los dos números son el mismo.
+		 *
+		 * Calcular el porcentaje sobre `final_price` y despues multiplicar por el factor le
+		 * aplicaría el factor DOS VECES, que es el defecto que documenta `CartHelper::get_price()`
+		 * con su medición (1000 × 0,945 × 0,945 = 893,03 en un camino y 945 en el otro).
+		 *
+		 * @param {object} article
+		 * @returns {number|null}
+		 */
+		base_cruda_del_articulo(article) {
+			if (!article) {
+				return null
+			}
+			let base = Number(article.precio_sin_ajustes_de_cliente)
+			if (!isFinite(base) || base <= 0) {
+				base = Number(article.final_price)
+			}
+			if (!isFinite(base) || base <= 0) {
+				return null
+			}
+			return base
 		},
 		/**
 		 * El precio unitario a MOSTRAR cuando la cantidad elegida cae en un rango por cantidad.
@@ -532,7 +650,9 @@ export default {
 		 * ⚠️ El precio que el servidor guarda en el pivote del carrito NO lleva ese recargo (lo
 		 * resuelve `CartHelper::get_price()`, que es del lado API y no conoce la configuración
 		 * online del SPA). Quien necesite la escala del servidor usa
-		 * `rango_de_precio_por_cantidad()` y lee `rango.price` derecho.
+		 * `rango_de_precio_por_cantidad()` y resuelve el modo con `precio_fijo_del_tramo()` /
+		 * `porcentaje_del_tramo()`; leer `rango.price` derecho alcanzaba antes de la misión
+		 * oferta-por-cantidad-porcentaje, pero un tramo por porcentaje lo tiene en null.
 		 *
 		 * @param {object} article
 		 * @param {number|string} cantidad
@@ -551,12 +671,41 @@ export default {
 			if (!rango) {
 				return null
 			}
+			/*
+				Criterio 4: el modo del tramo ganador. El precio fijo gana; si no hay, muerde el
+				porcentaje.
+
+				🔴 Y el porcentaje se resuelve en escala CRUDA —sobre `base_cruda_del_articulo()`,
+				que es el `final_price` SIN los ajustes del cliente y SIN el recargo online—,
+				exactamente como lo resuelve `ArticlePriceRangeHelper::precio()` del lado que
+				cobra. Recién después pasa por el factor del cliente y por el recargo, igual que
+				hace el precio fijo unas líneas más abajo.
+
+				Si el porcentaje se aplicara DESPUÉS del recargo, el redondeo daría un número
+				distinto al que cobra el servidor: es la misma trampa de escala que explican el
+				bloque de arriba y `precio_sin_oferta()`.
+
+				El `Math.round(x * 100) / 100` es el mismo redondeo a centavos que ya usa
+				`precio_con_oferta_por_cantidad()` para el OTRO mecanismo, y el mismo `round(..., 2)`
+				que hace el servidor. Sin él, pantalla y servidor dirían números distintos por
+				fracciones de centavo.
+			*/
+			let price = this.precio_fijo_del_tramo(rango)
+			if (price === null) {
+				let porcentaje = this.porcentaje_del_tramo(rango)
+				let base = this.base_cruda_del_articulo(article)
+				/* Sin base no hay a qué aplicarle el porcentaje: manda el precio normal, que es
+				   el lado seguro y lo que devuelve el servidor en ese mismo caso. */
+				if (porcentaje === null || base === null) {
+					return null
+				}
+				price = Math.round(base * (1 - porcentaje / 100) * 100) / 100
+			}
 			/* El tramo viene de la base SIN los ajustes del cliente (el servidor no se los aplica
 			   al mandarlo, porque el carrito lo relee de la base y le aplica el factor ahi). Para
 			   mostrar lo mismo que se va a cobrar, el factor se aplica aca, con el mismo redondeo
 			   a centavos que el servidor. */
 			let factor_del_cliente = this.factor_de_ajustes(this.ajustes_de_cliente(article))
-			let price = Number(rango.price)
 			if (factor_del_cliente != 1) {
 				price = Math.round(price * factor_del_cliente * 100) / 100
 			}
@@ -860,6 +1009,99 @@ export default {
 				return null
 			}
 			return 'Llevá ' + cantidad + ' o más y pagás ' + porcentaje + '% menos'
+		},
+		/**
+		 * "A partir de 10 unidades, 15% de descuento": la OFERTA POR CANTIDAD del artículo
+		 * (`article_price_ranges`), dicha en una línea (misión oferta-por-cantidad-porcentaje,
+		 * 24/9/2026).
+		 *
+		 * 🔴 Es el HERMANO de `texto_del_mejor_tramo()`, no el mismo: aquél es la oferta
+		 * personalizada de tipo 'cantidad' (un acuerdo con UN comprador, `client_offer_ranges`) y
+		 * éste es la oferta por cantidad que el comercio carga en el ABM del artículo, para todo
+		 * el mundo. Son dos mecanismos distintos con dos tablas distintas, y por eso son dos
+		 * frases. La redacción de ésta la eligió Lucas.
+		 *
+		 * 🔴 Vive en el mixin y no en el componente porque la frase se muestra en DOS lados —la
+		 * ficha del producto y la tarjeta del listado— y es el mismo dato: escrita dos veces, el
+		 * día que cambie la redacción va a cambiar en uno solo.
+		 *
+		 * ── SE MUESTRA UN SOLO TRAMO, EL MEJOR, Y ES UNA DECISIÓN ────────────────────────────
+		 *
+		 * Un artículo puede tener una escala entera de tramos. Listarla toda convertiría en una
+		 * tabla lo que el diseño de los dos lugares pide que sea un renglón: en la ficha la línea
+		 * es gris y chica, "a media voz, no un cartel de oferta", y en la tarjeta del listado el
+		 * espacio ya está repartido entre el badge de descuento, el tachado y el precio. Además
+		 * el número grande de la ficha YA se mueve solo al cambiar la cantidad, así que la escala
+		 * completa el comprador la descubre usándola. Se muestra el de mayor `amount` con valor
+		 * usable, que es el mejor precio que puede conseguir.
+		 *
+		 * El precio del tramo de monto fijo sale de `precio_por_cantidad()` con la cantidad de
+		 * ese tramo: así el número anunciado es EL MISMO que va a ver cuando ponga esa cantidad,
+		 * con su factor de cliente y con el recargo online adentro.
+		 *
+		 * @param {object} article artículo con sus `article_price_ranges`
+		 * @returns {string|null}
+		 */
+		texto_de_la_oferta_por_cantidad(article) {
+			if (!this.puede_ver_precios()) {
+				return null
+			}
+			if (!article || !Array.isArray(article.article_price_ranges) || !article.article_price_ranges.length) {
+				return null
+			}
+			/* Con el precio pausado no hay importe que anunciar: manda el texto de configuración. */
+			if (this.flag_activo(article.precio_pausado)) {
+				return null
+			}
+			/* El mejor tramo: mayor `amount` con valor usable. Acá SÍ se filtra por valor antes de
+			   comparar, y no contradice el criterio 4 — esto no decide ningún precio, decide qué
+			   anunciar. Un tramo sin valor usable no se puede anunciar porque no existe para
+			   nadie: ni el servidor lo cobra ni `precio_por_cantidad()` lo muestra. */
+			let mejor = null
+			article.article_price_ranges.forEach(rango => {
+				if (!rango) {
+					return
+				}
+				let amount = Number(rango.amount)
+				if (!isFinite(amount) || amount <= 0) {
+					return
+				}
+				if (rango.modo !== 'Mayor o igual' && rango.modo !== 'Igual') {
+					return
+				}
+				if (
+					this.precio_fijo_del_tramo(rango) === null
+					&& this.porcentaje_del_tramo(rango) === null
+				) {
+					return
+				}
+				if (mejor === null || amount > Number(mejor.amount)) {
+					mejor = rango
+				}
+			})
+			if (mejor === null) {
+				return null
+			}
+			let cantidad = Number(mejor.amount)
+			let unidades = cantidad + (cantidad === 1 ? ' unidad' : ' unidades')
+			let apertura = mejor.modo === 'Igual'
+				? 'Comprando exactamente ' + unidades
+				: 'A partir de ' + unidades
+			/* El porcentaje se dice como porcentaje; el monto fijo, con el precio que se va a
+			   mostrar para esa cantidad. */
+			let porcentaje = this.porcentaje_del_tramo(mejor)
+			if (this.precio_fijo_del_tramo(mejor) === null && porcentaje !== null) {
+				let legible = this.porcentaje_legible(porcentaje)
+				if (!legible) {
+					return null
+				}
+				return apertura + ', ' + legible + '% de descuento'
+			}
+			let precio = this.precio_por_cantidad(article, cantidad)
+			if (!precio) {
+				return null
+			}
+			return apertura + ', ' + precio + ' cada una'
 		},
 		/**
 		 * El precio ORIGINAL de una linea del CARRITO, para tacharlo al lado de lo que se

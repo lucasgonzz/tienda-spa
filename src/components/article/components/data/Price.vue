@@ -168,16 +168,32 @@ export default {
 			return base
 		},
 		/**
-		 * "Llevá 12 o más y pagás 18% menos": a partir de cuantas unidades mejora el precio.
+		 * La linea que explica por que el precio se mueve al cambiar la cantidad. Se muestra
+		 * siempre que haya una oferta por cantidad, tenga o no la cantidad puesta todavia.
 		 *
-		 * La frase la arma el mixin, que es la misma que muestra la tarjeta del mensaje de
-		 * promocion. Se muestra siempre que la oferta por cantidad exista, tenga o no la
-		 * cantidad puesta todavia: es lo que explica por que el precio se mueve al cambiarla.
+		 * Son DOS mecanismos distintos y por eso hay dos frases en el mixin:
+		 *   - La oferta personalizada de tipo 'cantidad' (`client_offer_ranges`), un acuerdo con
+		 *     ESTE comprador: "Llevá 12 o más y pagás 18% menos".
+		 *   - La oferta por cantidad del articulo (`article_price_ranges`), que el comercio carga
+		 *     en el ABM para todo el mundo: "A partir de 10 unidades, 15% de descuento" (mision
+		 *     oferta-por-cantidad-porcentaje, 24/9/2026).
+		 *
+		 * 🔴 Gana la personalizada, y es el MISMO orden de precedencia con el que se cobra
+		 * (`CartHelper::get_price()`: oferta personalizada > tramo por articulo). Anunciar el
+		 * tramo del articulo a un comprador al que se le cobra su oferta seria prometerle un
+		 * descuento que no va a ver.
+		 *
+		 * Se muestra uno solo: la linea va a media voz —gris, chica, pegada al precio— y no es un
+		 * cartel de oferta. Dos renglones ahi ya son un cartel.
 		 *
 		 * @returns {string|null}
 		 */
 		texto_del_tramo() {
-			return this.texto_del_mejor_tramo(this.article_to_show)
+			let de_la_oferta = this.texto_del_mejor_tramo(this.article_to_show)
+			if (de_la_oferta) {
+				return de_la_oferta
+			}
+			return this.texto_de_la_oferta_por_cantidad(this.article_to_show)
 		},
 		/**
 		 * El precio original tachado ARRIBA, por los descuentos generales del articulo.
