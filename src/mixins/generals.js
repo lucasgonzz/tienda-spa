@@ -176,6 +176,22 @@ export default {
 		flag_activo(valor) {
 			return Number(valor) === 1
 		},
+		/**
+		 * Flag de "mostrar algo" que viene PRENDIDO de fabrica: solo da false si el comercio lo
+		 * apago de forma explicita.
+		 *
+		 * 🔴 Es el reverso de flag_activo(): ahi `undefined`/`null` dan false (no activo); aca
+		 * dan true (se muestra). Hace falta porque tienda-spa nueva puede convivir con una
+		 * API/base vieja donde la columna todavia no existe (llega `undefined`) o no esta
+		 * casteada (llega 0/1/"0"/"1"): en esos casos la tienda tiene que verse como siempre.
+		 * Solo se oculta con `false`, `0` o `"0"`.
+		 *
+		 * @param {number|string|boolean|null|undefined} valor flag tal como llega del API
+		 * @returns {boolean}
+		 */
+		flag_no_apagado(valor) {
+			return !(valor === false || valor === 0 || valor === '0')
+		},
 		precio_por_unidad(article) {
 			return this.price(article.final_price / article.presentacion) 
 		},
