@@ -1,7 +1,7 @@
 <template>
 	<div
 	class="featured-list"
-	v-if="!selected_category && !selected_sub_category && !selected_bodega && !selected_cepa && !is_from_search && novedades.length">
+	v-if="mostrar_novedades_en_home && !selected_category && !selected_sub_category && !selected_bodega && !selected_cepa && !is_from_search && novedades.length">
 		<p 
 		class="title">
 			Novedades
@@ -29,6 +29,23 @@ export default {
 		VueHorizontalList,
 	},
 	computed: {
+		/**
+		 * Si la seccion "Novedades" se muestra en el home.
+		 *
+		 * La apaga cada comercio desde `online_configuration.mostrar_novedades_en_home` y viene
+		 * PRENDIDA de fabrica. Solo se oculta con un false/0/"0" explicito (ver
+		 * flag_no_apagado): si la columna no existe todavia (API/base vieja) llega `undefined`
+		 * y la seccion se ve como siempre. El comercio llega asincronico, asi que
+		 * `online_configuration` puede no estar en el primer render: ahi tambien se muestra.
+		 *
+		 * @returns {boolean}
+		 */
+		mostrar_novedades_en_home() {
+			if (!this.commerce || !this.commerce.online_configuration) {
+				return true
+			}
+			return this.flag_no_apagado(this.commerce.online_configuration.mostrar_novedades_en_home)
+		},
 		options() {
 			let options = {
 				responsive: [
