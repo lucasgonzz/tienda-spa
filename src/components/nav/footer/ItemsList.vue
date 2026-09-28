@@ -5,15 +5,16 @@
 			Inicio y Promociones llevan un <a> real para los buscadores (mision seo-tiendas).
 			@click.prevent sin handler: el click sigue subiendo al @click del div, como siempre.
 		-->
-		<div 
+		<div
 		@click="home"
 		class="item">
 			<a
 			class="seo-link"
 			:href="href_home()"
 			@click.prevent>
+				<i v-if="mobile" class="bi bi-house"></i>
 				<span class="item-text">
-					Inicio	
+					Inicio
 				</span>
 			</a>
 		</div>
@@ -22,6 +23,7 @@
 			<div
 			@click="showCategories"
 			class="cont-item">
+				<i v-if="mobile" class="bi bi-grid"></i>
 				<span class="item-text">
 					Productos
 				</span>
@@ -34,6 +36,7 @@
 			<div
 			@click="show_marcas"
 			class="cont-item">
+				<i v-if="mobile" class="bi bi-award"></i>
 				<span class="item-text">
 					Marca
 				</span>
@@ -43,15 +46,16 @@
 		<div
 		v-if="Number(commerce.online_configuration.mostrar_catalogo) == 1"
 		class="item">
-			<router-link 
+			<router-link
 			:to="{name: 'Catalogo'}">
+				<i v-if="mobile" class="bi bi-journal-text"></i>
 				<span class="item-text">
-					Catalogo	
+					Catalogo
 				</span>
 			</router-link>
 		</div>
 
-		<div 
+		<div
 		v-if="commerce_has_extencion('vinoteca')"
 		@click="to_promociones_vinotecas"
 		class="item">
@@ -59,8 +63,9 @@
 			class="seo-link"
 			:href="$router.resolve({name: 'PromocionesVinoteca'}).href"
 			@click.prevent>
+				<i v-if="mobile" class="bi bi-tag"></i>
 				<span class="item-text">
-					Promociones	
+					Promociones
 				</span>
 			</a>
 		</div>
@@ -71,11 +76,12 @@
 			<div
 			@click="show_bodegas"
 			class="cont-item">
+				<i v-if="mobile" class="bi bi-building"></i>
 				<span class="item-text">
 					Bodegas
 				</span>
 			</div>
-		</div>	
+		</div>
 
 		<div
 		v-if="commerce_has_extencion('vinoteca')"
@@ -83,52 +89,68 @@
 			<div
 			@click="show_cepas"
 			class="cont-item">
+				<i v-if="mobile" class="bi bi-droplet"></i>
 				<span class="item-text">
 					Cepas
 				</span>
 			</div>
-		</div>	
+		</div>
 
 
-		<div 
+		<div
 		v-if="commerce.online_configuration.mensaje_contacto"
 		class="item">
-			<router-link 
+			<router-link
 			:to="{name: 'Contacto'}">
+				<i v-if="mobile" class="bi bi-envelope"></i>
 				<span class="item-text">
-					Contacto	
+					Contacto
 				</span>
 			</router-link>
 		</div>
-		<div 
+		<div
 		v-if="commerce.online_configuration.quienes_somos"
 		class="item">
-			<router-link 
+			<router-link
 			:to="{name: 'QuienesSomos'}">
+				<i v-if="mobile" class="bi bi-info-circle"></i>
 				<span class="item-text">
-					{{ commerce.online_configuration.titulo_quienes_somos }}	
+					{{ commerce.online_configuration.titulo_quienes_somos }}
 				</span>
 			</router-link>
 		</div>
 		<div
 		v-if="is_mobile">
-			<div 
+			<div
+			v-if="mobile"
+			class="item-divider"></div>
+			<div
 			v-if="!authenticated"
 			@click="toLogin"
 			class="item">
-				Iniciar sesion	
+				<i v-if="mobile" class="bi bi-box-arrow-in-right"></i>
+				Iniciar sesion
 			</div>
 			<div
-			v-else>
+			v-if="!authenticated && mobile"
+			@click="toRegister"
+			class="item">
+				<i class="bi bi-person-plus"></i>
+				Registrarse
+			</div>
+			<div
+			v-else-if="authenticated">
 				<div
 				@click="toOrders"
 				class="item">
-					Mis Pedidos	
+					<i v-if="mobile" class="bi bi-bag"></i>
+					Mis Pedidos
 				</div>
 				<div
 				@click="logout"
 				class="item">
-					Cerrar sesion	
+					<i v-if="mobile" class="bi bi-box-arrow-right"></i>
+					Cerrar sesion
 				</div>
 				<!--
 					Debajo de "Cerrar sesion", el mismo bloque que el desplegable del nombre en
@@ -152,6 +174,15 @@ export default {
 	mixins: [nav, auth],
 	components: {
 		AjustesDeCliente: () => import('@/components/common/AjustesDeCliente'),
+	},
+	props: {
+		// Distingue el sidebar mobile (Mobile.vue) de la barra horizontal de escritorio
+		// (footer/Index.vue), que comparten este mismo componente. Solo el sidebar pide iconos
+		// y el item de "Registrarse": la barra de escritorio queda igual que siempre.
+		mobile: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	computed: {
 		/**
@@ -271,6 +302,17 @@ export default {
 		/* Mantiene consistencia de color hover en links del nav. */
 		&:hover
 			color: $hover_color_text
+		// Solo aparecen con el prop `mobile` (sidebar): la barra de escritorio nunca los pide.
+		i.bi
+			margin-right: 10px
+			width: 1.1em
+			display: inline-block
+			text-align: center
+	// Divisor entre los items de navegacion y el bloque de auth, solo en el sidebar mobile.
+	.item-divider
+		height: 1px
+		background: rgba(0, 0, 0, .08)
+		margin: 10px 1em
 	// El bloque de los ajustes del cliente no es un link: sin negrita, sin puntero y sin el
 	// color de hover de los items de arriba.
 	.item--ajustes-de-cliente

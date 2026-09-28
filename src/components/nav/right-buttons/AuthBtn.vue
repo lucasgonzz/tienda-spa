@@ -51,13 +51,24 @@
 			</b-dropdown>
 		</div>
 		<div
-		v-else>
-			<div 
+		v-else
+		class="auth-btn__actions">
+			<div
 			class="c-p"
 			:class="active('Login')"
 			@click="toLogin">
 				<span>
 					Ingresar
+				</span>
+			</div>
+			<span class="auth-btn__sep">|</span>
+			<div
+			class="c-p"
+			:class="active('Register')"
+			@click="toRegister">
+				<i class="bi bi-person-plus"></i>
+				<span>
+					Registrarse
 				</span>
 			</div>
 		</div>
@@ -95,6 +106,14 @@ export default {
 	// del menu blanco: sin esta excepcion quedaba blanco sobre blanco. Mismo !important para ganarle.
 	.ajustes-de-cliente__nombre
 		color: rgba(0, 0, 0, .8) !important
+	&__actions
+		display: flex
+		align-items: center
+		gap: 10px
+	&__sep
+		opacity: .45
+	.bi-person-plus
+		margin-right: 4px
 
 .active-link
 	.nav-link
