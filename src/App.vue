@@ -182,9 +182,9 @@ export default {
             if (this.authenticated) {
                 this.callAuthMethods()
 
-                /* Sin polling: los mensajes del comercio llegan en vivo por message.from_commerce.{id}
-                   (mixins/WebSockets.js), se vuelven a pedir cuando Pusher reconecta y la pantalla
-                   de Mensajes los pide al entrar. */
+                /* Sin polling: las respuestas del comercio llegan en vivo por
+                   tienda-respuestas.{comercio}.{comprador} (mixins/WebSockets.js), se vuelven a
+                   pedir cuando Pusher reconecta y la pantalla de Mensajes las pide al entrar. */
             }
         },
         /* El comercio llega asincrónico, así que la clase no se puede poner una sola vez en
