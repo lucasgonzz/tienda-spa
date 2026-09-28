@@ -6,7 +6,8 @@ import { conectar_echo, desconectar_echo } from '@/helpers/echo'
  *
  * Desde el 28/9/2026 la conexión con Pusher existe SOLO mientras hay un comprador logueado
  * (ver src/helpers/echo.js): se abre en listenChannels() y se cierra cuando la sesión se cae.
- * Los canales y lo que hace cada uno son los de siempre.
+ * Los cuatro canales de siempre siguen igual; se suma tienda-respuestas.{owner}.{comprador}, por
+ * donde llegan las respuestas que el comercio escribe a mano.
  */
 export default {
 	mixins: [messages],
@@ -30,6 +31,7 @@ export default {
 		 */
 		this.ws_echo = null
 		this.ws_comprador_id = null
+		this.ws_owner_id = null
 	},
 	methods: {
 		/**
@@ -72,15 +74,18 @@ export default {
 				return
 			}
 			let comprador_id = this.user.id
+			let owner_id = this.owner_del_comprador()
 
-			if (echo === this.ws_echo && comprador_id === this.ws_comprador_id) {
+			if (echo === this.ws_echo
+				&& comprador_id === this.ws_comprador_id
+				&& owner_id === this.ws_owner_id) {
 				/* Ya suscripto: un segundo listener duplicaría cada pedido y cada mensaje. */
 				return
 			}
 
 			if (echo === this.ws_echo && this.ws_comprador_id !== null) {
 				/* Cambió el comprador sin que se cortara la conexión: fuera los canales del anterior. */
-				this.dejar_canales(echo, this.ws_comprador_id)
+				this.dejar_canales(echo, this.ws_comprador_id, this.ws_owner_id)
 			}
 
 			if (echo !== this.ws_echo) {
@@ -89,8 +94,35 @@ export default {
 
 			this.ws_echo = echo
 			this.ws_comprador_id = comprador_id
+			this.ws_owner_id = owner_id
 
 			let self = this
+
+			/*
+			 * Las respuestas que el comercio escribe a mano desde el sistema de gestión (contrato
+			 * C2' de la misión mensajes-tienda-online). Van por un canal propio y no por
+			 * message.from_commerce.{id}: ese es público y lleva solo el id del comprador, que se
+			 * repite entre bases (cada una numera desde 1), y la app de Pusher es una sola para
+			 * toda la flota — la respuesta del comercio A a su comprador #7 le llegaría a
+			 * cualquier comprador #7 de cualquier tienda. El dueño del comercio (owner) es único
+			 * en la flota, así que owner + comprador sí es único.
+			 *
+			 * Es un Event con broadcastAs(), no una Notification: por eso listen() y el nombre
+			 * con punto adelante. Sin owner no se sabe qué canal es, y no se suscribe.
+			 */
+			if (owner_id) {
+				echo.channel(this.canal_respuestas(owner_id, comprador_id))
+				.listen('.RespuestaDelComercio', (e) => {
+					if (!e || !e.message) {
+						return
+					}
+					self.recibir_mensaje_del_comercio(e.message)
+					if (e.message.text_truncado) {
+						/* Pusher tiene un tope por evento y el texto viene recortado: se pide entero. */
+						self.$store.dispatch('messages/getMessages')
+					}
+				})
+			}
 
 			echo.channel('order.'+comprador_id)
 			.notification((notification) => {
@@ -103,19 +135,8 @@ export default {
 			})
 			echo.channel('message.from_commerce.'+comprador_id)
 			.notification((notification) => {
-				self.$store.commit('messages/addMessage', notification.message)
-				self.$store.commit('messages/setMessagesNotRead')
 				console.log(notification)
-				if (self.isOrderDelivered(notification.message)) {
-					console.log('es order delivered')
-					self.$store.dispatch('orders/getCurrentOrder')
-					self.$store.dispatch('orders/getOrders')
-				}
-				if (self.isCartAmountUpdated(notification.message)) {
-					console.log('es cart amount updated')
-					self.$store.dispatch('cart/getLastCart')
-				}
-				self.checkIfIsMessagesView()
+				self.recibir_mensaje_del_comercio(notification.message)
 			})
 			echo.channel('question.'+comprador_id)
 			.notification(() => {
@@ -127,15 +148,58 @@ export default {
 			})
 		},
 		/**
-		 * @param {Object} echo
-		 * @param {number} comprador_id
+		 * Un mensaje del comercio que llegó en vivo, por cualquiera de los dos canales.
+		 *
+		 * @param {Object} message
 		 * @returns {void}
 		 */
-		dejar_canales(echo, comprador_id) {
+		recibir_mensaje_del_comercio(message) {
+			this.$store.commit('messages/addMessage', message)
+			this.$store.commit('messages/setMessagesNotRead')
+			if (this.isOrderDelivered(message)) {
+				console.log('es order delivered')
+				this.$store.dispatch('orders/getCurrentOrder')
+				this.$store.dispatch('orders/getOrders')
+			}
+			if (this.isCartAmountUpdated(message)) {
+				console.log('es cart amount updated')
+				this.$store.dispatch('cart/getLastCart')
+			}
+			this.checkIfIsMessagesView()
+		},
+		/**
+		 * El dueño del comercio del comprador logueado: `user_id` del comprador (tienda-api lo
+		 * serializa en login, /api/user y registro) y, de respaldo, el comercio del build. Como
+		 * texto, para compararlo sin que importe si vino como número o como string.
+		 *
+		 * @returns {string|null}
+		 */
+		owner_del_comprador() {
+			let owner = (this.user && this.user.user_id) || process.env.VUE_APP_COMMERCE_ID
+			return owner ? String(owner) : null
+		},
+		/**
+		 * @param {string} owner_id
+		 * @param {number} comprador_id
+		 * @returns {string}
+		 */
+		canal_respuestas(owner_id, comprador_id) {
+			return 'tienda-respuestas.'+owner_id+'.'+comprador_id
+		},
+		/**
+		 * @param {Object} echo
+		 * @param {number} comprador_id
+		 * @param {string|null} owner_id
+		 * @returns {void}
+		 */
+		dejar_canales(echo, comprador_id, owner_id) {
 			echo.leave('order.'+comprador_id)
 			echo.leave('message.from_commerce.'+comprador_id)
 			echo.leave('question.'+comprador_id)
 			echo.leave('payment.'+comprador_id)
+			if (owner_id) {
+				echo.leave(this.canal_respuestas(owner_id, comprador_id))
+			}
 		},
 		/**
 		 * Pusher no reenvía lo que se emitió mientras la conexión estaba caída (celular que se
@@ -171,6 +235,7 @@ export default {
 		dejar_de_escuchar() {
 			this.ws_echo = null
 			this.ws_comprador_id = null
+			this.ws_owner_id = null
 			desconectar_echo()
 		},
 		checkIfIsMessagesView() {
