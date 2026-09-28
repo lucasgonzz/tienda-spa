@@ -182,7 +182,9 @@ export default {
             if (this.authenticated) {
                 this.callAuthMethods()
 
-                this.escuchar_mensajes()
+                /* Sin polling: los mensajes del comercio llegan en vivo por message.from_commerce.{id}
+                   (mixins/WebSockets.js), se vuelven a pedir cuando Pusher reconecta y la pantalla
+                   de Mensajes los pide al entrar. */
             }
         },
         /* El comercio llega asincrónico, así que la clase no se puede poner una sola vez en
@@ -244,14 +246,6 @@ export default {
             if (clase_nueva) {
                 document.body.classList.add(clase_nueva)
             }
-        },
-        escuchar_mensajes() {
-            setInterval(() => {
-                if (this.$route.name != 'Messages') {
-                    
-                    this.$store.dispatch('messages/getMessages')
-                }
-            }, 20000)
         },
         get_commerce() {
             /* Si main.js ya cargó el comercio, solo continúa el flujo inicial. */
