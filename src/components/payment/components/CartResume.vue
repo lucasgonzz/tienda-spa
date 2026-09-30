@@ -31,6 +31,8 @@
 				tienda (18% = 5 por fila, ~77px en escritorio) y acá no hay grilla: es una lista
 				vertical dentro del panel "Tu pedido". Con `full_width` ocupa todo el panel.
 				(En /carrito SÍ hay grilla de tarjetas y no va.)
+				`compacta`: con el ancho completo la imagen cuadrada del combo quedaba enorme
+				(~670px de alto en escritorio); así es una fila con miniatura a la izquierda.
 			-->
 			<combo-card
 			class="m-b-10"
@@ -38,6 +40,7 @@
 			:key="'combo-' + combo.id"
 			en_carrito
 			full_width
+			compacta
 			:combo="combo"></combo-card>
 		</div>
 

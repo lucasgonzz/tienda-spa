@@ -216,6 +216,16 @@ export default {
 			type: Boolean,
 			default: false
 		},
+		/**
+		 * Variante de una sola fila para listas angostas (el resumen "Tu pedido" del checkout):
+		 * miniatura cuadrada chica a la izquierda y nombre, detalle, precio y "Quitar" a la
+		 * derecha. Sin esto, con `full_width` la imagen cuadrada ocupa todo el ancho del panel
+		 * y un solo combo llena la pantalla. La grilla de /carrito y la home NO la usan.
+		 */
+		compacta: {
+			type: Boolean,
+			default: false
+		},
 	},
 	data() {
 		return {
@@ -235,6 +245,9 @@ export default {
 			}
 			if (this.en_carrito) {
 				class_ += ' combo-card--en-carrito'
+			}
+			if (this.compacta) {
+				class_ += ' combo-card--compacta'
 			}
 			return class_
 		},
@@ -683,4 +696,65 @@ export default {
 
 	.combo-card__btn-remove
 		margin-top: 10px
+
+	// VARIANTE COMPACTA (`compacta`, solo el resumen del checkout): una fila horizontal por combo
+	// en vez de la tarjeta vertical. Todo lo de abajo cuelga de `.combo-card--compacta`, asi que
+	// la home y /carrito (que no la usan) quedan exactamente como estaban.
+	&.combo-card--compacta
+		flex-direction: row
+		align-items: flex-start
+
+		// Miniatura cuadrada de ancho fijo. `align-self: flex-start` es necesario: con el
+		// `stretch` por defecto la fila le estiraria el alto y dejaria de ser cuadrada
+		// (el aspect-ratio se ignora cuando el alto esta estirado). El collage de 2, 3 y 4
+		// teselas es una grilla en porcentajes, asi que sigue funcionando a este tamano.
+		.combo-card__imagenes
+			width: 92px
+			flex: 0 0 92px
+			align-self: flex-start
+
+			@media screen and (max-width: 576px)
+				width: 72px
+				flex-basis: 72px
+
+			// El "+N" en version chica para que entre en la miniatura.
+			.combo-card__imagenes-mas
+				right: 3px
+				bottom: 3px
+				font-size: .62rem
+				padding: 0 5px
+
+		// `min-width: 0` para que el texto largo (nombre, detalle) se corte dentro de la fila
+		// en vez de ensancharla y sacar el precio del panel.
+		.combo-card__body
+			flex: 1 1 auto
+			min-width: 0
+			padding: .4rem .6rem
+
+		// El cartel de agotado queda sobre la miniatura (es `absolute` respecto de la tarjeta):
+		// a 16px no entraba en 72px de ancho.
+		.combo-card__agotado
+			font-size: 11px
+			padding: 2px 6px
+
+		.combo-card__price
+			font-size: 1.1rem
+			text-align: left
+			margin: 0
+
+		// "Los N combos" deja de ser un bloque con regla y pasa a una linea chica.
+		.combo-card__linea
+			hr
+				display: none
+
+			p
+				font-size: .8rem
+				margin: 0
+
+		.combo-card__btn-remove
+			width: auto
+			align-self: flex-start
+			margin-top: 6px
+			padding: .15rem .6rem
+			font-size: .8rem
 </style>
