@@ -21,9 +21,11 @@
  * Los combos publicados en la tienda (`combos.online = 1`), en un carrusel propio debajo de
  * "Comprando más, pagás menos".
  *
- * 🔴 Usa `combo-card` y NO `article-card`: un combo no tiene imagen propia ni precio unitario
- * por artículo, tiene una receta (`articles[]` con su `pivot.amount`). La tarjeta muestra las
- * imágenes de sus componentes.
+ * 🔴 Usa `combo-card` y NO `article-card`: un combo no tiene ficha ni precio unitario por
+ * artículo, tiene una receta (`articles[]` con su `pivot.amount`). La tarjeta muestra la foto
+ * propia del combo (`images[]`) o, si no tiene, un collage con las imágenes de sus componentes,
+ * y trae el stock calculado por el servidor (`stock_disponible`: cartel "Agotado" y tope de
+ * cantidad). Esta sección solo reparte los combos; toda esa lógica vive en la tarjeta.
  *
  * La sección se esconde entera con categoría, subcategoría, bodega, cepa o búsqueda activa, y
  * con el array vacío — que es lo que pasa cuando la API todavía no manda la clave `combos`.

@@ -3,7 +3,24 @@
 	class="model combo-card animate__animated animate__fadeIn"
 	:class="combo_class">
 
-		<!-- Mosaico con las imágenes de los artículos que componen el combo. -->
+		<!--
+			Cartel de agotado: mismo look que `.agotado` de la tarjeta de artículo (rojo, esquina
+			superior izquierda). Se replica acá y no se importa `AgotadoInfo.vue` porque ese
+			componente decide con `hasStock(article)`, que mira `article.stock` y no el
+			`stock_disponible` calculado de un combo.
+		-->
+		<div
+		v-if="agotado"
+		class="combo-card__agotado">
+			Agotado
+		</div>
+
+		<!--
+			Arriba de todo: la foto propia del combo si la tiene (una sola tesela) o, si no, el
+			mosaico con las imágenes de los artículos que lo componen (1 a 4 teselas + "+N").
+			La forma del mosaico la fija la clase `--N`: cuadrado siempre, con reglas para 1, 2, 3
+			y 4 teselas para que nunca quede un hueco.
+		-->
 		<div
 		class="combo-card__imagenes"
 		:class="'combo-card__imagenes--' + imagenes.length">
@@ -14,14 +31,15 @@
 				<img
 				v-if="imagen"
 				:src="imagen"
-				:alt="combo.name">
+				:alt="combo.name"
+				@error="al_fallar_imagen">
 				<i
 				v-else
 				class="bi bi-image combo-card__imagen-vacia"
 				aria-hidden="true"></i>
 			</div>
 			<span
-			v-if="imagenes_restantes"
+			v-if="imagenes_restantes && !tiene_foto_propia"
 			class="combo-card__imagenes-mas">
 				+{{ imagenes_restantes }}
 			</span>
@@ -92,19 +110,39 @@
 			<template
 			v-if="authenticated || puede_comprar_sin_login">
 
+				<!--
+					"Quedan N": solo con stock calculado, sin `ignorar_stock` y con
+					`mostrar_stock_disponible` prendido. En el carrito no va (ahí no se elige cantidad).
+				-->
+				<p
+				v-if="!en_carrito && !esta_en_el_carrito && texto_quedan"
+				class="combo-card__quedan">
+					{{ texto_quedan }}
+				</p>
+
 				<div
 				v-if="!en_carrito && !esta_en_el_carrito"
 				class="combo-card__cont-add">
+					<!--
+						`:max` es el stock calculado del combo (sin atributo si no hay tope). El
+						`formatter` recorta lo tipeado al tope en el mismo momento en que se
+						escribe, y es la forma que funciona con BootstrapVue: recortar desde un
+						@input dejaba el número pasado de tope a la vista cuando el v-model ya
+						valía el tope.
+					-->
 					<b-form-input
 					v-model="amount"
 					class="combo-card__amount"
 					type="number"
 					min="1"
+					:max="tope_de_stock"
+					:formatter="recortar_al_tope"
+					:disabled="agotado"
 					aria-label="Cantidad de combos"></b-form-input>
 
 					<b-button
 					@click.stop="agregar_al_carrito"
-					:disabled="guardando || !amount_valido"
+					:disabled="guardando || !amount_valido || agotado"
 					variant="outline-primary"
 					class="combo-card__btn-add"
 					aria-label="Agregar combo al carrito">
@@ -138,18 +176,32 @@
 </template>
 <script>
 /*
- * LA TARJETA DE UN COMBO. Es propia y NO reusa `article-card`: un combo no tiene imagen propia,
- * ni stock propio, ni ficha a la que navegar. Lo que tiene es una receta —`articles[]` con el
- * `pivot.amount` de cada componente— y un precio fijo cargado a mano en el ERP.
+ * LA TARJETA DE UN COMBO. Es propia y NO reusa `article-card`: un combo no tiene ficha a la que
+ * navegar ni variantes. Lo que tiene es una receta —`articles[]` con el `pivot.amount` de cada
+ * componente—, un precio que resuelve el servidor por lista (`final_price`), una foto propia
+ * opcional (`images[]`) y un stock calculado (`stock_disponible`).
  *
- * Qué muestra, tal como lo pidió Lucas: las imágenes de los artículos que lo componen, el nombre
- * del combo, el detalle de qué lleva con sus cantidades, el precio y el botón de agregar.
+ * Qué muestra, tal como lo pidió Lucas: la foto del combo si la tiene y, si no, el collage con
+ * las imágenes de los artículos que lo componen; el nombre, el detalle de qué lleva con sus
+ * cantidades, el precio y el botón de agregar.
+ *
+ * Stock (misión combos-calculados): `stock_disponible` lo calcula el servidor (cuántos combos se
+ * pueden armar con lo que hay de cada componente; manda el limitante). `null` = ningún
+ * componente lleva stock, hay siempre. La tarjeta NO lo recalcula: pone el cartel "Agotado" con
+ * 0, el tope en el input de cantidad y el "Quedan N". La regla vive en `@/helpers/combo`.
  *
  * 🔴 No hay página de detalle de un combo: la tarjeta lo muestra entero y el agregado al carrito
  * se resuelve acá adentro. Por eso no pasa por el modal `add-to-cart-modal` (que monta la ficha
  * de un artículo) ni por `articles/setArticleToShow`.
  */
 import cart from '@/mixins/cart'
+import {
+	imagenes_de_tarjeta,
+	tope_de_stock_del_combo,
+	combo_agotado,
+	recortar_cantidad_al_tope,
+	texto_quedan,
+} from '@/helpers/combo'
 export default {
 	name: 'ComboCard',
 	mixins: [cart],
@@ -171,6 +223,8 @@ export default {
 			guardando: false,
 			/* Cuántas imágenes entran en el mosaico antes de pasar al contador "+N". */
 			max_imagenes: 4,
+			/* La foto propia del combo no cargó (URL rota): se cae al mosaico de componentes. */
+			foto_propia_fallo: false,
 		}
 	},
 	computed: {
@@ -192,31 +246,54 @@ export default {
 			return []
 		},
 		/**
-		 * Las imágenes del mosaico: la primera de cada artículo componente, hasta `max_imagenes`.
-		 * Un artículo sin imagen entra con la imagen por defecto del comercio, y si tampoco hay,
-		 * con null (la plantilla dibuja un ícono). Se deja entrar igual para que el mosaico no
-		 * cambie de forma según qué artículo tenga foto.
+		 * Lo que dibuja la parte de arriba: [foto propia] o el mosaico de los componentes.
+		 * La regla (y el porqué de cada fallback) está en `imagenes_de_tarjeta()`.
 		 */
+		visual() {
+			return imagenes_de_tarjeta(
+				this.combo,
+				this.max_imagenes,
+				this.commerce.online_configuration.default_article_image_url,
+				this.foto_propia_fallo
+			)
+		},
+		/** Las URL de las teselas (null = ícono de imagen vacía). */
 		imagenes() {
-			let urls = []
-			this.articulos.forEach(article => {
-				if (urls.length >= this.max_imagenes) {
-					return
-				}
-				let imagen = null
-				if (article && Array.isArray(article.images) && article.images.length) {
-					imagen = article.images[0].hosting_url
-				} else if (this.commerce.online_configuration.default_article_image_url) {
-					imagen = this.commerce.online_configuration.default_article_image_url
-				}
-				urls.push(imagen)
-			})
-			return urls
+			return this.visual.urls
+		},
+		/** ¿Lo de arriba es la foto propia del combo y no el collage? */
+		tiene_foto_propia() {
+			return this.visual.propia
 		},
 		/** Cuántos componentes quedaron fuera del mosaico, para el "+N". */
 		imagenes_restantes() {
-			let sobrantes = this.articulos.length - this.max_imagenes
-			return sobrantes > 0 ? sobrantes : 0
+			return this.visual.restantes
+		},
+		/**
+		 * `online_configuration.ignorar_stock` (Online Configurations -> Stock): mismo criterio
+		 * que `hasStock()` del mixin de artículos, con el mismo chequeo de verdad.
+		 */
+		ignorar_stock() {
+			return !!this.commerce.online_configuration.ignorar_stock
+		},
+		/**
+		 * El tope de unidades por stock calculado, o null si no hay tope (stock null = sin
+		 * control, o `ignorar_stock`).
+		 */
+		tope_de_stock() {
+			return tope_de_stock_del_combo(this.combo, this.ignorar_stock)
+		},
+		/** Stock calculado en cero: cartel "Agotado" y botón Agregar deshabilitado. */
+		agotado() {
+			return combo_agotado(this.tope_de_stock)
+		},
+		/**
+		 * "Quedan N", o null. `mostrar_stock_disponible` viene PRENDIDO de fábrica: solo se
+		 * oculta con `=== false` (mismo criterio que `buy-box/Index.vue` y `Cantidad.vue`).
+		 */
+		texto_quedan() {
+			let mostrar = this.commerce.online_configuration.mostrar_stock_disponible !== false
+			return texto_quedan(this.tope_de_stock, mostrar)
 		},
 		/**
 		 * Qué lleva el combo: nombre y cantidad de cada componente. La cantidad sale del pivote
@@ -304,10 +381,41 @@ export default {
 		},
 	},
 	methods: {
+		/** La foto propia no cargó: se descarta y la tarjeta muestra el collage de componentes. */
+		al_fallar_imagen() {
+			if (this.tiene_foto_propia) {
+				this.foto_propia_fallo = true
+			}
+		},
+		/**
+		 * Formatter del input de cantidad: recorta lo tipeado al stock disponible y avisa, igual
+		 * que `add-to-cart/Amount.vue::check_amount`. Devuelve siempre string (contrato del
+		 * `formatter` de BootstrapVue).
+		 *
+		 * @param {string} valor
+		 * @returns {string}
+		 */
+		recortar_al_tope(valor) {
+			let resultado = recortar_cantidad_al_tope(valor, this.tope_de_stock)
+			if (resultado.recortado) {
+				this.$toast.error('Solo hay ' + this.tope_de_stock + ' unidades en STOCK')
+			}
+			return String(resultado.valor)
+		},
 		agregar_al_carrito() {
+			if (this.agotado) {
+				this.$toast.error('El combo está agotado')
+				return
+			}
 			if (!this.amount_valido) {
 				this.$toast.error('Indique una cantidad')
 				return
+			}
+			/* Red de seguridad por si el valor entró sin pasar por el formatter (v-model programático). */
+			let recorte = recortar_cantidad_al_tope(this.amount, this.tope_de_stock)
+			if (recorte.recortado) {
+				this.$toast.error('Solo hay ' + this.tope_de_stock + ' unidades en STOCK')
+				this.amount = recorte.valor
 			}
 			let cantidad = Number(this.amount)
 			/*
@@ -387,25 +495,64 @@ export default {
 	border-radius: 8px
 	background: #FFF
 
+	// Cartel de agotado: copia local de `.agotado` (article-card/AgotadoInfo.vue). El rojo es el
+	// $red de bootstrap (#dc3545), el mismo que usa la tarjeta de articulo.
+	.combo-card__agotado
+		position: absolute
+		top: 0
+		left: 0
+		font-weight: bold
+		font-size: 16px
+		border-radius: 4px 0 5px 0
+		background: #dc3545
+		color: #FFF
+		z-index: 10
+		padding: 5px 10px
+
+	// La parte de arriba es SIEMPRE un cuadrado (aspect-ratio 1:1) sea cual sea la cantidad de
+	// teselas, asi todas las tarjetas de una fila miden lo mismo. Las teselas se reparten el
+	// cuadrado con una grilla de 2x2 y la clase `--N` (N = cantidad de teselas) decide como:
+	//   1 tesela  -> ocupa todo (foto propia, o un combo de un solo componente)
+	//   2 teselas -> dos columnas, cada una a alto completo
+	//   3 teselas -> la primera ocupa todo el ancho de arriba, las otras dos abajo
+	//   4 teselas -> 2x2
+	// Antes solo existia la regla `--1`: con 2 y 3 imagenes la grilla dejaba una celda vacia.
 	.combo-card__imagenes
 		display: grid
 		grid-template-columns: 1fr 1fr
+		grid-template-rows: 1fr 1fr
 		gap: 2px
 		position: relative
+		aspect-ratio: 1 / 1
 		background: rgba(0, 0, 0, .04)
 
-		&.combo-card__imagenes--1
+		&.combo-card__imagenes--0, &.combo-card__imagenes--1
 			grid-template-columns: 1fr
+			grid-template-rows: 1fr
+
+		&.combo-card__imagenes--2
+			grid-template-rows: 1fr
+
+		&.combo-card__imagenes--3 .combo-card__imagen:first-child
+			grid-column: 1 / -1
 
 		.combo-card__imagen
 			display: flex
 			align-items: center
 			justify-content: center
 			background: #FFF
-			aspect-ratio: 1 / 1
+			position: relative
+			// Sin esto la tesela toma el tamano intrinseco de la imagen y desborda su celda.
+			min-width: 0
+			min-height: 0
 			overflow: hidden
 
+			// La imagen va absoluta para llenar la celda sin aportar su alto a la grilla.
+			// `contain`, igual que la tarjeta de articulo: se ve el producto entero, sin recortar.
 			img
+				position: absolute
+				top: 0
+				left: 0
 				width: 100%
 				height: 100%
 				object-fit: contain
@@ -442,6 +589,13 @@ export default {
 	.combo-card__name
 		font-weight: 600
 		margin-bottom: 4px
+
+	// "Quedan N": discreto, pegado arriba del selector de cantidad.
+	.combo-card__quedan
+		margin: 8px 0 0
+		font-size: .8rem
+		color: rgba(0, 0, 0, .55)
+		text-align: left
 
 	// El renglon de los ajustes del cliente, ARRIBA del precio: badges y tachado. Mismas
 	// medidas que el de la tarjeta de articulo (article-card/body/Price.vue).

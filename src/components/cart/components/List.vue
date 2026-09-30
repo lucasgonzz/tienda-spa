@@ -26,10 +26,12 @@
 				:article="promo"></article-card>
 
 				<!--
-					Los combos van con SU tarjeta y no con article-card: no tienen imagen propia
-					ni ficha, y article-card resuelve la imagen con `article.images`, que un
-					combo no tiene. `en_carrito` hace que muestre el pivote (lo que se cobra) y
-					el botón de quitar.
+					Los combos van con SU tarjeta y no con article-card: no tienen ficha ni
+					variantes, y su imagen es la foto propia del combo o el collage de sus
+					componentes (article-card resuelve la imagen desde `article.images` del
+					artículo). `en_carrito` hace que muestre el pivote (lo que se cobra) y el
+					botón de quitar, que NUNCA se bloquea por stock: aunque el combo se haya
+					agotado, el comprador tiene que poder sacarlo.
 				-->
 				<combo-card
 				v-for="combo in cart_combos"

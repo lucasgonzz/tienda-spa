@@ -21,10 +21,10 @@
 			:article="promo"></last-article>
 
 			<!--
-				🔴 Los combos NO pueden ir por last-article: esa fila resuelve la imagen con
-				articleImage(), que entra derecho a `article.images.length` — y un combo no tiene
-				`images`, tiene las de sus artículos componentes. Va con su propia tarjeta, en
-				modo carrito.
+				🔴 Los combos van con su propia tarjeta, en modo carrito, y no por last-article:
+				la tarjeta muestra el detalle de qué lleva y resuelve la imagen del combo (foto
+				propia o collage de sus componentes). last-article también sabe dibujar un combo
+				—lo usa el popup del mini-carrito—, pero acá se prefiere el detalle completo.
 			-->
 			<combo-card
 			class="m-b-10"
