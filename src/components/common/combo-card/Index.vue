@@ -656,9 +656,12 @@ export default {
 		gap: .5rem
 		margin-top: 10px
 
+		// min-width: que entren 4 cifras ("1000") enteras. Con `min-width: 0` el input se achicaba
+		// hasta los 54px que le dejaba el boton con etiqueta en tablet y al tipear 100 se veia
+		// "00". 4.75rem (76px) es lo que miden 4 digitos + padding + flechitas del input number.
 		.combo-card__amount
 			flex: 1
-			min-width: 0
+			min-width: 4.75rem
 
 		.combo-card__btn-add
 			flex-shrink: 0
@@ -669,11 +672,13 @@ export default {
 			padding: 0 .7rem
 
 		// La etiqueta del boton nace oculta, igual que en la tarjeta de articulo: en pantallas
-		// chicas el boton es un icono y el texto no entra.
+		// chicas el boton es un icono y el texto no entra. Aparece recien desde el escritorio
+		// (1366px): en tablet (768-1024) la tarjeta mide ~186px y la etiqueta "Agregar" (104px)
+		// le dejaba al input 56px, donde una cantidad de 3 cifras se cortaba.
 		.combo-card__btn-label
 			display: none
 
-			@media screen and (min-width: 768px)
+			@media screen and (min-width: 1366px)
 				display: inline
 
 	.combo-card__btn-remove
