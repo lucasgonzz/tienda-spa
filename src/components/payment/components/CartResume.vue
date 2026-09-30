@@ -26,11 +26,18 @@
 				propia o collage de sus componentes). last-article también sabe dibujar un combo
 				—lo usa el popup del mini-carrito—, pero acá se prefiere el detalle completo.
 			-->
+			<!--
+				`full_width`: la tarjeta de combo hereda el ancho de `.model` de la grilla de la
+				tienda (18% = 5 por fila, ~77px en escritorio) y acá no hay grilla: es una lista
+				vertical dentro del panel "Tu pedido". Con `full_width` ocupa todo el panel.
+				(En /carrito SÍ hay grilla de tarjetas y no va.)
+			-->
 			<combo-card
 			class="m-b-10"
 			v-for="combo in combos"
 			:key="'combo-' + combo.id"
 			en_carrito
+			full_width
 			:combo="combo"></combo-card>
 		</div>
 
