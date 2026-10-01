@@ -1,6 +1,34 @@
 let webpack = require('webpack')
 
 /**
+ * Build de RELEASE (misión versiones-tienda, 1/10/2026): lo prende GitHub Actions
+ * (.github/workflows/release.yml) para compilar el bundle UNO por versión, el mismo para todos los
+ * clientes. En ese modo, lo que hasta acá se cocinaba por cliente en el HTML y en el manifest
+ * (nombre, descripción, URL, imagen y color del comercio) sale con tokens literales `__CC_*__` que
+ * admin-api reemplaza al desplegar la versión en cada tienda. El resto de los valores por cliente
+ * (URL de la API, id del comercio, Pusher...) los lee la tienda en runtime de config.js (ver
+ * src/runtime_config.js).
+ *
+ * Sin la variable (desarrollo, y la vía vieja que compila por cliente en el VPS de builds con un
+ * .env) este archivo se comporta EXACTAMENTE como antes.
+ *
+ * NO se llama VUE_APP_* a propósito: vue-cli mete en el bundle toda variable VUE_APP_*, y esta solo
+ * le sirve a este archivo al compilar.
+ *
+ * Contrato con admin-api (los tokens y dónde aparecen):
+ *   __CC_SITE_NAME__        title, og:site_name, og:title, twitter:title, noscript,
+ *                           apple-mobile-web-app-title y manifest.json (name, short_name)
+ *   __CC_SITE_DESCRIPTION__ description, og:description, twitter:description
+ *   __CC_SITE_URL__         og:url
+ *   __CC_SITE_IMAGE__       og:image, twitter:image
+ *   __CC_THEME_COLOR__      meta theme-color, color del mask-icon y manifest.json (theme_color)
+ * No cambiarles el texto sin cambiar también el admin: si queda alguno sin reemplazar, el admin
+ * frena el despliegue.
+ * @type {boolean}
+ */
+const releaseBuild = process.env.TIENDA_RELEASE_BUILD === '1'
+
+/**
  * Escapa un valor para que sea seguro dentro de un atributo HTML del template de index.html.
  * html-webpack-plugin usa templates de lodash, donde `<%= %>` interpola crudo (sin escapar),
  * asi que un nombre de comercio con comillas, `<`, `>` o `&` podria romper el HTML o cortar
@@ -112,21 +140,34 @@ module.exports = {
         // HTML. Los cuatro valores se escapan con escapeHtmlAttribute antes de inyectarse porque
         // html-webpack-plugin interpola sin escapar (ver comentario del helper mas arriba).
         config.plugin('html').tap(args => {
-            // Nombre del comercio: variable local (no propiedad "name:") para no matchear el sed
-            // que admin-api corre sobre este archivo para patchear el bloque "pwa" (ver seccion
-            // "Que NO tocar" del prompt 270-03).
-            const siteName = process.env.VUE_APP_SITE_NAME || 'Tienda'
+            if (releaseBuild) {
+                // Build de release: tokens literales que admin-api reemplaza por los valores de
+                // cada tienda al desplegar (ver releaseBuild arriba). El default de la descripción
+                // ("<nombre> - Tienda online...") también lo resuelve el admin en ese momento.
+                // escapeHtmlAttribute no les cambia nada (no tienen caracteres especiales); se
+                // pasa igual para que los dos caminos inyecten exactamente lo mismo.
+                args[0].title           = escapeHtmlAttribute('__CC_SITE_NAME__')
+                args[0].siteName        = escapeHtmlAttribute('__CC_SITE_NAME__')
+                args[0].siteDescription = escapeHtmlAttribute('__CC_SITE_DESCRIPTION__')
+                args[0].siteImage       = escapeHtmlAttribute('__CC_SITE_IMAGE__')
+                args[0].siteUrl         = escapeHtmlAttribute('__CC_SITE_URL__')
+            } else {
+                // Nombre del comercio: variable local (no propiedad "name:") para no matchear el sed
+                // que admin-api corre sobre este archivo para patchear el bloque "pwa" (ver seccion
+                // "Que NO tocar" del prompt 270-03).
+                const siteName = process.env.VUE_APP_SITE_NAME || 'Tienda'
 
-            // Descripcion por defecto si el comercio no cargo meta_description en el admin: hasta
-            // el 23/9/2026 salia content="" y Google armaba el snippet con el <noscript>.
-            const siteDescription = process.env.VUE_APP_SITE_DESCRIPTION
-                || (siteName + ' - Tienda online. Comprá online con envío o retiro en el local.')
+                // Descripcion por defecto si el comercio no cargo meta_description en el admin: hasta
+                // el 23/9/2026 salia content="" y Google armaba el snippet con el <noscript>.
+                const siteDescription = process.env.VUE_APP_SITE_DESCRIPTION
+                    || (siteName + ' - Tienda online. Comprá online con envío o retiro en el local.')
 
-            args[0].title           = escapeHtmlAttribute(siteName)
-            args[0].siteName        = escapeHtmlAttribute(siteName)
-            args[0].siteDescription = escapeHtmlAttribute(siteDescription)
-            args[0].siteImage       = escapeHtmlAttribute(process.env.VUE_APP_SITE_IMAGE || '')
-            args[0].siteUrl         = escapeHtmlAttribute(process.env.VUE_APP_SITE_URL || '')
+                args[0].title           = escapeHtmlAttribute(siteName)
+                args[0].siteName        = escapeHtmlAttribute(siteName)
+                args[0].siteDescription = escapeHtmlAttribute(siteDescription)
+                args[0].siteImage       = escapeHtmlAttribute(process.env.VUE_APP_SITE_IMAGE || '')
+                args[0].siteUrl         = escapeHtmlAttribute(process.env.VUE_APP_SITE_URL || '')
+            }
 
             // Los marcadores <!--seo:head--> / <!--/seo:head--> de public/index.html tienen que
             // llegar al dist: public/seo.php reemplaza lo que hay entre los dos. En produccion
@@ -138,6 +179,18 @@ module.exports = {
                 args[0].minify = Object.assign({}, args[0].minify, {
                     ignoreCustomComments: [/^!/, /^\/?seo:/],
                 })
+
+                // Build de release: los atributos conservan sus comillas. Vue CLI minifica con
+                // removeAttributeQuotes, y como un token (__CC_SITE_NAME__) no tiene espacios, el
+                // minificador lo dejaba como content=__CC_SITE_NAME__, sin comillas. Cuando el admin
+                // lo reemplaza por "Mi Tienda", el atributo se corta en el espacio (content=Mi y un
+                // atributo suelto Tienda) y la vista previa al compartir sale rota. Con comillas, el
+                // reemplazo (escapado con htmlspecialchars ENT_QUOTES) siempre cae adentro de "...".
+                // Fuera del release no se toca: ahí el valor real ya está al minificar y el
+                // minificador deja las comillas cuando hacen falta.
+                if (releaseBuild) {
+                    args[0].minify.removeAttributeQuotes = false
+                }
             }
 
             return args
@@ -154,13 +207,21 @@ module.exports = {
             // los reemplaza, no se suma). seo.php y .htaccess son archivos de servidor: si entran al
             // precache, el service worker baja /seo.php al instalarse y lo guarda como si fuera un
             // asset (misión seo-tiendas).
-            exclude: [/\.map$/, /img\/icons\//, /favicon\.ico$/, /^manifest.*\.js?$/, /seo\.php$/, /\.htaccess$/]
+            //
+            // config.js (window.__CC_CONFIG__) lo escribe admin-api por tienda en cada despliegue: no
+            // se precachea, para que el service worker nunca sirva la configuración de antes (otra
+            // API, otro comercio) ni el default vacío que viene en el bundle (misión versiones-tienda).
+            exclude: [/\.map$/, /img\/icons\//, /favicon\.ico$/, /^manifest.*\.js?$/, /seo\.php$/, /\.htaccess$/, /config\.js$/]
         },
 
-        // Estos valores son un fallback: en produccion admin-api los reescribe por cliente antes
-        // de compilar, en EcommerceInstallationService::patch_spa_vue_config() (grupo 208).
-        themeColor: "#c5111d",
-        name: "Tienda",
+        // Estos valores son un fallback: en la vía vieja admin-api los reescribe por cliente antes
+        // de compilar, en EcommerceInstallationService::patch_spa_vue_config() (grupo 208), con un
+        // sed que pisa la línea ENTERA que empieza con themeColor: / name: (y exige que haya una sola
+        // línea name: en todo el archivo). Por eso cada uno sigue siendo UNA línea, con la condición
+        // adentro. En el build de release (releaseBuild) salen los tokens que reemplaza el admin al
+        // desplegar: van al manifest.json y a los meta theme-color / apple-mobile-web-app-title.
+        themeColor: releaseBuild ? '__CC_THEME_COLOR__' : "#c5111d",
+        name: releaseBuild ? '__CC_SITE_NAME__' : "Tienda",
 
         // Version de los iconos, para cache-busting. admin-api escribe VUE_APP_ICONS_VERSION en el
         // .env del clone (un timestamp nuevo en cada install y en cada update) antes de compilar, y

@@ -17,6 +17,18 @@
 #
 # 🔴 Los deploys (admin-api EcommerceInstallationService y actualizar-tienda-shared.php) respetan
 # este archivo si viene en el build; si lo pisaran con el viejo, seo.php no se ejecuta nunca.
+
+# config.js (window.__CC_CONFIG__: URL de la API, id del comercio, Pusher...) lo escribe admin-api
+# al desplegar cada versión (misión versiones-tienda, 1/10/2026). Se sirve con no-cache para que el
+# navegador lo revalide en cada carga: uno viejo en caché dejaría la tienda apuntando a otra API.
+# Es un archivo real, así que las reglas de rewrite de abajo no lo mandan a seo.php. Dentro de
+# IfModule: un hosting sin mod_headers lo ignora en vez de devolver 500.
+<IfModule mod_headers.c>
+  <Files "config.js">
+    Header set Cache-Control "no-cache"
+  </Files>
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /

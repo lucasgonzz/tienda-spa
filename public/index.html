@@ -2,6 +2,21 @@
 <html lang="es">
   <head>
     <meta charset="utf-8">
+    <!--
+      Configuración de la tienda en runtime (misión versiones-tienda, 1/10/2026): define la global
+      de configuración (ver public/config.js) con la URL de la API, el id del comercio, Pusher,
+      Google Maps, etc. En producción la escribe admin-api al desplegar la versión; el config.js del
+      repo es un default vacío y con él todo cae al .env del build (desarrollo y vía vieja).
+      Va SÍNCRONO (sin defer ni async) y ANTES que cualquier otro script: los stores leen la URL de
+      la API al importarse y el cargador de Google Maps del final del body lee la key de acá. Ver
+      src/runtime_config.js.
+
+      🔴 En este archivo no puede aparecer escrito el prefijo de dos guiones bajos + CC + guión bajo
+      (ni en comentarios ni en scripts): en el build de release admin-api busca ese prefijo en el
+      index.html después de reemplazar los tokens del sitio y, si queda alguno, FRENA el despliegue.
+      Por eso el cargador de Maps de abajo arma el nombre de la global concatenando.
+    -->
+    <script src="<%= BASE_URL %>config.js"></script>
     <!-- Tipografía ecommerce: Plus Jakarta Sans (legible en catálogo y checkout) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -163,14 +178,33 @@
       vuelve secreta (index.html se sirve tal cual, la key sigue viajando visible al
       navegador); sirve para poder rotarla sin tocar codigo y para que no quede en el repo.
       La proteccion real es restringirla en Google Cloud Console (por API habilitada y por
-      dominio/referrer HTTP). Vue CLI interpola VUE_APP_* directamente en este template.
-      El guard typeof evita ReferenceError si la variable no esta en el .env del build: sin
-      el guard, html-webpack-plugin tira excepcion y el build falla; con el guard, el mapa
-      queda sin funcionar pero la tienda sigue andando.
+      dominio/referrer HTTP).
+
+      De dónde sale la key (misión versiones-tienda, 1/10/2026): primero de config.js
+      (VUE_APP_GOOGLE_MAPS_API_KEY de la global de configuración, lo escribe admin-api al desplegar la
+      versión: el bundle de release se compila sin .env y no la trae); si config.js no la tiene
+      (default vacío: desarrollo y vía vieja), de la key del build, que Vue CLI interpola en este
+      template igual que antes. El guard typeof evita ReferenceError si la variable no esta en el
+      .env del build: sin el guard, html-webpack-plugin tira excepcion y el build falla; con el
+      guard, el mapa queda sin funcionar pero la tienda sigue andando.
+
+      El script de Maps se inserta desde JS porque la URL se arma en el navegador, y con async =
+      true: mismo comportamiento que el <script async> fijo que habia antes. Es ES5 a proposito
+      (no pasa por babel).
     -->
-    <script
-      src="https://maps.googleapis.com/maps/api/js?key=<%= typeof VUE_APP_GOOGLE_MAPS_API_KEY !== 'undefined' ? VUE_APP_GOOGLE_MAPS_API_KEY : '' %>&language=es"
-      async
-    ></script>
+    <script>
+      (function () {
+        // Nombre de la global de config.js armado en dos partes: ver el comentario del <head>.
+        var config = window['__CC' + '_CONFIG__'] || {};
+        var key = config.VUE_APP_GOOGLE_MAPS_API_KEY;
+        if (key === undefined || key === null) {
+          key = <%= JSON.stringify(typeof VUE_APP_GOOGLE_MAPS_API_KEY !== 'undefined' ? VUE_APP_GOOGLE_MAPS_API_KEY : '') %>;
+        }
+        var script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&language=es';
+        script.async = true;
+        document.body.appendChild(script);
+      })();
+    </script>
   </body>
 </html>

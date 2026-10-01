@@ -30,8 +30,15 @@
  * 🔴 Tiene que correr en PHP 7.4: no se sabe que PHP tiene el docroot de cada tienda. Nada de
  * match, ?->, str_contains, argumentos nombrados, union types ni nada posterior a 7.4.
  *
- * Los dos valores de abajo los reemplaza vue.config.js al compilar (VUE_APP_API_URL y
- * VUE_APP_COMMERCE_ID del .env del build). Si quedaron sin reemplazar, se sirve index.html.
+ * De donde salen la URL de la API y el id del comercio (mision versiones-tienda, 1/10/2026):
+ *   1. del config.js que esta en esta misma carpeta (window.__CC_CONFIG__, claves VUE_APP_API_URL y
+ *      VUE_APP_COMMERCE_ID). Lo escribe admin-api al desplegar una version de release: ese bundle
+ *      se compila UNA vez para todos los clientes, sin .env, y no trae los valores de nadie.
+ *   2. si config.js no esta, no se puede leer, es el default vacio del repo o no trae la clave: de
+ *      los dos valores de abajo, que reemplaza vue.config.js al compilar (VUE_APP_API_URL y
+ *      VUE_APP_COMMERCE_ID del .env del build). Es la via vieja (compilar por cliente), igual que
+ *      antes de esta mision.
+ * Si ninguna de las dos fuentes trae valor, se sirve index.html.
  *
  * Probarlo en local, parado en dist/:  php -S 127.0.0.1:8190 seo.php
  * (con el servidor embebido este archivo hace tambien de .htaccess, ver seo_servidor_embebido()).
@@ -93,10 +100,87 @@ function seo_es_head()
 }
 
 /**
- * La URL de la API del build, sin barra final. null si el placeholder no se reemplazo o quedo vacio.
+ * Lee el config.js de esta misma carpeta (lo escribe admin-api al desplegar una version de release)
+ * y devuelve sus valores. Se lee una sola vez por request.
+ *
+ * Formato que escribe el admin (SpaRuntimeConfig::render): UNA linea con la asignacion a la global
+ * y el objeto en JSON, todos los valores strings, `;` y salto de linea:
+ *     window.__CC_CONFIG__ = {"VUE_APP_API_URL":"https://api.x.com.ar","VUE_APP_COMMERCE_ID":"12"};
+ * El default del repo (`window.__CC_CONFIG__ = window.__CC_CONFIG__ || {};`, con un comentario
+ * arriba) no matchea la regex —despues del `=` no viene un `{`— y queda como "sin valores". Lo
+ * mismo si el archivo no existe o el JSON no se puede decodificar: nunca es un error, siempre se
+ * cae a los valores del build.
+ *
+ * La regex va anclada a principio de linea (modo m) a proposito: las lineas de un comentario /* *\/
+ * empiezan con " *" y no pueden matchear aunque traigan un ejemplo de la asignacion.
+ *
+ * @return array Clave VUE_APP_* => valor (string, con trim). Array vacio si no hay nada que leer.
+ */
+function seo_config_runtime()
+{
+    static $config = null;
+    if ($config !== null) {
+        return $config;
+    }
+    $config = array();
+
+    $archivo = __DIR__ . DIRECTORY_SEPARATOR . 'config.js';
+    if (!is_file($archivo)) {
+        return $config;
+    }
+    // Tope de 64 KB: el config real ocupa menos de 1 KB; algo mas grande no es un config.js.
+    $contenido = @file_get_contents($archivo, false, null, 0, 65536);
+    if (!is_string($contenido) || $contenido === '') {
+        return $config;
+    }
+    // Un BOM de UTF-8 al principio (un editor de Windows) no tiene que romper el ancla de la regex.
+    if (substr($contenido, 0, 3) === "\xEF\xBB\xBF") {
+        $contenido = substr($contenido, 3);
+    }
+    if (!preg_match('/^\s*window\.__CC_CONFIG__\s*=\s*(\{.*\})\s*;?\s*$/m', $contenido, $m)) {
+        return $config;
+    }
+    $datos = json_decode($m[1], true);
+    if (!is_array($datos)) {
+        return $config;
+    }
+    foreach ($datos as $clave => $valor) {
+        // Solo escalares: el contrato dice strings, pero un numero tambien se entiende.
+        if (is_string($clave) && (is_string($valor) || is_int($valor) || is_float($valor))) {
+            $config[$clave] = trim((string) $valor);
+        }
+    }
+    return $config;
+}
+
+/**
+ * Un valor de config.js, o null si no esta o vino vacio (en ese caso se usa el del build).
+ *
+ * @param string $clave Nombre de la variable, p. ej. 'VUE_APP_API_URL'.
+ * @return string|null
+ */
+function seo_config_valor($clave)
+{
+    $config = seo_config_runtime();
+    if (!isset($config[$clave]) || $config[$clave] === '') {
+        return null;
+    }
+    return $config[$clave];
+}
+
+/**
+ * La URL de la API sin barra final: la de config.js y, si no hay, la del build. null si no hay
+ * ninguna (placeholder del build sin reemplazar o vacio).
  */
 function seo_api_url()
 {
+    // La de config.js tiene que ser http(s): seo_http_get puede caer a file_get_contents, y ahi
+    // un esquema cualquiera (file://, php://) leeria otra cosa que la API.
+    $url_config = seo_config_valor('VUE_APP_API_URL');
+    if ($url_config !== null && preg_match('#^https?://#i', $url_config)) {
+        return rtrim($url_config, '/');
+    }
+
     $url = trim(SEO_API_URL);
     // El placeholder se arma concatenado: si estuviera escrito entero, el reemplazo del build lo
     // pisaria tambien aca y la comparacion no serviria para nada.
@@ -106,8 +190,16 @@ function seo_api_url()
     return rtrim($url, '/');
 }
 
+/**
+ * El id del comercio: el de config.js y, si no hay, el del build. null si no hay ninguno.
+ */
 function seo_commerce_id()
 {
+    $id_config = seo_config_valor('VUE_APP_COMMERCE_ID');
+    if ($id_config !== null) {
+        return $id_config;
+    }
+
     $id = trim(SEO_COMMERCE_ID);
     if ($id === '' || $id === '__VUE_APP_' . 'COMMERCE_ID__') {
         return null;
@@ -379,7 +471,40 @@ function seo_armar_html($index, $datos)
     if (!is_string($html) || $cantidad !== 1) {
         return null;
     }
-    return $html;
+    return seo_aplicar_nombre_del_sitio($html);
+}
+
+/**
+ * Si config.js trae VUE_APP_SITE_NAME, lo pone en el content de og:site_name, que esta FUERA de la
+ * region seo:head y por eso no lo pisa seo_armar_head(). Hoy es una red de seguridad: en el bundle
+ * de release el admin ya reemplazo __CC_SITE_NAME__ en index.html con el mismo nombre que escribe
+ * en config.js, y en la via vieja config.js es el default vacio y aca no se toca nada.
+ *
+ * Solo corre cuando ya se esta armando la pagina (seo_armar_html). seo_fallback() sigue sirviendo
+ * index.html tal cual. Si la etiqueta no aparece (otro formato), el HTML queda como estaba.
+ *
+ * Minificado, Vue CLI saca las comillas de los atributos que no las necesitan:
+ * <meta property=og:site_name content=Tienda> o content="Mi Tienda" si hay espacios. La regex
+ * acepta las dos formas y el valor nuevo va siempre entre comillas dobles y escapado.
+ *
+ * @param string $html index.html ya armado.
+ * @return string El mismo HTML, con el nombre del sitio de config.js si correspondia.
+ */
+function seo_aplicar_nombre_del_sitio($html)
+{
+    $nombre = seo_config_valor('VUE_APP_SITE_NAME');
+    if ($nombre === null) {
+        return $html;
+    }
+    $nuevo = preg_replace_callback(
+        '/(<meta\s+property\s*=\s*(["\']?)og:site_name\2\s+content\s*=\s*)("[^"]*"|\'[^\']*\'|[^\s>]+)/i',
+        function ($m) use ($nombre) {
+            return $m[1] . '"' . seo_e($nombre) . '"';
+        },
+        $html,
+        1
+    );
+    return is_string($nuevo) ? $nuevo : $html;
 }
 
 function seo_responder_robots($host)
