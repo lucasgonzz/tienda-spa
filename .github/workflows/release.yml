@@ -1,0 +1,133 @@
+name: Release
+
+# Release de tienda-spa (misión versiones-tienda, 1/10/2026).
+#
+# Se dispara con un commit en master cuyo mensaje trae [release:X.Y.Z] (en la práctica un commit
+# vacío "release: version X.Y.Z [release:X.Y.Z]", que se pushea a la vez en tienda-spa y en
+# tienda-api). A diferencia de empresa NO hay merge: tienda no tiene develop, master ya es la rama
+# de la que sale la versión. El tag vX.Y.Z se crea sobre el commit que disparó el job.
+#
+# Lo que deja: el tag vX.Y.Z y un GitHub Release con UN asset, tienda-spa-vX.Y.Z-dist.zip, que es
+# el contenido de dist/ (index.html, .htaccess, seo.php, config.js, manifest.json, version.json,
+# js/, css/, img/...). admin-api lo baja POR NOMBRE EXACTO al instalar o actualizar una tienda,
+# reemplaza los tokens __CC_*__ del index.html y del manifest.json con los datos del comercio,
+# escribe config.js, íconos y og:image, y lo sube al docroot. Si se cambia el nombre del asset o
+# de los tokens hay que cambiar también el admin (contrato del plan de la misión, sección 1).
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[release:')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extraer version del commit
+        id: version
+        # Misma extracción que el release de empresa. El mensaje entra por variable de entorno y no
+        # interpolado adentro del script: así una comilla o un $( ) del mensaje no se ejecuta. La
+        # versión se valida con la misma regla que admin-api (VersionNumberComparator: tres o más
+        # números separados por punto): un tag "v" vacío o con basura sería una versión que el
+        # admin después no puede dar de alta.
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          VERSION=$(printf '%s\n' "$MSG" | grep -oP '(?<=\[release:)[^\]]+' | head -1)
+          if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+(\.[0-9]+){2,}$'; then
+            echo "Version invalida en el mensaje del commit: '$VERSION' (se espera [release:X.Y.Z])"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # El build de la tienda sale de acá, UNA vez por versión, y viaja como asset del release: el
+      # admin lo baja en cada instalación/actualización en vez de compilar por cliente en el VPS de
+      # builds de producción. Va sin .env a propósito (el .env no está en el repo): los valores de
+      # cada tienda (URL de la API, id del comercio, Pusher, Maps...) los lee la SPA en runtime de
+      # config.js (src/runtime_config.js), y los del HTML y el manifest salen como tokens __CC_*__.
+      #
+      # 🔴 EL TAG Y EL RELEASE VAN DESPUÉS DEL BUILD, y el orden importa. Una versión publicada sin
+      # su zip es una versión que no se puede desplegar: el admin la ve, la ofrece, y la instalación
+      # falla al buscar el asset. Por eso, si cualquiera de los pasos de abajo falla, el job corta
+      # ANTES de crear nada: no queda ni tag ni release. Se arregla en master y se vuelve a pushear
+      # el [release:X.Y.Z], o se relanza el job si el fallo fue transitorio.
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Compilar la tienda (modo release)
+        # El `set NODE_OPTIONS=...` del script build de package.json es sintaxis de Windows: en Linux
+        # no exporta nada. Por eso la variable va acá (webpack 4 la necesita en Node 17 o más nuevo).
+        # TIENDA_RELEASE_BUILD=1 hace que vue.config.js ponga los tokens __CC_*__ en el index.html
+        # y en el manifest.json en vez de los datos de un comercio (no es VUE_APP_*: no entra al
+        # bundle). VUE_APP_ICONS_VERSION es el ?v= de los íconos: con la versión, cada release
+        # invalida la caché de íconos de los navegadores.
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+          TIENDA_RELEASE_BUILD: '1'
+          VUE_APP_ICONS_VERSION: ${{ steps.version.outputs.VERSION }}
+        run: npm run build
+
+      - name: Escribir version.json
+        # Sirve para saber qué versión sirve una tienda con un curl a https://<tienda>/version.json.
+        run: printf '{"version":"%s"}\n' "${{ steps.version.outputs.VERSION }}" > dist/version.json
+
+      - name: Verificar el build de release
+        # Si el build no salió en modo release (tokens ausentes), el admin publicaría en todas las
+        # tiendas el nombre y el color de un build de desarrollo ("Tienda", #c5111d): mejor cortar.
+        # config.js no puede estar en el precache del service worker: si estuviera, el service
+        # worker serviría el default vacío que viene en el bundle en vez del que escribe el admin.
+        run: |
+          grep -q '__CC_SITE_NAME__' dist/index.html     || { echo 'index.html sin __CC_SITE_NAME__: el build no salio en modo release'; exit 1; }
+          grep -q '__CC_THEME_COLOR__' dist/manifest.json || { echo 'manifest.json sin __CC_THEME_COLOR__: el build no salio en modo release'; exit 1; }
+          if grep -q 'config\.js' dist/precache-manifest.*.js; then
+            echo 'config.js quedo en el precache del service worker'
+            exit 1
+          fi
+
+      - name: Empaquetar dist
+        # index.html queda en la raíz del zip: el admin lo descomprime directo en el docroot de la
+        # tienda. El `.` incluye los dotfiles, o sea el .htaccess, sin el cual ni la capa SEO ni
+        # ninguna ruta profunda de la SPA resuelve. El unzip -l de abajo lo deja asentado en el log.
+        run: |
+          ZIP="tienda-spa-v${{ steps.version.outputs.VERSION }}-dist.zip"
+          cd dist
+          zip -qr "../$ZIP" .
+          cd ..
+          unzip -tq "$ZIP"
+          # awk '{print $NF}' deja solo la ruta de cada entrada; grep -x exige la ruta entera, así
+          # que js/index.html no cuenta como index.html en la raíz.
+          for ARCHIVO in index.html .htaccess seo.php config.js manifest.json version.json; do
+            unzip -l "$ZIP" | awk '{print $NF}' | grep -qxF "$ARCHIVO" || { echo "FALTA $ARCHIVO en la raiz del zip"; exit 1; }
+          done
+          unzip -p "$ZIP" index.html    | grep -q '__CC_SITE_NAME__'   || { echo 'index.html del zip sin __CC_SITE_NAME__'; exit 1; }
+          unzip -p "$ZIP" manifest.json | grep -q '__CC_THEME_COLOR__' || { echo 'manifest.json del zip sin __CC_THEME_COLOR__'; exit 1; }
+          unzip -l "$ZIP" | tail -1
+          ls -la "$ZIP"
+
+      - name: Crear tag y release
+        # target_commitish es el commit que disparó el job (no "master": si mientras compilaba
+        # entró otro commit, el tag igual queda sobre el que se compiló).
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: v${{ steps.version.outputs.VERSION }}
+          generate_release_notes: true
+          target_commitish: ${{ github.sha }}
+          fail_on_unmatched_files: true
+          files: tienda-spa-v${{ steps.version.outputs.VERSION }}-dist.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
