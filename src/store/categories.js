@@ -1,8 +1,9 @@
 import axios from 'axios'
 axios.defaults.withCredentials = true
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 import last_searchs from '@/store/last_searchs'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
+import { env } from '@/runtime_config'
 export default {
 	namespaced: true,
 	state: {
@@ -215,7 +216,7 @@ export default {
 	actions: {
 		getCategories({ commit }) {
 			commit('setLoadingCategories', true)
-			return axios.get(`/api/categories/${ process.env.VUE_APP_COMMERCE_ID }`)
+			return axios.get(`/api/categories/${ env('VUE_APP_COMMERCE_ID') }`)
 			.then(res => {
 				commit('setLoadingCategories', false)
 				commit('setCategories', res.data.categories)
@@ -228,7 +229,7 @@ export default {
 		},
 		getBrands({ commit }) {
 			commit('setLoadingBrands', true)
-			return axios.get('/api/brands/' + process.env.VUE_APP_COMMERCE_ID)
+			return axios.get('/api/brands/' + env('VUE_APP_COMMERCE_ID'))
 				.then(res => {
 					commit('setLoadingBrands', false)
 					commit('setBrands', res.data.brands)
@@ -262,7 +263,7 @@ export default {
 			if (state.selected_brand) {
 				return axios.get(
 					'api/articles/from-brand/'
-					+ state.selected_brand.id + '/' + state.order_by + '/' + process.env.VUE_APP_COMMERCE_ID
+					+ state.selected_brand.id + '/' + state.order_by + '/' + env('VUE_APP_COMMERCE_ID')
 					+ '?page=1'
 				)
 					.then(res => {
@@ -302,7 +303,7 @@ export default {
 				cepa_id = state.selected_cepa.id
 			}
 
-			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+bodega_id+'/'+cepa_id+'/'+state.order_by+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
+			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+bodega_id+'/'+cepa_id+'/'+state.order_by+'/'+env('VUE_APP_COMMERCE_ID')+'?page=1')
 			.then(res => {
 				/* Llegó tarde: otro pedido del listado ya salió después. */
 				if (pedido !== state.pedido_del_listado) {
@@ -354,7 +355,7 @@ export default {
 			commit('nuevo_pedido_de_la_home')
 			const pedido = state.pedido_del_listado
 			const pedido_home = state.pedido_de_la_home
-			return axios.get(`api/articles/featured-last-uploads/${ process.env.VUE_APP_COMMERCE_ID }?page=1`)
+			return axios.get(`api/articles/featured-last-uploads/${ env('VUE_APP_COMMERCE_ID') }?page=1`)
 			.then(res => {
 				console.log(res)
 				/* Un getIndex más nuevo (el de después del login) ya salió: esta respuesta no
@@ -402,7 +403,7 @@ export default {
 			const termino_buscado = state.search_query
 			commit('nuevo_pedido_del_listado')
 			const pedido = state.pedido_del_listado
-			return axios.get(`/api/articles/search/${termino_buscado}/${process.env.VUE_APP_COMMERCE_ID}`)
+			return axios.get(`/api/articles/search/${termino_buscado}/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
 				/* Si llegó tarde (otro pedido del listado ya salió después) no toca ni el loading
 				   ni el listado. La búsqueda igual existió: el servidor ya la registró como última

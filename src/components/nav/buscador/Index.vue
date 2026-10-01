@@ -52,6 +52,7 @@
 <script>
 import search from '@/mixins/search'
 import articles from '@/mixins/articles'
+import { env } from '@/runtime_config'
 export default {
 	// Se suma el mixin "articles" para poder llamar toArticle() desde el teclado (Enter),
 	// exactamente el mismo camino que usa el click en Result.vue.
@@ -126,7 +127,7 @@ export default {
 		},
 		search() {
 			console.log('buscando')
-			this.$api.get('articles/search/'+this.query+'/'+process.env.VUE_APP_COMMERCE_ID)
+			this.$api.get('articles/search/'+this.query+'/'+env('VUE_APP_COMMERCE_ID'))
 			.then(res => {
 				this.loading = false
 				this.results = res.data.articles.data

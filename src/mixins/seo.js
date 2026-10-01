@@ -1,3 +1,4 @@
+import { env } from '@/runtime_config'
 /*
 |--------------------------------------------------------------------------
 | SEO (mision seo-tiendas, 23/9/2026)
@@ -140,7 +141,7 @@ export default {
 			}
 			return this.$router.resolve({
 				name: 'Article',
-				params: { slug: article.slug, commerce_id: process.env.VUE_APP_COMMERCE_ID },
+				params: { slug: article.slug, commerce_id: env('VUE_APP_COMMERCE_ID') },
 			}).href
 		},
 		/**

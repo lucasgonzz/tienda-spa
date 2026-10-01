@@ -3,6 +3,7 @@ import moment from 'moment'
 // Reutilizamos el normalizador y el default de color del helper de tema,
 // para tener una sola fuente de verdad del color de acento (online_configuration.primary_color)
 import { normalize_hex_color, default_theme_colors } from '@/helpers/online_configuration_theme'
+import { env } from '@/runtime_config'
 export default {
 	mixins: [VueScreenSize.VueScreenSizeMixin],
 	filters: {
@@ -26,7 +27,7 @@ export default {
 	},
 	computed: {
 		is_local() {
-			return process.env.VUE_APP_API_URL == 'http://tienda.local:8000'
+			return env('VUE_APP_API_URL') == 'http://tienda.local:8000'
 		},
 		from_cloudinary() {
 			return this.commerce.from_cloudinary

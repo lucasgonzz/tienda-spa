@@ -1,9 +1,10 @@
 import Vue from 'vue'
 import axios from 'axios'
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
 import preguntar from '@/store/articles/preguntar'
 import categories from '@/store/categories'
+import { env } from '@/runtime_config'
 
 /**
  * Si `article` es un Article de verdad y no una PromocionVinoteca.
@@ -161,7 +162,7 @@ export default {
 	},
 	actions: {
 		getArticlesNames({ commit }) {
-			return axios.get(`/api/articles/names/${process.env.VUE_APP_COMMERCE_ID}`)
+			return axios.get(`/api/articles/names/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
 				commit('setArticlesNames', res.data.articles_names) 
 				commit('addTags', res.data.tags) 
@@ -220,7 +221,7 @@ export default {
 				return Promise.resolve()
 			}
 			commit('setLoadingSimilars', true)
-			return axios.get(`/api/articles/similars/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}?page=1&per_page=9`)
+			return axios.get(`/api/articles/similars/${state.article_to_show.id}/${env('VUE_APP_COMMERCE_ID')}?page=1&per_page=9`)
 			.then(res => {
 				console.log(res)
 				commit('setLoadingSimilars', false)
@@ -249,7 +250,7 @@ export default {
 			if (!es_articulo_real(state.article_to_show)) {
 				return Promise.resolve()
 			}
-			return axios.get(`/api/articles/tambien-compraron/vistas/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}`)
+			return axios.get(`/api/articles/tambien-compraron/vistas/${state.article_to_show.id}/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
 				commit('set_tambien_compraron_vistas', res.data.models)
 			})
@@ -268,7 +269,7 @@ export default {
 			if (!es_articulo_real(state.article_to_show)) {
 				return Promise.resolve()
 			}
-			return axios.get(`/api/articles/tambien-compraron/compras/${state.article_to_show.id}/${process.env.VUE_APP_COMMERCE_ID}`)
+			return axios.get(`/api/articles/tambien-compraron/compras/${state.article_to_show.id}/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
 				commit('set_tambien_compraron_compras', res.data.models)
 			})

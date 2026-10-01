@@ -3,6 +3,7 @@ import Vue from 'vue'
 import VueAxios from 'vue-axios'
 import VueSocialauth from 'vue-social-auth'
 import axios from 'axios'
+import { env } from '@/runtime_config'
 
 Vue.use(VueAxios, axios)
 /*
@@ -105,7 +106,7 @@ import '@trevoreyre/autocomplete-vue/dist/style.css'
 Vue.use({
 	install (Vue) {
 		Vue.prototype.$axios = axios.create({
-			baseURL : process.env.VUE_APP_API_URL,
+			baseURL : env('VUE_APP_API_URL'),
 			withCredentials : true
 		})
 	}
@@ -113,7 +114,7 @@ Vue.use({
 Vue.use({
 	install (Vue) {
 		Vue.prototype.$api = axios.create({
-			baseURL : process.env.VUE_APP_API_URL+'/api',
+			baseURL : env('VUE_APP_API_URL')+'/api',
 			withCredentials : true
 		})
 	}

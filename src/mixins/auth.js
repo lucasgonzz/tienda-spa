@@ -1,3 +1,4 @@
+import { env } from '@/runtime_config'
 export default {
 	computed: {
 		cart() {
@@ -19,7 +20,7 @@ export default {
 				.then(() => {
 					this.$store.dispatch('auth/login', {
 						...user,
-						commerce_id: process.env.VUE_APP_COMMERCE_ID,
+						commerce_id: env('VUE_APP_COMMERCE_ID'),
 					})
 					.then(() => {
 						if (this.authenticated) {

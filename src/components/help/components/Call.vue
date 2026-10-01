@@ -46,6 +46,7 @@
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
 import Back from '@/components/help/components/Back'
+import { env } from '@/runtime_config'
 export default {
 	components: {
 		BtnLoader,
@@ -69,7 +70,7 @@ export default {
 			if (this.checkAuth()) {
 				this.loading = true
 				this.$api.post('calls', {
-					commerce_id: process.env.VUE_APP_COMMERCE_ID
+					commerce_id: env('VUE_APP_COMMERCE_ID')
 				})
 				.then(() => {
 					this.loading = false

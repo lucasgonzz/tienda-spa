@@ -29,6 +29,7 @@
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
 import Back from '@/components/help/components/Back'
+import { env } from '@/runtime_config'
 export default {
 	components: {
 		BtnLoader,
@@ -59,7 +60,7 @@ export default {
 		 			this.loading = true
 					this.$api.post('help/message', {
 						message: this.message,
-						commerce_id: process.env.VUE_APP_COMMERCE_ID
+						commerce_id: env('VUE_APP_COMMERCE_ID')
 					})
 					.then(() => {
 						this.loading = false

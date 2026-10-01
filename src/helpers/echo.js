@@ -1,3 +1,4 @@
+import { env } from '@/runtime_config'
 /**
  * Conexión en vivo con Pusher (laravel-echo + pusher-js), PEREZOSA.
  *
@@ -52,7 +53,7 @@ export function conectar_echo() {
 		return conexion
 	}
 
-	let key = process.env.VUE_APP_PUSHER_KEY
+	let key = env('VUE_APP_PUSHER_KEY')
 	if (!key) {
 		if (!aviso_sin_key) {
 			aviso_sin_key = true
@@ -82,7 +83,7 @@ export function conectar_echo() {
 		echo = new Echo({
 			broadcaster: 'pusher',
 			key: key,
-			cluster: process.env.VUE_APP_PUSHER_CLUSTER || 'sa1',
+			cluster: env('VUE_APP_PUSHER_CLUSTER') || 'sa1',
 			forceTLS: false,
 		})
 		return echo

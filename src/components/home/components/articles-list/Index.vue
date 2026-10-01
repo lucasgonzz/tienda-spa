@@ -117,6 +117,7 @@ import ArticleCardSkeleton from '@/components/common/ArticleCardSkeleton'
 import VueHorizontalList from "vue-horizontal-list"
 import articles_mixin from "@/mixins/articles"
 import VueScreenSize from 'vue-screen-size'
+import { env } from '@/runtime_config'
 export default {
 	name: 'ArticleList',
 	mixins: [articles_mixin, VueScreenSize.VueScreenSizeMixin],
@@ -338,7 +339,7 @@ export default {
 				} else {
 					url += 'featured-last-uploads'
 				}
-				url += `/${process.env.VUE_APP_COMMERCE_ID}?page=${this.page}`
+				url += `/${env('VUE_APP_COMMERCE_ID')}?page=${this.page}`
 				console.log(url)
 				/* El listado al que pertenece esta página (ver `pedido_del_listado` en
 				   store/categories.js). Si mientras vuelve sale un listado nuevo —la recarga de

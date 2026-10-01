@@ -178,6 +178,7 @@
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
 import auth from '@/mixins/auth'
+import { env } from '@/runtime_config'
 export default {
 	mixins: [auth],
 	components: {
@@ -185,7 +186,7 @@ export default {
 	},
 	computed: {
 		link() {
-			return process.env.VUE_APP_APP_URL+'/terminos-y-condiciones'
+			return env('VUE_APP_APP_URL')+'/terminos-y-condiciones'
 		},
 		check() {
 			return !this.register_user.terminos_y_condiciones
@@ -236,7 +237,7 @@ export default {
 				this.loading = true
 				this.$axios.post('password-reset/send-verification-code', {
 					email       : this.register_user.email,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID
+					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(res => {
 					this.loading = false
@@ -257,7 +258,7 @@ export default {
 				this.loading_verification_code = true
 				this.$axios.post('/password-reset/check-verification-code', {
 					...this.register_user,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID
+					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(res => {
 					this.loading_verification_code = false
@@ -279,7 +280,7 @@ export default {
 				this.loading_update_password = true
 				this.$axios.post('password-reset/update-password', {
 					...this.register_user,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID
+					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(() => {
 	        		this.$store.commit('auth/setLoading', true)

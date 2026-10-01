@@ -33,6 +33,7 @@
 </template>
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
+import { env } from '@/runtime_config'
 export default {
 	name: 'Preguntar',
 	components: {
@@ -65,7 +66,7 @@ export default {
 					this.$api.post('/questions', {
 						text: 		 this.form.text,
 						article:     this.article,
-						commerce_id: process.env.VUE_APP_COMMERCE_ID
+						commerce_id: env('VUE_APP_COMMERCE_ID')
 					})
 					.then(res => {
 						this.loading = false

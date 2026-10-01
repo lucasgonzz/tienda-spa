@@ -1,5 +1,6 @@
 import axios from 'axios'
-axios.defaults.baseUrl = process.env.VUE_APP_API_URL	
+import { env } from '@/runtime_config'
+axios.defaults.baseUrl = env('VUE_APP_API_URL')	
 axios.defaults.withCredentials = true
 export default {
 	namespaced: true,
@@ -50,7 +51,7 @@ export default {
 			})
 		},
 		getCurrentOrder({ commit }) {
-			return axios.get(`/api/orders/current/${process.env.VUE_APP_COMMERCE_ID}`)
+			return axios.get(`/api/orders/current/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
 				commit('setOrder', res.data.order)
 			})

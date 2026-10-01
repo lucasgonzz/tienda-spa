@@ -11,6 +11,7 @@
 </template>
 <script>
 import auth from '@/mixins/auth'
+import { env } from '@/runtime_config'
 export default {
 	mixins: [auth],
 	methods: {
@@ -26,7 +27,7 @@ export default {
 			console.log('response de google:')
 			console.log(response)
         	this.$store.commit('auth/setLoading', true)
-			this.$axios.post(`/sociallogin/${provider}/${process.env.VUE_APP_COMMERCE_ID}`, response)
+			this.$axios.post(`/sociallogin/${provider}/${env('VUE_APP_COMMERCE_ID')}`, response)
 			.then(res => {
 				console.log('response despues de registrar el usuario')
 				console.log(res)

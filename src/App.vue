@@ -45,6 +45,7 @@ import articles from '@/mixins/articles'
 import app from '@/mixins/app'
 import update_app from '@/mixins/update_app'
 import VueScreenSize from 'vue-screen-size'
+import { env } from '@/runtime_config'
 export default {
     components: {
         PausarTiendaOnline,
@@ -73,12 +74,12 @@ export default {
      */
     metaInfo() {
         let comercio = this.commerce && this.commerce.company_name ? this.commerce.company_name : ''
-        let nombre_sitio = process.env.VUE_APP_SITE_NAME || comercio
-        let descripcion = process.env.VUE_APP_SITE_DESCRIPTION
+        let nombre_sitio = env('VUE_APP_SITE_NAME') || comercio
+        let descripcion = env('VUE_APP_SITE_DESCRIPTION')
             || (nombre_sitio + ' - Tienda online. ' + this.seo_sufijo_compra())
         let noindex = !!(this.$route.meta && this.$route.meta.noindex)
         let url = this.seo_origen() + this.$route.path
-        let imagen = process.env.VUE_APP_SITE_IMAGE || (this.commerce && this.commerce.image_url) || null
+        let imagen = env('VUE_APP_SITE_IMAGE') || (this.commerce && this.commerce.image_url) || null
 
         let meta = [
             { vmid: 'description', name: 'description', content: descripcion },
@@ -207,7 +208,7 @@ export default {
     created() {
         if (location.href.indexOf("www.") > -1) {
             console.log('tiene www')
-            location.replace(process.env.VUE_APP_APP_URL);
+            location.replace(env('VUE_APP_APP_URL'));
         }
 
         this.checkHomeRoute()

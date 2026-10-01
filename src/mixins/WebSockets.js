@@ -1,5 +1,6 @@
 import messages from '@/mixins/messages'
 import { conectar_echo, desconectar_echo } from '@/helpers/echo'
+import { env } from '@/runtime_config'
 
 /*
  * Tiempo real del comprador (lo usa solo App.vue).
@@ -175,7 +176,7 @@ export default {
 		 * @returns {string|null}
 		 */
 		owner_del_comprador() {
-			let owner = (this.user && this.user.user_id) || process.env.VUE_APP_COMMERCE_ID
+			let owner = (this.user && this.user.user_id) || env('VUE_APP_COMMERCE_ID')
 			return owner ? String(owner) : null
 		},
 		/**

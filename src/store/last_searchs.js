@@ -1,5 +1,6 @@
 import axios from 'axios'
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+import { env } from '@/runtime_config'
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
 export default {
 	namespaced: true,
@@ -38,7 +39,7 @@ export default {
 		},
 		getLastSearchsForSearchPage({ commit }) {
 			commit('setLoadingForSearchPage', true)
-			return axios.get('/api/last-searchs/for-search-page/'+process.env.VUE_APP_COMMERCE_ID)
+			return axios.get('/api/last-searchs/for-search-page/'+env('VUE_APP_COMMERCE_ID'))
 			.then(res => {
 				console.log(res.data.articles)
 				commit('setLoadingForSearchPage', false)

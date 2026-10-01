@@ -1,6 +1,7 @@
 import axios from 'axios'
+import { env } from '@/runtime_config'
 axios.defaults.withCredentials = true
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 export default {
 	namespaced: true,
 	state: {
@@ -18,7 +19,7 @@ export default {
 	actions: {
 		getModels({ commit }) {
 			commit('setLoading', true)
-			return axios.get('/api/payment-methods/'+process.env.VUE_APP_COMMERCE_ID)
+			return axios.get('/api/payment-methods/'+env('VUE_APP_COMMERCE_ID'))
 			.then(res => {
 				commit('setLoading', false)
 				console.log(res.data.payment_methods)

@@ -1,5 +1,6 @@
 import axios from 'axios'
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+import { env } from '@/runtime_config'
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
 
 export default {

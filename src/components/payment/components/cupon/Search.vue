@@ -22,6 +22,7 @@ import BtnLoader from '@/components/common/BtnLoader'
 
 import cupons from '@/mixins/cupons'
 import cart from '@/mixins/cart'
+import { env } from '@/runtime_config'
 export default {
 	mixins: [cupons, cart],
 	components: {
@@ -41,7 +42,7 @@ export default {
 	methods: {
 		searchCupon() {
 			this.loading = true 
-			this.$api.get('cupons/search/'+process.env.VUE_APP_COMMERCE_ID+'/'+this.code)
+			this.$api.get('cupons/search/'+env('VUE_APP_COMMERCE_ID')+'/'+this.code)
 			.then(res => {
 				this.loading = false
 				this.code = ''

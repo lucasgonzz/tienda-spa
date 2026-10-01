@@ -55,6 +55,7 @@ import ArticleCard from '@/components/common/article-card/Index'
 import ArticleCardSkeleton from '@/components/common/ArticleCardSkeleton'
 
 import InfiniteLoading from 'vue-infinite-loading'
+import { env } from '@/runtime_config'
 export default {
 	components: {
 		ArticleCard,
@@ -78,7 +79,7 @@ export default {
 	methods: {
 		infiniteHandler($state) {
 			this.page++
-			this.$api.get('articles/similars/'+this.article_to_show.id+'/'+process.env.VUE_APP_COMMERCE_ID+'?page='+this.page)
+			this.$api.get('articles/similars/'+this.article_to_show.id+'/'+env('VUE_APP_COMMERCE_ID')+'?page='+this.page)
 			.then(res => {
 				console.log(res)
 				let models = res.data.models.data

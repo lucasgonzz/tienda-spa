@@ -1,7 +1,8 @@
  import Vue from 'vue'
 import axios from 'axios'
 import { normalizar_provincia } from '@/constants/provincias'
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+import { env } from '@/runtime_config'
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
 
 /**
@@ -866,7 +867,7 @@ export default {
 				commit('setSaving', true)
 				return axios.post('/api/carts', {
 					cart	    : state.cart,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID 
+					commerce_id : env('VUE_APP_COMMERCE_ID') 
 				})
 				.then(res => {
 					commit('setSaving', false)
@@ -895,7 +896,7 @@ export default {
 		},
 		getLastCart({ commit, state }) {
 			commit('setLoadingLastCart', true)
-			return axios.get(`/api/carts/last-cart/${process.env.VUE_APP_COMMERCE_ID}`)
+			return axios.get(`/api/carts/last-cart/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
 				console.log('getLastCart')
 				commit('setLoadingLastCart', false)
@@ -975,7 +976,7 @@ export default {
 			let articles = payload && payload.articles ? payload.articles : []
 			let articles_extra = payload && payload.articles_extra ? payload.articles_extra : []
 			let body = {
-				commerce_id: process.env.VUE_APP_COMMERCE_ID,
+				commerce_id: env('VUE_APP_COMMERCE_ID'),
 				zipcode: state.envio.zipcode,
 				articles: articles,
 			}

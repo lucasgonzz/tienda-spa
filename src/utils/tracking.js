@@ -19,6 +19,7 @@ import moment from 'moment'
  * de este modulo (fuera de una funcion) — ahi todavia vale undefined.
  */
 import store from '@/store'
+import { env } from '@/runtime_config'
 
 /**
  * Seguimiento del comportamiento de los compradores en la tienda.
@@ -342,7 +343,7 @@ function enviar_lote(eventos) {
 	 * de aca, cualquiera podria atribuirle su navegacion a otro comprador.
 	 */
 	let cuerpo = {
-		commerce_id: process.env.VUE_APP_COMMERCE_ID,
+		commerce_id: env('VUE_APP_COMMERCE_ID'),
 		events: eventos,
 	}
 	try {
@@ -380,7 +381,7 @@ function enviar_lote(eventos) {
 		 */
 		if (typeof navigator != 'undefined' && typeof navigator.sendBeacon == 'function') {
 			let blob = new Blob([JSON.stringify(cuerpo)], { type: 'text/plain;charset=UTF-8' })
-			if (navigator.sendBeacon(process.env.VUE_APP_API_URL + '/api' + RUTA_INGESTA, blob)) {
+			if (navigator.sendBeacon(env('VUE_APP_API_URL') + '/api' + RUTA_INGESTA, blob)) {
 				return
 			}
 		}

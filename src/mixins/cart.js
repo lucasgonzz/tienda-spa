@@ -1,5 +1,6 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito } from '@/store/cart'
+import { env } from '@/runtime_config'
 export default {
 	computed: {
 		/**
@@ -691,7 +692,7 @@ export default {
 			return this.$store.dispatch('cart/save')
 			.then(function() {
 				return self.$api.post('/orders', {
-					commerce_id 	: process.env.VUE_APP_COMMERCE_ID,
+					commerce_id 	: env('VUE_APP_COMMERCE_ID'),
 					cart_id         : self.cart.id,
 					dolar_blue      : self.dolar_blue,
 					buyer_id		: self.buyer_id,

@@ -50,6 +50,7 @@
 </template>
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
+import { env } from '@/runtime_config'
 export default {
 	components: {
 		BtnLoader,
@@ -95,7 +96,7 @@ export default {
 		async getCardToken() {
 			if (this.check()) {
 				try {
-					let mp = new MercadoPago(process.env.VUE_APP_MERCADO_PAGO_PUBLIC_KEY)
+					let mp = new MercadoPago(env('VUE_APP_MERCADO_PAGO_PUBLIC_KEY'))
 					const token = await mp.createCardToken({
 						cardId: this.card_id,
 						securityCode: this.security_code,

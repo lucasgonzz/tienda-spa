@@ -173,6 +173,7 @@
 </template>
 
 <script>
+import { env } from '@/runtime_config'
 /**
  * Pantalla post-compra: agradecimiento, resumen de ítems y enlace opcional al PDF del pedido.
  *
@@ -224,7 +225,7 @@ export default {
 		 * @returns {string}
 		 */
 		order_pdf_href() {
-			let tpl = process.env.VUE_APP_ORDER_PDF_URL
+			let tpl = env('VUE_APP_ORDER_PDF_URL')
 			if (!tpl || typeof tpl !== 'string' || tpl.trim() === '' || !this.order) {
 				return ''
 			}
@@ -233,9 +234,9 @@ export default {
 			let num_str =
 				this.order.num !== undefined && this.order.num !== null ? String(this.order.num) : ''
 			let commerce_id =
-				process.env.VUE_APP_COMMERCE_ID !== undefined &&
-				process.env.VUE_APP_COMMERCE_ID !== null
-					? String(process.env.VUE_APP_COMMERCE_ID)
+				env('VUE_APP_COMMERCE_ID') !== undefined &&
+				env('VUE_APP_COMMERCE_ID') !== null
+					? String(env('VUE_APP_COMMERCE_ID'))
 					: ''
 			let out = tpl
 			out = out.split('{id}').join(encodeURIComponent(id_str))

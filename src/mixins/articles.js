@@ -1,4 +1,5 @@
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
+import { env } from '@/runtime_config'
 export default {
 	computed: {
 		color() {
@@ -65,7 +66,7 @@ export default {
 		toArticle(article) {
 			this.$store.commit('articles/setArticleToShow', article)
 			this.set_amount_add_to_cart()
-			let params = {slug: article.slug, commerce_id: process.env.VUE_APP_COMMERCE_ID}
+			let params = {slug: article.slug, commerce_id: env('VUE_APP_COMMERCE_ID')}
 			console.log('params:')
 			console.log(params)
 			this.$router.push({name: 'Article', params})

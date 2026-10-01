@@ -14,6 +14,7 @@
 	</button>
 </template>
 <script>
+import { env } from '@/runtime_config'
 export default {
 	name: 'Compartir',
 	props: {
@@ -37,7 +38,7 @@ export default {
 				? this.article.slug
 				: this.$route.params.slug
 			/* Identificador del comercio en la URL de la tienda. */
-			let commerce_id = process.env.VUE_APP_COMMERCE_ID || this.$route.params.commerce_id
+			let commerce_id = env('VUE_APP_COMMERCE_ID') || this.$route.params.commerce_id
 			let route_location = this.$router.resolve({
 				name: 'Article',
 				params: {
@@ -46,7 +47,7 @@ export default {
 				},
 			})
 			/* Base pública de la tienda (env) o el origen actual del navegador. */
-			let base_url = process.env.VUE_APP_APP_URL || window.location.origin
+			let base_url = env('VUE_APP_APP_URL') || window.location.origin
 			base_url = base_url.replace(/\/$/, '')
 			return base_url + route_location.href
 		},

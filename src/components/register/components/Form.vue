@@ -227,6 +227,7 @@
 import BtnLoader from '@/components/common/BtnLoader'
 import auth from '@/mixins/auth'
 import nav from '@/mixins/nav'
+import { env } from '@/runtime_config'
 export default {
 	mixins: [auth, nav],
 	components: {
@@ -234,7 +235,7 @@ export default {
 	},
 	computed: {
 		link() {
-			return process.env.VUE_APP_APP_URL+'/terminos-y-condiciones'
+			return env('VUE_APP_APP_URL')+'/terminos-y-condiciones'
 		},
 	},
 	data() {
@@ -261,7 +262,7 @@ export default {
 				this.loading = true
 				this.$axios.post('/register', {
 					...this.register_user,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID
+					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(res => {
 					this.loading = false
