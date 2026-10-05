@@ -398,6 +398,19 @@ export default {
 
                     if (typeof this.$route.params.sub_category != 'undefined') {
                         // Hay una sub_categoria como parametro
+                        /*
+                         | 🔴 La categoría de la URL puede no estar en la lista: un link a
+                         | /inicio/<cat>/<sub> de una categoría que no existe, o que este
+                         | comprador no ve porque su lista de precios es restringida y no tiene
+                         | ningún artículo habilitado ahí (catalogo-por-lista-tienda, 5/10/2026).
+                         | Sin esta guarda, `category.sub_categories` tiraba TypeError adentro
+                         | del .then del arranque (callMethods) y cortaba lo que venía después.
+                         | Se hace lo mismo que ya hace la rama sin subcategoría con una
+                         | categoría inexistente: nada.
+                         */
+                        if (typeof category == 'undefined') {
+                            return null
+                        }
                         let sub_category = category.sub_categories.find(model => {
                             return this.routeString(model.name).toLowerCase() == this.$route.params.sub_category.toLowerCase()
                         })
