@@ -63,6 +63,21 @@ export default {
 		 * los reemplaza un getIndex más nuevo (el de después del login).
 		 */
 		pedido_de_la_home: 0,
+		/*
+		 * 🔴 Lo mismo para las CATEGORÍAS y las MARCAS (getCategories / getBrands), que hasta
+		 * el 5/10/2026 no tenían guarda. Desde la misión catalogo-por-lista-tienda el árbol de
+		 * categorías y la lista de marcas dependen de QUIÉN pregunta: un comprador cuya lista de
+		 * precios es restringida ve solo las categorías y marcas de los artículos habilitados
+		 * para su lista. Por eso se vuelven a pedir al loguearse y al cerrar sesión
+		 * (`recargar_catalogo()` en mixins/auth.js).
+		 *
+		 * Sin el contador, la respuesta ANÓNIMA lenta del arranque (App.vue pide categorías y
+		 * marcas apenas carga el comercio) puede volver DESPUÉS de la recarga del comprador ya
+		 * logueado y pisarla: el mayorista vería el árbol público, con categorías que al
+		 * abrirlas salen vacías. Es la misma carrera que la de Fenix con los artículos.
+		 */
+		pedido_de_categorias: 0,
+		pedido_de_marcas: 0,
 	},
 	mutations: {
 		setCategories(state, categories) {
@@ -212,31 +227,101 @@ export default {
 		nuevo_pedido_de_la_home(state) {
 			state.pedido_de_la_home++
 		},
+		/**
+		 * Un pedido nuevo de categorías: ver `pedido_de_categorias` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_de_categorias(state) {
+			state.pedido_de_categorias++
+		},
+		/**
+		 * Un pedido nuevo de marcas: ver `pedido_de_marcas` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_de_marcas(state) {
+			state.pedido_de_marcas++
+		},
+		/**
+		 * Vacía el árbol de categorías, las marcas y la selección activa cuando cambia la
+		 * identidad del comprador (login o logout), justo antes de volver a pedirlos.
+		 *
+		 * 🔴 Por qué vaciar y no esperar a que la respuesta nueva los reemplace: lo que hay en
+		 * el store es el catálogo de la identidad ANTERIOR. Después de un login como mayorista
+		 * con lista restringida, el menú seguiría mostrando categorías que para él están vacías
+		 * (y una marca o categoría seleccionada que ya no le corresponde) hasta que vuelva la
+		 * respuesta; después de un logout, el árbol recortado del mayorista quedaría a la vista
+		 * del visitante. Un menú vacío por un instante es el mismo estado del arranque, que todos
+		 * los componentes ya saben dibujar.
+		 *
+		 * La selección se suelta entera (categoría, subcategoría, bodega, cepa y marca) por la
+		 * misma razón que `getIndex` suelta categoría y subcategoría: la recarga vuelve a la
+		 * home. Si quedara una bodega o cepa seleccionada, la home escondería sus carruseles
+		 * (todos miran `!selected_bodega && !selected_cepa`) y el scroll infinito seguiría
+		 * filtrando por un objeto de la identidad anterior.
+		 *
+		 * No toca los contadores de pedidos: la recarga que sigue los incrementa al salir, y eso
+		 * es lo que descarta cualquier respuesta vieja que todavía esté en vuelo.
+		 *
+		 * @param {object} state
+		 */
+		limpiar_catalogo_por_cambio_de_identidad(state) {
+			state.categories = []
+			state.sub_categories = []
+			state.brands = []
+			state.selected_category = null
+			state.selected_sub_category = null
+			state.selected_bodega = null
+			state.selected_cepa = null
+			state.selected_brand = null
+		},
 	},
 	actions: {
-		getCategories({ commit }) {
+		getCategories({ commit, state }) {
 			commit('setLoadingCategories', true)
+			/* Guarda anti-carrera: ver `pedido_de_categorias` en el state. */
+			commit('nuevo_pedido_de_categorias')
+			const pedido = state.pedido_de_categorias
 			return axios.get(`/api/categories/${ env('VUE_APP_COMMERCE_ID') }`)
 			.then(res => {
+				/* Llegó tarde: ya salió otro pedido de categorías (el de después del login o del
+				   logout). Ni el árbol ni el loading son de esta respuesta. */
+				if (pedido !== state.pedido_de_categorias) {
+					return
+				}
 				commit('setLoadingCategories', false)
 				commit('setCategories', res.data.categories)
 				// commit('setIndexAsSelectedCategory')
 			})
 			.catch(err => {
-				commit('setLoadingCategories', false)
 				console.log(err)
+				if (pedido !== state.pedido_de_categorias) {
+					return
+				}
+				commit('setLoadingCategories', false)
 			})
 		},
-		getBrands({ commit }) {
+		getBrands({ commit, state }) {
 			commit('setLoadingBrands', true)
+			/* Guarda anti-carrera: ver `pedido_de_categorias` en el state (vale igual para las marcas). */
+			commit('nuevo_pedido_de_marcas')
+			const pedido = state.pedido_de_marcas
 			return axios.get('/api/brands/' + env('VUE_APP_COMMERCE_ID'))
 				.then(res => {
+					/* Llegó tarde: ya salió otro pedido de marcas. */
+					if (pedido !== state.pedido_de_marcas) {
+						return
+					}
 					commit('setLoadingBrands', false)
 					commit('setBrands', res.data.brands)
 				})
 				.catch(err => {
-					commit('setLoadingBrands', false)
 					console.log(err)
+					if (pedido !== state.pedido_de_marcas) {
+						return
+					}
+					commit('setLoadingBrands', false)
 				})
 		},
 		getSubCategories({ commit, state }) {
