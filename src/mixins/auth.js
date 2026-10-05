@@ -13,8 +13,7 @@ export default {
 				 * Con la sesión cerrada, el catálogo del store es el del comprador que se fue: en
 				 * un comercio con listas restringidas (catalogo-por-lista-tienda, 5/10/2026) el
 				 * visitante seguiría viendo el árbol, las marcas y los artículos recortados del
-				 * mayorista —o el mayorista que entra después en la misma pestaña, los del
-				 * anterior— hasta recargar la página. Se vuelve a pedir como anónimo.
+				 * mayorista hasta recargar la página. Se vuelve a pedir como anónimo.
 				 *
 				 * Solo si la sesión efectivamente se cerró: `auth/logout` se traga el error del
 				 * POST, y si falló el comprador sigue logueado y su catálogo sigue siendo el suyo.
