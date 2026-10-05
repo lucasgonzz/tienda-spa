@@ -228,7 +228,40 @@ export function escapar_html(texto) {
 }
 
 /**
- * Texto del aviso de artículos no disponibles, con los nombres.
+ * Cuántos nombres de artículo caben en el aviso. Con más, el resto se resume en "y N más":
+ * con 15 o 20 descartes la lista entera es un toast enorme en una pantalla de 360 px, y
+ * además queda 8 segundos a la vista (`DURACION_DEL_AVISO_DE_NO_DISPONIBLES`).
+ */
+const MAX_NOMBRES_EN_EL_AVISO = 3
+
+/**
+ * Arma la lista de nombres del aviso, en castellano: "A", "A y B", "A, B y C" o, si hay más
+ * de `MAX_NOMBRES_EN_EL_AVISO`, "A, B, C y 12 más".
+ *
+ * @param {Array} nombres Los nombres que vinieron, YA escapados (no todos los artículos
+ *                        traen nombre).
+ * @param {number} total Cuántos artículos se descartaron en total. Puede ser más que
+ *                       `nombres.length`: un artículo sin nombre igual entra en el "y N más".
+ * @returns {string} '' si ninguno trae nombre.
+ */
+function lista_de_nombres(nombres, total) {
+	let mostrados = nombres.slice(0, MAX_NOMBRES_EN_EL_AVISO)
+	if (!mostrados.length) {
+		return ''
+	}
+	let restantes = total - mostrados.length
+	if (restantes > 0) {
+		return mostrados.join(', ') + ' y ' + restantes + ' más'
+	}
+	if (mostrados.length == 1) {
+		return mostrados[0]
+	}
+	return mostrados.slice(0, -1).join(', ') + ' y ' + mostrados[mostrados.length - 1]
+}
+
+/**
+ * Texto del aviso de artículos no disponibles, con los nombres (hasta
+ * `MAX_NOMBRES_EN_EL_AVISO`; si son más, "y N más").
  *
  * No dice "no está habilitado para tu lista" a propósito: el comprador no sabe (ni tiene por
  * qué saber) qué lista de precios tiene, y para él la diferencia no cambia nada.
@@ -246,13 +279,14 @@ export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirma
 			nombres.push(escapar_html(articulo.name))
 		}
 	})
+	let lista = lista_de_nombres(nombres, articulos.length)
 	let mensaje
-	if (!nombres.length) {
+	if (!lista) {
 		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles.'
-	} else if (nombres.length == 1) {
-		mensaje = 'Sacamos de tu carrito un producto que ya no está disponible: ' + nombres[0] + '.'
+	} else if (articulos.length == 1) {
+		mensaje = 'Sacamos de tu carrito un producto que ya no está disponible: ' + lista + '.'
 	} else {
-		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles: ' + nombres.join(', ') + '.'
+		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles: ' + lista + '.'
 	}
 	if (antes_de_confirmar) {
 		mensaje = 'Tu pedido todavía no se envió. ' + mensaje + ' Revisá el total y confirmalo de nuevo.'
