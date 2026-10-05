@@ -184,6 +184,18 @@ export default {
 			})
 			.catch(err => {
 				commit('setLoadingArticleToShow', false)
+				/*
+				 * 🔴 Se suelta el artículo que hubiera. Esta acción también corre desde el watcher
+				 * de `$route` de views/Article.vue, al ir de una ficha a otra: si el pedido falla,
+				 * sin esto quedaba en pantalla la ficha ANTERIOR con la URL de la nueva. Con null,
+				 * la vista muestra su pantalla de "No pudimos cargar este producto" (con
+				 * Reintentar), que ya existía para el 200 con `article: null`.
+				 *
+				 * Desde catalogo-por-lista-tienda (5/10/2026) un artículo no habilitado para la
+				 * lista del comprador responde como "no existe"; este catch cubre además cualquier
+				 * error de red o 4xx/5xx por el mismo camino.
+				 */
+				commit('setArticleToShow', null)
 				console.log(err)
 			})
 		},
