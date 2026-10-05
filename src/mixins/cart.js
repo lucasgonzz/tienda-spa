@@ -1,5 +1,5 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
-import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles } from '@/store/cart'
+import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, escapar_html } from '@/store/cart'
 import { env } from '@/runtime_config'
 export default {
 	computed: {
@@ -679,7 +679,13 @@ export default {
 			let articulos = articulos_no_disponibles(data.articulos)
 			this.$store.commit('cart/quitar_articulos_no_disponibles', articulos)
 			if (!avisar_articulos_no_disponibles(articulos, true)) {
-				this.$toast.error(data.message || 'Algunos productos de tu carrito ya no están disponibles. Revisá tu carrito y confirmá el pedido de nuevo.')
+				/*
+				 * 🔴 El `message` viene del servidor y puede traer nombres de artículos, que los
+				 * escribe el comerciante en el ERP, y el toast lo dibuja con `v-html`: se escapa igual
+				 * que los nombres de `mensaje_de_articulos_no_disponibles`. El texto de respaldo es
+				 * nuestro y no lleva nada que escapar.
+				 */
+				this.$toast.error(data.message ? escapar_html(data.message) : 'Algunos productos de tu carrito ya no están disponibles. Revisá tu carrito y confirmá el pedido de nuevo.')
 			}
 			return true
 		},

@@ -212,10 +212,13 @@ export function articulos_no_disponibles(lista) {
  * del artículo lo escribe el comerciante en el ERP. Un nombre con `<` o `&` se vería roto, y
  * uno con una etiqueta se ejecutaría en la tienda.
  *
+ * Se exporta para que mixins/cart.js escape también el `message` del 422 de
+ * `POST /api/orders` (puede traer nombres de artículos) sin duplicar la función.
+ *
  * @param {*} texto
  * @returns {string}
  */
-function escapar_html(texto) {
+export function escapar_html(texto) {
 	return String(texto)
 		.replace(/&/g, '&amp;')
 		.replace(/</g, '&lt;')
