@@ -279,9 +279,33 @@ export function avisar_articulos_no_disponibles(articulos, antes_de_confirmar) {
 }
 
 /**
+ * Último aviso de descartes que mostró `descartados_del_guardado`: la firma de los artículos
+ * (ids ordenados, unidos por coma) y hasta cuándo sigue en pantalla (timestamp en ms).
+ *
+ * Existe por el login con carrito de invitado: el carrito se guarda DOS veces casi juntas
+ * (`checkCart` de mixins/auth.js y `getLastCart` de mixins/app.js, que corre desde el watcher
+ * de `authenticated`), y si las dos respuestas traen los mismos descartes saldrían dos avisos
+ * idénticos apilados. Ver `descartados_del_guardado`.
+ */
+let ultimo_aviso_de_descartes = { firma: '', hasta: 0 }
+
+/**
  * Lee los descartes de la respuesta de un guardado del carrito (`POST/PUT /api/carts`) y,
  * si corresponde, avisa. Va DESPUÉS del `setCart` de la respuesta: el aviso tiene que salir
  * con el carrito ya corregido en pantalla, no con las líneas que dice que sacó.
+ *
+ * 🔴 El aviso se deduplica, los descartes NO. Si el mismo conjunto de artículos ya se avisó y
+ * ese aviso sigue en pantalla (la firma coincide y no pasó `hasta`), no se dibuja otro igual
+ * encima. Pero cada guardado devuelve SIEMPRE sus propios descartes: el checkout los usa para
+ * frenar la confirmación (`cortar_si_el_guardado_descarto` en mixins/cart.js), y ese freno no
+ * puede depender de si el aviso se mostró o no.
+ *
+ * `hasta` se actualiza solo cuando el aviso efectivamente se dibuja: así la ventana nunca se
+ * estira más allá del aviso que el comprador está viendo, y un descarte que se repite después
+ * de que el aviso se fue vuelve a avisarse.
+ *
+ * Todo esto corre solo si la respuesta trae la clave `articulos_no_disponibles`: con una
+ * tienda-api vieja (o sin descartes) no hay firma que calcular y no se toca nada.
  *
  * @param {object} res Respuesta de axios.
  * @param {boolean} avisar
@@ -289,17 +313,24 @@ export function avisar_articulos_no_disponibles(articulos, antes_de_confirmar) {
  */
 function descartados_del_guardado(res, avisar) {
 	let descartados = articulos_no_disponibles(res && res.data ? res.data.articulos_no_disponibles : null)
-	if (avisar) {
-		avisar_articulos_no_disponibles(descartados, false)
+	if (avisar && descartados.length) {
+		let ids = []
+		descartados.forEach(articulo => {
+			ids.push(String(articulo.id))
+		})
+		ids.sort()
+		let firma = ids.join(',')
+		let ahora = Date.now()
+		if (firma !== ultimo_aviso_de_descartes.firma || ahora >= ultimo_aviso_de_descartes.hasta) {
+			avisar_articulos_no_disponibles(descartados, false)
+			ultimo_aviso_de_descartes = {
+				firma: firma,
+				hasta: ahora + DURACION_DEL_AVISO_DE_NO_DISPONIBLES,
+			}
+		}
 	}
 	return descartados
 }
-
-/**
- * Promesa del `POST /api/carts` que está en vuelo (alta de un carrito que todavía no tiene
- * `id`), o null. Ver la guarda del principio de la acción `save`.
- */
-let alta_de_carrito_en_vuelo = null
 
 /**
  * Ver la mutación `hidratar_envio_desde_cart`.
@@ -1015,33 +1046,19 @@ export default {
 		 *
 		 * Si hubo descartes, avisa con un toast con los nombres, salvo que el llamador pida
 		 * `{avisar_no_disponibles: false}` porque va a dar él un aviso más preciso (el checkout).
+		 * Si el mismo aviso ya está en pantalla no se repite (login con carrito de invitado, que
+		 * guarda dos veces casi juntas): ver `descartados_del_guardado`. El valor que resuelve no
+		 * se deduplica nunca: cada guardado devuelve los descartes de SU respuesta.
+		 *
+		 * Cada llamada sale por su lado, igual que antes de esta misión: no espera a otro
+		 * guardado en vuelo. (Que el login con carrito de invitado pueda crear dos carritos si el
+		 * segundo guardado sale antes de que vuelva el primero es anterior a esto y no se toca.)
 		 *
 		 * @param {object} context
 		 * @param {object|undefined} opciones { avisar_no_disponibles?: boolean }
 		 * @returns {Promise<Array>}
 		 */
-		save({ state, commit, dispatch }, opciones) {
-			/*
-			 * 🔴 Si ya hay un ALTA del carrito en vuelo, este guardado espera a que termine y
-			 * recién ahí corre. Pasa al loguearse con un carrito de invitado: el login guarda el
-			 * carrito (`checkCart` en mixins/auth.js) y el watcher de `authenticated` vuelve a
-			 * guardarlo (`getLastCart` en mixins/app.js). Si el segundo salía antes de que
-			 * volviera el primero, el carrito todavía no tenía `id` y salían DOS altas: dos
-			 * carritos en la base y, con el catálogo por lista, DOS avisos de los mismos
-			 * artículos descartados. Encolado, el segundo sale como `PUT` sobre el carrito que
-			 * creó el primero, ya sin las líneas descartadas, y no avisa nada.
-			 *
-			 * Se encola solo detrás de un alta: dos `PUT` seguidos se comportan como siempre. El
-			 * `.catch` vacío es para que el guardado encolado corra aunque el alta haya fallado
-			 * (sigue sin `id` y vuelve a intentar el alta, como habría hecho antes).
-			 */
-			if (alta_de_carrito_en_vuelo) {
-				return alta_de_carrito_en_vuelo
-				.catch(() => {})
-				.then(() => {
-					return dispatch('save', opciones)
-				})
-			}
+		save({ state, commit }, opciones) {
 			let avisar = !(opciones && opciones.avisar_no_disponibles === false)
 			if (state.payment_method) {
 				state.cart.payment_method_id = state.payment_method.id
@@ -1064,24 +1081,21 @@ export default {
 			console.log(state.cart)
 			if (!state.cart.id) {
 				commit('setSaving', true)
-				alta_de_carrito_en_vuelo = axios.post('/api/carts', {
+				return axios.post('/api/carts', {
 					cart	    : state.cart,
 					commerce_id : env('VUE_APP_COMMERCE_ID') 
 				})
 				.then(res => {
-					alta_de_carrito_en_vuelo = null
 					commit('setSaving', false)
 					console.log('Carrito creado')
 					commit('setCart', res.data.cart)
 					return descartados_del_guardado(res, avisar)
 				})
 				.catch(err => {
-					alta_de_carrito_en_vuelo = null
 					commit('setSaving', false)
 					console.log(err)
 					throw err
 				})
-				return alta_de_carrito_en_vuelo
 			} else {
 				commit('setSaving', true)
 				return axios.put('/api/carts', state.cart)
