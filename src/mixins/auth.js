@@ -130,8 +130,14 @@ export default {
 		/**
 		 * Vuelve a pedir todo lo del catálogo que depende de QUIÉN pregunta, con la identidad
 		 * que hay ahora: los artículos de la home (`getIndex`), el árbol de categorías y las
-		 * marcas. Antes vacía categorías, marcas y la selección activa, que son de la identidad
-		 * anterior (ver `limpiar_catalogo_por_cambio_de_identidad` en store/categories.js).
+		 * marcas. Antes suelta la selección activa (categoría, subcategoría, bodega, cepa y
+		 * marca), que es de la identidad anterior (ver `soltar_seleccion_por_cambio_de_identidad`
+		 * en store/categories.js).
+		 *
+		 * El árbol de categorías y las marcas NO se vacían mientras vuelve la respuesta: el menú
+		 * sigue dibujado con lo anterior y la respuesta nueva lo reemplaza. Vaciarlos lo hacía
+		 * desaparecer para todos los compradores en cada login y cada logout (y, si la recarga
+		 * fallaba, hasta recargar la página).
 		 *
 		 * 🔴 Por qué categorías y marcas, y no solo los artículos: desde la misión
 		 * catalogo-por-lista-tienda, un comprador vinculado a un cliente del ERP cuya lista de
@@ -147,13 +153,19 @@ export default {
 		 * (después de cerrar sesión). Contra una respuesta vieja que vuelva tarde protegen los
 		 * contadores de pedidos de store/categories.js: el último pedido es el que vale.
 		 *
-		 * Contra una tienda-api vieja es inocuo: son los mismos tres pedidos que hace el
-		 * arranque, que devuelven lo mismo de siempre.
+		 * 🔴 Contra una tienda-api vieja NO es "inocuo" a secas. Lo que se ve no cambia: ahí las
+		 * categorías y las marcas no dependen de la sesión y vuelven idénticas a las del
+		 * arranque. Pero igual cuesta dos pedidos más por cada login y cada logout, suelta
+		 * también la bodega y la cepa seleccionadas (`getIndex` solo suelta categoría,
+		 * subcategoría y marca), y mientras vuelven categorías y marcas quedan prendidos
+		 * `loading_categories` y `loading_brands`, que hacen que la lista de la home y el
+		 * catálogo muestren su skeleton, como en el arranque. La SPA no puede saber si el
+		 * catálogo de este comercio está restringido, así que ese costo lo pagan todos.
 		 *
 		 * @returns {Promise}
 		 */
 		recargar_catalogo() {
-			this.$store.commit('categories/limpiar_catalogo_por_cambio_de_identidad')
+			this.$store.commit('categories/soltar_seleccion_por_cambio_de_identidad')
 			return Promise.all([
 				this.$store.dispatch('categories/getIndex'),
 				this.$store.dispatch('categories/getCategories'),

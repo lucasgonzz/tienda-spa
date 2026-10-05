@@ -244,32 +244,35 @@ export default {
 			state.pedido_de_marcas++
 		},
 		/**
-		 * Vacía el árbol de categorías, las marcas y la selección activa cuando cambia la
-		 * identidad del comprador (login o logout), justo antes de volver a pedirlos.
+		 * Suelta la selección activa (categoría, subcategoría, bodega, cepa y marca) cuando
+		 * cambia la identidad del comprador (login o logout), justo antes de volver a pedir el
+		 * catálogo (`recargar_catalogo()` en mixins/auth.js).
 		 *
-		 * 🔴 Por qué vaciar y no esperar a que la respuesta nueva los reemplace: lo que hay en
-		 * el store es el catálogo de la identidad ANTERIOR. Después de un login como mayorista
-		 * con lista restringida, el menú seguiría mostrando categorías que para él están vacías
-		 * (y una marca o categoría seleccionada que ya no le corresponde) hasta que vuelva la
-		 * respuesta; después de un logout, el árbol recortado del mayorista quedaría a la vista
-		 * del visitante. Un menú vacío por un instante es el mismo estado del arranque, que todos
-		 * los componentes ya saben dibujar.
+		 * 🔴 Por qué la selección sí se suelta: es un objeto del catálogo de la identidad
+		 * ANTERIOR, y el comprador nuevo puede no ver esa categoría o esa marca (su lista de
+		 * precios es restringida). `getIndex` ya suelta categoría, subcategoría y marca, pero no
+		 * bodega ni cepa: si quedara una, la home escondería sus carruseles (todos miran
+		 * `!selected_bodega && !selected_cepa`) y el scroll infinito seguiría filtrando por un
+		 * objeto de la identidad anterior. `sub_categories` es la lista de la categoría
+		 * seleccionada y se va con ella: nada la lee sin una categoría seleccionada, y
+		 * `getSubCategories` la vuelve a pedir cuando el comprador elige otra.
 		 *
-		 * La selección se suelta entera (categoría, subcategoría, bodega, cepa y marca) por la
-		 * misma razón que `getIndex` suelta categoría y subcategoría: la recarga vuelve a la
-		 * home. Si quedara una bodega o cepa seleccionada, la home escondería sus carruseles
-		 * (todos miran `!selected_bodega && !selected_cepa`) y el scroll infinito seguiría
-		 * filtrando por un objeto de la identidad anterior.
+		 * 🔴 Y por qué el árbol (`categories`) y las marcas (`brands`) NO se vacían: vaciarlos haría
+		 * desaparecer el menú de categorías y marcas hasta que volviera la respuesta —para TODOS
+		 * los compradores, tengan o no una lista restringida— y, si la recarga fallara, lo dejaría
+		 * vacío hasta recargar la página. Con las guardas de `pedido_de_categorias` y
+		 * `pedido_de_marcas` ya no hace falta: la respuesta nueva reemplaza al árbol y a las
+		 * marcas, y una respuesta vieja que vuelva tarde se descarta. El costo, asumido: mientras
+		 * vuelve la respuesta el menú sigue mostrando lo de la identidad anterior, y si la recarga
+		 * falla se queda con eso.
 		 *
 		 * No toca los contadores de pedidos: la recarga que sigue los incrementa al salir, y eso
 		 * es lo que descarta cualquier respuesta vieja que todavía esté en vuelo.
 		 *
 		 * @param {object} state
 		 */
-		limpiar_catalogo_por_cambio_de_identidad(state) {
-			state.categories = []
+		soltar_seleccion_por_cambio_de_identidad(state) {
 			state.sub_categories = []
-			state.brands = []
 			state.selected_category = null
 			state.selected_sub_category = null
 			state.selected_bodega = null
