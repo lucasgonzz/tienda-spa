@@ -222,11 +222,14 @@ export default {
 
 			// mostrar_overlay = false: el estado ya lo muestra este botón, y el cartel a pantalla
 			// completa es justamente lo que se sacó del checkout.
-			return this.makeOrder(false, false)
+			// frenar_si_hay_descartes = true: si al guardar el carrito el servidor saca artículos
+			// no disponibles para este comprador, no se crea un pedido distinto del que vio.
+			return this.makeOrder(false, false, true)
 			.then(function(ok) {
 				self.procesando = false
 				// `false`: el PUT /carts rechazo el envio por correo y makeOrder ya le dijo al
 				// comprador que hacer (volver a cotizar o corregir el destino). Sin aviso generico.
+				// Idem si se freno por articulos no disponibles (catalogo-por-lista-tienda).
 				if (ok === false) {
 					return
 				}
@@ -260,8 +263,14 @@ export default {
 			// viajaba con `cart_id: null` y el pago quedaba sin registrar en el pedido — en
 			// silencio, porque la compra igual se completa. Medido el 7/9/2026 mirando el orden de
 			// los requests: buyer, preference, carts, orders.
-			return this.$store.dispatch('cart/save')
-			.then(function() {
+			//
+			// Catálogo por lista (5/10/2026): si este guardado saca artículos que el comprador no
+			// puede comprar con su lista, se frena ANTES de pedir la preferencia —si no, Mercado
+			// Pago le cobraría un total distinto del que confirmó—. El aviso lo da
+			// cortar_si_el_guardado_descarto, por eso el store no avisa (`avisar_no_disponibles`).
+			return this.$store.dispatch('cart/save', { avisar_no_disponibles: false })
+			.then(function(descartados) {
+				self.cortar_si_el_guardado_descarto(descartados)
 				return self.$api.post('mercado-pago/preference', {
 					payment_method: self.cart_payment_method,
 					cupon: self.cupon,
@@ -284,10 +293,12 @@ export default {
 					return
 				}
 
-				return self.makeOrder(true, false)
+				// frenar_si_hay_descartes = true: el comprador todavía no pagó, frenar acá es seguro.
+				return self.makeOrder(true, false, true)
 				.then(function(ok) {
 					if (ok === false) {
-						// 422 del envio por correo, ya avisado por makeOrder.
+						// 422 del envio por correo, o freno por articulos no disponibles: ya
+						// avisado por makeOrder. No se va a Mercado Pago.
 						self.procesando = false
 						return
 					}
@@ -319,6 +330,11 @@ export default {
 				// consola y en el log de la API, que es donde lo busca quien lo puede arreglar.
 				console.log(err)
 				self.procesando = false
+				// El `cart/save` del principio descartó artículos no disponibles: el comprador ya
+				// fue avisado (y no es un problema de Mercado Pago).
+				if (self.es_corte_por_articulos_no_disponibles(err)) {
+					return
+				}
 				// El `cart/save` del principio puede rechazar el envio por correo (422): ese aviso
 				// es especifico y no es un problema de Mercado Pago.
 				if (self.manejar_error_de_envio(err)) {

@@ -1,5 +1,5 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
-import { firma_de_lineas, lineas_del_carrito } from '@/store/cart'
+import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles } from '@/store/cart'
 import { env } from '@/runtime_config'
 export default {
 	computed: {
@@ -647,6 +647,86 @@ export default {
 			return false
 		},
 		/**
+		 * Atiende el 422 `articulos_no_disponibles` de `POST /api/orders` (contrato C3 de la
+		 * misión catalogo-por-lista-tienda, 5/10/2026): el carrito guardado tiene artículos que
+		 * este comprador no puede comprar con su lista de precios (`articulos: [{id, name}]`).
+		 *
+		 * Vive APARTE de `manejar_error_de_envio` a propósito: aquél es solo del envío por correo
+		 * y su docblock lo dice; mezclarlos haría que el próximo que toque el envío tenga que
+		 * entender también el catálogo por lista.
+		 *
+		 * Hace tres cosas, y las tres hacen falta:
+		 *   1. Saca esas líneas del carrito LOCAL. Sin esto el reintento vuelve a guardar el
+		 *      carrito con ellas adentro y pega el mismo 422.
+		 *   2. Le avisa al comprador con los nombres, aclarando que el pedido NO se envió. Si el
+		 *      servidor no mandó artículos reconocibles, con su `message`.
+		 *   3. Devuelve true, para que `makeOrder` resuelva `false` (= "ya le dije qué hacer") y
+		 *      el botón no pise este aviso con el genérico de "No pudimos guardar tu pedido".
+		 *
+		 * Contra una tienda-api vieja nunca llega este 422, así que nunca corre.
+		 *
+		 * @param {object} err Error de axios.
+		 * @returns {boolean} true si el error era éste y ya se le avisó al comprador.
+		 */
+		manejar_articulos_no_disponibles(err) {
+			if (!err || !err.response || !err.response.data) {
+				return false
+			}
+			let data = err.response.data
+			if (err.response.status != 422 || data.codigo != 'articulos_no_disponibles') {
+				return false
+			}
+			let articulos = articulos_no_disponibles(data.articulos)
+			this.$store.commit('cart/quitar_articulos_no_disponibles', articulos)
+			if (!avisar_articulos_no_disponibles(articulos, true)) {
+				this.$toast.error(data.message || 'Algunos productos de tu carrito ya no están disponibles. Revisá tu carrito y confirmá el pedido de nuevo.')
+			}
+			return true
+		},
+		/**
+		 * Corta la confirmación del pedido si el guardado del carrito que la precede DESCARTÓ
+		 * artículos no disponibles para este comprador (catalogo-por-lista-tienda).
+		 *
+		 * 🔴 Por qué cortar y no seguir con el carrito ya corregido: el comprador confirmó un
+		 * carrito y un total que acaba de cambiar. Seguir crearía un pedido distinto del que
+		 * vio —y en Mercado Pago le cobraría otro monto— con un aviso que dura unos segundos
+		 * mientras la pantalla ya se fue a "Gracias". Cortando, se queda en el checkout con el
+		 * carrito corregido, el aviso explica qué pasó, y vuelve a confirmar.
+		 *
+		 * Pasa con un carrito viejo (de antes de que el comerciante restringiera la lista) que
+		 * `getLastCart` trae tal cual y nadie volvió a guardar hasta el checkout.
+		 *
+		 * Avisa acá —con el texto de "tu pedido todavía no se envió"— y tira un error marcado
+		 * que el `.catch` del llamador reconoce con `es_corte_por_articulos_no_disponibles()`.
+		 * Por eso el llamador guarda con `{avisar_no_disponibles: false}`: si no, salían dos
+		 * avisos.
+		 *
+		 * Sin descartes (siempre, contra una tienda-api vieja) no hace nada.
+		 *
+		 * @param {Array|undefined} descartados Lo que resolvió `cart/save`.
+		 * @throws {Error} con `articulos_no_disponibles_ya_avisados = true`.
+		 */
+		cortar_si_el_guardado_descarto(descartados) {
+			let articulos = articulos_no_disponibles(descartados)
+			if (!articulos.length) {
+				return
+			}
+			avisar_articulos_no_disponibles(articulos, true)
+			let corte = new Error('articulos_no_disponibles')
+			corte.articulos_no_disponibles_ya_avisados = true
+			throw corte
+		},
+		/**
+		 * Si el error es el corte de `cortar_si_el_guardado_descarto()`: el comprador ya fue
+		 * avisado y no hay que mostrar ningún otro mensaje.
+		 *
+		 * @param {*} err
+		 * @returns {boolean}
+		 */
+		es_corte_por_articulos_no_disponibles(err) {
+			return !!(err && err.articulos_no_disponibles_ya_avisados)
+		},
+		/**
 		 * Crea el pedido a partir del carrito.
 		 *
 		 * Devuelve SIEMPRE una promesa, y resuelve con `true` si el pedido quedo creado o con `null`
@@ -659,6 +739,13 @@ export default {
 		 * `sin_articulos` / `ubicacion`, o 502 `zipnova`) y `manejar_error_de_envio` YA le dijo al
 		 * comprador que hacer. El llamador no tiene que mostrar el aviso generico en ese caso.
 		 *
+		 * Desde el 5/10/2026 (catalogo-por-lista-tienda) tambien resuelve con `false` cuando:
+		 *   - el `POST /orders` respondio 422 `articulos_no_disponibles` (ver
+		 *     `manejar_articulos_no_disponibles`), o
+		 *   - el llamador pidio `frenar_si_hay_descartes` y el `cart/save` del principio descarto
+		 *     articulos no disponibles (ver `cortar_si_el_guardado_descarto`).
+		 * En los dos casos el comprador ya fue avisado y el pedido NO se creo.
+		 *
 		 * No rechaza nunca: los llamadores viejos (Payway, el modal del carrito, el gateway) la
 		 * invocan sin `.catch`, y una promesa rechazada ahi solo ensuciaria la consola.
 		 *
@@ -668,9 +755,18 @@ export default {
 		 *                                  pasa `false` porque muestra el estado adentro del boton;
 		 *                                  los demas llamadores no tienen boton propio y lo dejan en
 		 *                                  `true`.
+		 * @param {boolean} frenar_si_hay_descartes Si el `cart/save` del principio descarta
+		 *                                  articulos no disponibles, no crear el pedido y
+		 *                                  resolver `false`. Lo pide SOLO el checkout
+		 *                                  (BtnSave.vue), donde todavia no se cobro nada. Los
+		 *                                  llamadores viejos lo dejan en `false` a proposito:
+		 *                                  `savePayment()` de mixins/payment_gateway.js llama a
+		 *                                  makeOrder() DESPUES de cobrar la tarjeta, y frenar ahi
+		 *                                  dejaria un pago sin pedido. Con `false` el pedido sale
+		 *                                  con el carrito ya corregido y el aviso lo da el store.
 		 * @returns {Promise<boolean|null>}
 		 */
-		makeOrder(from_mercadopago = false, mostrar_overlay = true) {
+		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false) {
 			if (!this.canMakeOrder()) {
 				return Promise.resolve(null)
 			}
@@ -689,8 +785,15 @@ export default {
 				}
 			}
 
-			return this.$store.dispatch('cart/save')
-			.then(function() {
+			// Si este llamador frena ante descartes, el aviso lo da cortar_si_el_guardado_descarto
+			// (con el texto de "tu pedido todavia no se envio") y el store no tiene que dar otro.
+			let opciones_del_guardado = frenar_si_hay_descartes ? { avisar_no_disponibles: false } : undefined
+
+			return this.$store.dispatch('cart/save', opciones_del_guardado)
+			.then(function(descartados) {
+				if (frenar_si_hay_descartes) {
+					self.cortar_si_el_guardado_descarto(descartados)
+				}
 				return self.$api.post('/orders', {
 					commerce_id 	: env('VUE_APP_COMMERCE_ID'),
 					cart_id         : self.cart.id,
@@ -796,6 +899,16 @@ export default {
 			.catch(function(err) {
 				apagar_overlay()
 				console.log(err)
+				// El guardado descarto articulos no disponibles y se freno antes de crear el
+				// pedido: el aviso ya salio en cortar_si_el_guardado_descarto.
+				if (self.es_corte_por_articulos_no_disponibles(err)) {
+					return false
+				}
+				// 422 `articulos_no_disponibles` del POST /orders (`manejar_error_de_envio` no
+				// conoce este codigo y devolveria false). Mismo `false`, mismo motivo.
+				if (self.manejar_articulos_no_disponibles(err)) {
+					return false
+				}
 				// Un 422 del envio por correo tiene su propio aviso (y su propia salida: volver a
 				// cotizar o corregir el destino). Se distingue con `false` para que el boton no
 				// pise ese aviso con el generico de "no pudimos guardar tu pedido".
