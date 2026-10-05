@@ -50,6 +50,17 @@ export default {
 		loading_similars: false,
 		loading_questions: false,
 		loading_article_to_show: false,
+		/*
+		 * 🔴 Número del último pedido de la FICHA (`getArticleToShow`). Cada llamada lo
+		 * incrementa al salir y se guarda el suyo; el `catch` de un pedido que ya no es el
+		 * último no toca el artículo que hay en pantalla.
+		 *
+		 * Por qué: al ir de ficha en ficha rápido (A -> B -> C) hay varios pedidos en vuelo a
+		 * la vez. Si C vuelve bien y DESPUÉS falla B, el `catch` de B soltaba el artículo y la
+		 * pantalla mostraba "No pudimos cargar este producto" con la URL de C. Mismo patrón que
+		 * `pedido_del_listado` en store/categories.js.
+		 */
+		pedido_de_la_ficha: 0,
 	},
 	mutations: {
 		setArticles(state, articles) {
@@ -156,6 +167,14 @@ export default {
 		setLoadingArticleToShow(state, value) {
 			state.loading_article_to_show = value
 		},
+		/**
+		 * Un pedido nuevo de la ficha: ver `pedido_de_la_ficha` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_de_la_ficha(state) {
+			state.pedido_de_la_ficha++
+		},
 		setArticleColor(state, value) {
 			state.article_to_show.color = Object.assign({}, state.article_to_show, { color: value })
 		}
@@ -172,9 +191,12 @@ export default {
 			})
 		},
 		// Se llama cuando se recarga la pagina article
-		getArticleToShow({ commit }, params) {
+		getArticleToShow({ commit, state }, params) {
 			let url = `/api/articles/${params.slug}/${params.commerce_id}`
 			commit('setLoadingArticleToShow', true)
+			/* Guarda del catch: ver `pedido_de_la_ficha` en el state. */
+			commit('nuevo_pedido_de_la_ficha')
+			const pedido = state.pedido_de_la_ficha
 			return axios.get(url)
 			.then(res => {
 				console.log('getArticleToShow')
@@ -184,19 +206,37 @@ export default {
 			})
 			.catch(err => {
 				commit('setLoadingArticleToShow', false)
-				/*
-				 * 🔴 Se suelta el artículo que hubiera. Esta acción también corre desde el watcher
-				 * de `$route` de views/Article.vue, al ir de una ficha a otra: si el pedido falla,
-				 * sin esto quedaba en pantalla la ficha ANTERIOR con la URL de la nueva. Con null,
-				 * la vista muestra su pantalla de "No pudimos cargar este producto" (con
-				 * Reintentar), que ya existía para el 200 con `article: null`.
-				 *
-				 * Desde catalogo-por-lista-tienda (5/10/2026) un artículo no habilitado para la
-				 * lista del comprador responde como "no existe"; este catch cubre además cualquier
-				 * error de red o 4xx/5xx por el mismo camino.
-				 */
-				commit('setArticleToShow', null)
 				console.log(err)
+				/*
+				 * 🔴 Se suelta el artículo que hubiera, salvo en dos casos. Esta acción también corre
+				 * desde el watcher de `$route` de views/Article.vue, al ir de una ficha a otra: si el
+				 * pedido falla, sin soltarlo quedaba en pantalla la ficha ANTERIOR con la URL de la
+				 * nueva. Con null, la vista muestra su pantalla de "No pudimos cargar este producto"
+				 * (con Reintentar).
+				 *
+				 * Los dos casos en que NO se suelta son del ir de ficha a ficha:
+				 *   - Este pedido ya no es el último (A -> B -> C rápido): lo que hay en pantalla es
+				 *     de un pedido más nuevo, y soltarlo dejaba "No pudimos cargar este producto" con
+				 *     la URL de C aunque C hubiera cargado bien. Lo decide `pedido_de_la_ficha`.
+				 *   - Lo que hay en pantalla ya es el artículo pedido: `toArticle()`
+				 *     (mixins/articles.js) lo puso en el store desde la tarjeta antes de navegar. La
+				 *     ficha está armada, y un corte de red pasajero de este pedido (que solo la
+				 *     completa) no tiene por qué tirársela abajo.
+				 *
+				 * Este catch es solo para errores de red y 4xx/5xx. El catálogo por lista
+				 * (5/10/2026) NO pasa por acá: un artículo no habilitado para la lista del comprador
+				 * responde 200 con `article: null`, igual que un slug que no existe, y eso ya lo
+				 * maneja el `.then` de arriba, que deja el artículo en null y la vista muestra la
+				 * misma pantalla.
+				 */
+				if (pedido !== state.pedido_de_la_ficha) {
+					return
+				}
+				let en_pantalla = state.article_to_show
+				if (en_pantalla && en_pantalla.slug === params.slug) {
+					return
+				}
+				commit('setArticleToShow', null)
 			})
 		},
 		// Se llama cuando se hace click a un articulo desde el inicio
