@@ -206,6 +206,28 @@ export function articulos_no_disponibles(lista) {
 }
 
 /**
+ * Si el carrito no tiene ninguna línea: ni artículos, ni promociones de vinoteca, ni combos.
+ * Acepta null: es lo que responde el PUT de `/api/carts` cuando descarta TODAS las líneas
+ * (borra el carrito y devuelve `cart: null`). El POST, en cambio, devuelve un carrito con los
+ * arrays vacíos; los dos casos cuentan como "sin líneas".
+ *
+ * Es la misma condición con la que `removeArticle` decide entre actualizar el carrito y
+ * borrarlo, y la que usa el aviso de artículos no disponibles para decir "tu carrito quedó
+ * vacío" en vez de pedirle al comprador que revise un total que ya no existe.
+ *
+ * @param {object|null} cart
+ * @returns {boolean}
+ */
+export function carrito_sin_lineas(cart) {
+	if (!cart) {
+		return true
+	}
+	return !(cart.articles && cart.articles.length)
+		&& !(cart.promociones_vinoteca && cart.promociones_vinoteca.length)
+		&& !(cart.combos && cart.combos.length)
+}
+
+/**
  * Escapa un texto para meterlo en el mensaje de un toast.
  *
  * 🔴 No es prolijidad: vue-toast-notification dibuja el mensaje con `v-html`, y el nombre
@@ -270,9 +292,12 @@ function lista_de_nombres(nombres, total) {
  * @param {boolean} antes_de_confirmar El aviso sale porque se frenó la confirmación del
  *                                     pedido: se le aclara que el pedido NO se envió y que
  *                                     tiene que volver a confirmarlo.
+ * @param {boolean} carrito_vacio Sacando esos artículos el carrito quedó sin ninguna línea
+ *                                (ver `carrito_sin_lineas()`). Cambia el texto: ya no hay un
+ *                                total que revisar ni nada que volver a confirmar.
  * @returns {string}
  */
-export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirmar) {
+export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirmar, carrito_vacio) {
 	let nombres = []
 	articulos.forEach(articulo => {
 		if (articulo.name) {
@@ -281,7 +306,23 @@ export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirma
 	})
 	let lista = lista_de_nombres(nombres, articulos.length)
 	let mensaje
-	if (!lista) {
+	if (carrito_vacio) {
+		/*
+		 * 🔴 Se descartó TODO lo que había. "Revisá el total y confirmalo de nuevo" sobre un
+		 * carrito vacío manda al comprador a confirmar algo que ya no existe. Según el guardado,
+		 * el servidor devuelve ese carrito como `cart: null` (lo hace el PUT, que lo borra, y
+		 * `setCart(null)` lo deja en blanco: se van también la forma de pago, la zona, el cupón y
+		 * el destino que había elegido) o como un carrito sin líneas (lo hace el POST). Se le dice
+		 * cómo quedó el carrito, sin pedirle que confirme nada.
+		 */
+		if (!lista) {
+			mensaje = 'Los productos de tu carrito no están disponibles para tu cuenta y se quitaron. Tu carrito quedó vacío.'
+		} else if (articulos.length == 1) {
+			mensaje = lista + ' no está disponible para tu cuenta y se quitó del carrito. Tu carrito quedó vacío.'
+		} else {
+			mensaje = lista + ' no están disponibles para tu cuenta y se quitaron del carrito. Tu carrito quedó vacío.'
+		}
+	} else if (!lista) {
 		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles.'
 	} else if (articulos.length == 1) {
 		mensaje = 'Sacamos de tu carrito un producto que ya no está disponible: ' + lista + '.'
@@ -289,7 +330,10 @@ export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirma
 		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles: ' + lista + '.'
 	}
 	if (antes_de_confirmar) {
-		mensaje = 'Tu pedido todavía no se envió. ' + mensaje + ' Revisá el total y confirmalo de nuevo.'
+		mensaje = 'Tu pedido todavía no se envió. ' + mensaje
+		if (!carrito_vacio) {
+			mensaje += ' Revisá el total y confirmalo de nuevo.'
+		}
 	}
 	return mensaje
 }
@@ -303,13 +347,14 @@ export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirma
  *
  * @param {Array} articulos Ya normalizados con `articulos_no_disponibles()`.
  * @param {boolean} antes_de_confirmar Ver `mensaje_de_articulos_no_disponibles`.
+ * @param {boolean} carrito_vacio Ver `mensaje_de_articulos_no_disponibles`.
  * @returns {boolean} true si avisó.
  */
-export function avisar_articulos_no_disponibles(articulos, antes_de_confirmar) {
+export function avisar_articulos_no_disponibles(articulos, antes_de_confirmar, carrito_vacio) {
 	if (!articulos.length) {
 		return false
 	}
-	Vue.prototype.$toast.error(mensaje_de_articulos_no_disponibles(articulos, antes_de_confirmar), {
+	Vue.prototype.$toast.error(mensaje_de_articulos_no_disponibles(articulos, antes_de_confirmar, carrito_vacio), {
 		duration: DURACION_DEL_AVISO_DE_NO_DISPONIBLES,
 	})
 	return true
@@ -359,7 +404,8 @@ function descartados_del_guardado(res, avisar) {
 		let firma = ids.join(',')
 		let ahora = Date.now()
 		if (firma !== ultimo_aviso_de_descartes.firma || ahora >= ultimo_aviso_de_descartes.hasta) {
-			avisar_articulos_no_disponibles(descartados, false)
+			// `cart` es el de la respuesta (`setCart` ya corrió): null (PUT) o sin líneas (POST) si se descartó todo.
+			avisar_articulos_no_disponibles(descartados, false, carrito_sin_lineas(res.data.cart))
 			ultimo_aviso_de_descartes = {
 				firma: firma,
 				hasta: ahora + DURACION_DEL_AVISO_DE_NO_DISPONIBLES,

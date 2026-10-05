@@ -1,5 +1,5 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
-import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, escapar_html } from '@/store/cart'
+import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html } from '@/store/cart'
 import { env } from '@/runtime_config'
 export default {
 	computed: {
@@ -678,7 +678,9 @@ export default {
 			}
 			let articulos = articulos_no_disponibles(data.articulos)
 			this.$store.commit('cart/quitar_articulos_no_disponibles', articulos)
-			if (!avisar_articulos_no_disponibles(articulos, true)) {
+			// Se mira DESPUÉS de sacar las líneas: si el carrito local quedó sin ninguna, el aviso lo dice.
+			let carrito_vacio = carrito_sin_lineas(this.$store.state.cart.cart)
+			if (!avisar_articulos_no_disponibles(articulos, true, carrito_vacio)) {
 				/*
 				 * 🔴 El `message` viene del servidor y puede traer nombres de artículos, que los
 				 * escribe el comerciante en el ERP, y el toast lo dibuja con `v-html`: se escapa igual
@@ -717,7 +719,9 @@ export default {
 			if (!articulos.length) {
 				return
 			}
-			avisar_articulos_no_disponibles(articulos, true)
+			// El guardado ya dejó en el store el carrito que devolvió el servidor (en blanco si fue
+			// `cart: null`, o sin líneas): si descartó todo, el aviso lo dice.
+			avisar_articulos_no_disponibles(articulos, true, carrito_sin_lineas(this.$store.state.cart.cart))
 			let corte = new Error('articulos_no_disponibles')
 			corte.articulos_no_disponibles_ya_avisados = true
 			throw corte
