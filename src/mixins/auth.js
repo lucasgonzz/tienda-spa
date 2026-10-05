@@ -20,6 +20,25 @@ export default {
 				 */
 				if (!this.$store.state.auth.authenticated) {
 					this.recargar_catalogo()
+					/*
+					 * 🔴 Si estaba parado en una categoría, marca, bodega o cepa de la home
+					 * (`/inicio/herramientas`), la ruta sigue siendo 'Home' y el `replace` de abajo
+					 * no corre: la recarga suelta la selección y `getIndex` trae la portada, pero
+					 * la URL y el título seguirían diciendo "Herramientas". Se lleva la URL a la
+					 * portada para que diga lo mismo que la pantalla.
+					 *
+					 * El `.catch` vacío no es descuido: vue-router 3 rechaza la promesa con
+					 * NavigationDuplicated si ya estaba ahí, y eso no es un error para nadie.
+					 */
+					let categoria_de_la_url = this.$route.params.category
+					if (
+						this.$route.name == 'Home'
+						&& categoria_de_la_url
+						&& categoria_de_la_url != 'ultimos-ingresados'
+					) {
+						this.$router.replace({name: 'Home', params: {category: 'ultimos-ingresados'}})
+						.catch(() => {})
+					}
 				}
 				if (this.$route.name != 'Home') {
 					this.$router.replace({name: 'Home'})
