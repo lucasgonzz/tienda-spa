@@ -176,6 +176,132 @@ export function lineas_del_carrito(cart) {
 }
 
 /**
+ * Cuánto dura en pantalla el aviso de artículos no disponibles. El default del plugin (3 s)
+ * no alcanza para leer una lista de nombres, y este aviso explica por qué cambió el carrito.
+ */
+const DURACION_DEL_AVISO_DE_NO_DISPONIBLES = 8000
+
+/**
+ * Artículos que el servidor declaró NO disponibles para este comprador, normalizados.
+ *
+ * Contrato C3 de la misión catalogo-por-lista-tienda (5/10/2026): cuando la lista de precios
+ * del comprador es restringida y en el carrito hay artículos que no están habilitados para
+ * esa lista, `POST/PUT /api/carts` los descarta y suma `articulos_no_disponibles: [{id, name}]`
+ * a la respuesta, y `POST /api/orders` responde 422 con `articulos: [{id, name}]`.
+ *
+ * 🔴 La clave es OPCIONAL y aditiva: una tienda-api vieja no la manda nunca, y la nueva solo
+ * cuando hubo descartes. Por eso cualquier cosa que no sea un array (undefined, null) vale
+ * como "no se descartó nada" y devuelve [], y todo lo que se arma encima no se ejecuta.
+ *
+ * @param {*} lista Lo que vino en la respuesta.
+ * @returns {Array} [{id, name}, ...], o [] si no vino nada.
+ */
+export function articulos_no_disponibles(lista) {
+	if (!Array.isArray(lista)) {
+		return []
+	}
+	return lista.filter(articulo => {
+		return !!articulo && typeof articulo === 'object'
+	})
+}
+
+/**
+ * Escapa un texto para meterlo en el mensaje de un toast.
+ *
+ * 🔴 No es prolijidad: vue-toast-notification dibuja el mensaje con `v-html`, y el nombre
+ * del artículo lo escribe el comerciante en el ERP. Un nombre con `<` o `&` se vería roto, y
+ * uno con una etiqueta se ejecutaría en la tienda.
+ *
+ * @param {*} texto
+ * @returns {string}
+ */
+function escapar_html(texto) {
+	return String(texto)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;')
+}
+
+/**
+ * Texto del aviso de artículos no disponibles, con los nombres.
+ *
+ * No dice "no está habilitado para tu lista" a propósito: el comprador no sabe (ni tiene por
+ * qué saber) qué lista de precios tiene, y para él la diferencia no cambia nada.
+ *
+ * @param {Array} articulos Ya normalizados con `articulos_no_disponibles()`.
+ * @param {boolean} antes_de_confirmar El aviso sale porque se frenó la confirmación del
+ *                                     pedido: se le aclara que el pedido NO se envió y que
+ *                                     tiene que volver a confirmarlo.
+ * @returns {string}
+ */
+export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirmar) {
+	let nombres = []
+	articulos.forEach(articulo => {
+		if (articulo.name) {
+			nombres.push(escapar_html(articulo.name))
+		}
+	})
+	let mensaje
+	if (!nombres.length) {
+		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles.'
+	} else if (nombres.length == 1) {
+		mensaje = 'Sacamos de tu carrito un producto que ya no está disponible: ' + nombres[0] + '.'
+	} else {
+		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles: ' + nombres.join(', ') + '.'
+	}
+	if (antes_de_confirmar) {
+		mensaje = 'Tu pedido todavía no se envió. ' + mensaje + ' Revisá el total y confirmalo de nuevo.'
+	}
+	return mensaje
+}
+
+/**
+ * Muestra el aviso de artículos no disponibles, si hay alguno. Es el único lugar que lo
+ * dibuja, así el texto y la duración son los mismos desde el store y desde el checkout.
+ *
+ * Usa `Vue.prototype.$toast` porque el store no es un componente: `Vue.use(VueToast)` de
+ * main.js lo deja ahí.
+ *
+ * @param {Array} articulos Ya normalizados con `articulos_no_disponibles()`.
+ * @param {boolean} antes_de_confirmar Ver `mensaje_de_articulos_no_disponibles`.
+ * @returns {boolean} true si avisó.
+ */
+export function avisar_articulos_no_disponibles(articulos, antes_de_confirmar) {
+	if (!articulos.length) {
+		return false
+	}
+	Vue.prototype.$toast.error(mensaje_de_articulos_no_disponibles(articulos, antes_de_confirmar), {
+		duration: DURACION_DEL_AVISO_DE_NO_DISPONIBLES,
+	})
+	return true
+}
+
+/**
+ * Lee los descartes de la respuesta de un guardado del carrito (`POST/PUT /api/carts`) y,
+ * si corresponde, avisa. Va DESPUÉS del `setCart` de la respuesta: el aviso tiene que salir
+ * con el carrito ya corregido en pantalla, no con las líneas que dice que sacó.
+ *
+ * @param {object} res Respuesta de axios.
+ * @param {boolean} avisar
+ * @returns {Array} Los descartados (o []).
+ */
+function descartados_del_guardado(res, avisar) {
+	let descartados = articulos_no_disponibles(res && res.data ? res.data.articulos_no_disponibles : null)
+	if (avisar) {
+		avisar_articulos_no_disponibles(descartados, false)
+	}
+	return descartados
+}
+
+/**
+ * Promesa del `POST /api/carts` que está en vuelo (alta de un carrito que todavía no tiene
+ * `id`), o null. Ver la guarda del principio de la acción `save`.
+ */
+let alta_de_carrito_en_vuelo = null
+
+/**
  * Ver la mutación `hidratar_envio_desde_cart`.
  *
  * @param {object} state Estado del módulo.
@@ -781,6 +907,40 @@ export default {
 				}
 			}
 		},
+		/**
+		 * Saca del carrito LOCAL todas las líneas de los artículos que el servidor rechazó por
+		 * no estar disponibles para este comprador (422 `articulos_no_disponibles` de
+		 * `POST /api/orders`, ver `manejar_articulos_no_disponibles` en mixins/cart.js).
+		 *
+		 * 🔴 Sin esto el reintento pega el MISMO 422: el checkout vuelve a guardar el carrito
+		 * del store con esas líneas adentro. Sacándolas acá, el próximo `cart/save` manda el
+		 * carrito sin ellas.
+		 *
+		 * Se filtra por id y se sacan TODAS las líneas del artículo, no la primera: dos
+		 * variantes del mismo artículo son dos líneas con el mismo `id` (ver addItem), y la
+		 * mutación `removeArticle` solo saca la primera que encuentra. Los ids se comparan como
+		 * texto porque según el camino llegan como número o como string.
+		 *
+		 * Solo toca `articles`: los combos y las promociones de vinoteca no son artículos y el
+		 * catálogo por lista no los filtra.
+		 *
+		 * @param {object} state
+		 * @param {Array} articulos [{id, name}, ...]
+		 */
+		quitar_articulos_no_disponibles(state, articulos) {
+			let ids = []
+			;(articulos || []).forEach(articulo => {
+				if (articulo && articulo.id !== undefined && articulo.id !== null) {
+					ids.push(String(articulo.id))
+				}
+			})
+			if (!ids.length || !state.cart || !Array.isArray(state.cart.articles)) {
+				return
+			}
+			state.cart.articles = state.cart.articles.filter(article => {
+				return ids.indexOf(String(article.id)) === -1
+			})
+		},
 		setCart(state, cart = null) {
 			if (cart) {
 				/*
@@ -843,7 +1003,46 @@ export default {
 		},
 	},
 	actions: {
-		save({ state, commit }) {
+		/**
+		 * Guarda el carrito: `POST /api/carts` si todavía no tiene `id`, `PUT` si ya lo tiene, y
+		 * reemplaza el del store con el que devuelve el servidor.
+		 *
+		 * Resuelve con la lista de artículos que el servidor DESCARTÓ por no estar disponibles
+		 * para este comprador (`[{id, name}]`, ver `articulos_no_disponibles()`), o con [] si no
+		 * descartó nada —que es SIEMPRE el caso contra una tienda-api vieja—. Hasta el 5/10/2026
+		 * resolvía con undefined y ningún llamador miraba el valor, así que sumarlo no cambia a
+		 * nadie; el checkout lo usa para no confirmar un pedido distinto del que el comprador vio.
+		 *
+		 * Si hubo descartes, avisa con un toast con los nombres, salvo que el llamador pida
+		 * `{avisar_no_disponibles: false}` porque va a dar él un aviso más preciso (el checkout).
+		 *
+		 * @param {object} context
+		 * @param {object|undefined} opciones { avisar_no_disponibles?: boolean }
+		 * @returns {Promise<Array>}
+		 */
+		save({ state, commit, dispatch }, opciones) {
+			/*
+			 * 🔴 Si ya hay un ALTA del carrito en vuelo, este guardado espera a que termine y
+			 * recién ahí corre. Pasa al loguearse con un carrito de invitado: el login guarda el
+			 * carrito (`checkCart` en mixins/auth.js) y el watcher de `authenticated` vuelve a
+			 * guardarlo (`getLastCart` en mixins/app.js). Si el segundo salía antes de que
+			 * volviera el primero, el carrito todavía no tenía `id` y salían DOS altas: dos
+			 * carritos en la base y, con el catálogo por lista, DOS avisos de los mismos
+			 * artículos descartados. Encolado, el segundo sale como `PUT` sobre el carrito que
+			 * creó el primero, ya sin las líneas descartadas, y no avisa nada.
+			 *
+			 * Se encola solo detrás de un alta: dos `PUT` seguidos se comportan como siempre. El
+			 * `.catch` vacío es para que el guardado encolado corra aunque el alta haya fallado
+			 * (sigue sin `id` y vuelve a intentar el alta, como habría hecho antes).
+			 */
+			if (alta_de_carrito_en_vuelo) {
+				return alta_de_carrito_en_vuelo
+				.catch(() => {})
+				.then(() => {
+					return dispatch('save', opciones)
+				})
+			}
+			let avisar = !(opciones && opciones.avisar_no_disponibles === false)
 			if (state.payment_method) {
 				state.cart.payment_method_id = state.payment_method.id
 			} else {
@@ -865,20 +1064,24 @@ export default {
 			console.log(state.cart)
 			if (!state.cart.id) {
 				commit('setSaving', true)
-				return axios.post('/api/carts', {
+				alta_de_carrito_en_vuelo = axios.post('/api/carts', {
 					cart	    : state.cart,
 					commerce_id : env('VUE_APP_COMMERCE_ID') 
 				})
 				.then(res => {
+					alta_de_carrito_en_vuelo = null
 					commit('setSaving', false)
 					console.log('Carrito creado')
 					commit('setCart', res.data.cart)
+					return descartados_del_guardado(res, avisar)
 				})
 				.catch(err => {
+					alta_de_carrito_en_vuelo = null
 					commit('setSaving', false)
 					console.log(err)
 					throw err
 				})
+				return alta_de_carrito_en_vuelo
 			} else {
 				commit('setSaving', true)
 				return axios.put('/api/carts', state.cart)
@@ -886,6 +1089,7 @@ export default {
 					commit('setSaving', false)
 					console.log('Carrito actualizado')
 					commit('setCart', res.data.cart)
+					return descartados_del_guardado(res, avisar)
 				})
 				.catch(err => {
 					commit('setSaving', false)
@@ -925,6 +1129,8 @@ export default {
 				.then(res => {
 					console.log('Carrito actualizado')
 					commit('setCart', res.data.cart)
+					// Mismo PUT que `save`: si el servidor descartó algo de lo que quedó, se avisa.
+					descartados_del_guardado(res, true)
 				})
 				.catch(err => {
 					console.log(err)
