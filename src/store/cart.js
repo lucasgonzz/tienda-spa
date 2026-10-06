@@ -206,6 +206,28 @@ export function articulos_no_disponibles(lista) {
 }
 
 /**
+ * Si un artículo está entre los que el servidor DESCARTÓ en un guardado del carrito, o sea, si
+ * ese guardado (`cart/save`, que resuelve con la lista de descartados) lo dejó afuera.
+ *
+ * Los ids se comparan como texto porque según el camino llegan como número o como string (mismo
+ * criterio que la mutación `quitar_articulos_no_disponibles`). Con `undefined`, `null` o una lista
+ * vacía —siempre, contra una tienda-api vieja— devuelve false.
+ *
+ * @param {Array|undefined} descartados Lo que resolvió `cart/save`.
+ * @param {object} articulo El artículo que se quiere saber si quedó afuera.
+ * @returns {boolean}
+ */
+export function articulo_fue_descartado(descartados, articulo) {
+	if (!articulo || articulo.id === undefined || articulo.id === null) {
+		return false
+	}
+	let id = String(articulo.id)
+	return articulos_no_disponibles(descartados).some(descartado => {
+		return String(descartado.id) === id
+	})
+}
+
+/**
  * Si el carrito no tiene ninguna línea: ni artículos, ni promociones de vinoteca, ni combos.
  * Acepta null: es lo que responde el PUT de `/api/carts` cuando descarta TODAS las líneas
  * (borra el carrito y devuelve `cart: null`). El POST, en cambio, devuelve un carrito con los

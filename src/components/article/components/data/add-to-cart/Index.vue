@@ -71,6 +71,7 @@
 <script>
 import articles from '@/mixins/articles'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
+import { articulo_fue_descartado } from '@/store/cart'
 export default {
 	name: 'AddToCart',
 	mixins: [articles],
@@ -273,7 +274,24 @@ export default {
 					this.$store.commit('auth/setMessage', 'Guardando carrito')
 					this.$store.commit('auth/setLoading', true)
 					this.$store.dispatch('cart/save')
-					.then(() => {
+					.then(descartados => {
+
+						/*
+						 * 🔴 `cart/save` resuelve con los artículos que el servidor DESCARTÓ por no estar
+						 * disponibles para este comprador (catalogo-por-lista-tienda). Si el que se acaba
+						 * de agregar es uno de ellos, el store ya avisó ("X ya no está disponible...") y el
+						 * carrito que quedó es el del servidor, sin esa línea: no hay nada que mostrar como
+						 * "agregado" —ni el item, ni el popup— ni a dónde llevar con "Comprar ahora", que
+						 * iría a Payment con el carrito sin este artículo (o vacío).
+						 *
+						 * Pasa con una lista que cambió con la ficha abierta (dos pestañas) o con listados
+						 * que no se recargan (similares, favoritos). Contra una tienda-api vieja nunca
+						 * llega un descartado, así que esto no corta nada.
+						 */
+						if (articulo_fue_descartado(descartados, this.article)) {
+							this.$store.commit('auth/setLoading', false)
+							return
+						}
 
 						this.$store.commit('cart/set_added_item', this.article)
 
