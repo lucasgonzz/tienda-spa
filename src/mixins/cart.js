@@ -659,7 +659,8 @@ export default {
 		 *   1. Saca esas líneas del carrito LOCAL. Sin esto el reintento vuelve a guardar el
 		 *      carrito con ellas adentro y pega el mismo 422.
 		 *   2. Le avisa al comprador con los nombres, aclarando que el pedido NO se envió. Si el
-		 *      servidor no mandó artículos reconocibles, con su `message`.
+		 *      servidor no mandó artículos reconocibles, con su `message`. Si con eso el carrito
+		 *      quedó vacío, lo lleva al carrito (`llevar_al_carrito_vacio`).
 		 *   3. Devuelve true, para que `makeOrder` resuelva `false` (= "ya le dije qué hacer") y
 		 *      el botón no pise este aviso con el genérico de "No pudimos guardar tu pedido".
 		 *
@@ -688,6 +689,9 @@ export default {
 				 * nuestro y no lleva nada que escapar.
 				 */
 				this.$toast.error(data.message ? escapar_html(data.message) : 'Algunos productos de tu carrito ya no están disponibles. Revisá tu carrito y confirmá el pedido de nuevo.')
+			} else if (carrito_vacio) {
+				// El aviso fue el de "tu carrito quedó vacío": no hay nada que volver a confirmar acá.
+				this.llevar_al_carrito_vacio()
 			}
 			return true
 		},
@@ -699,7 +703,8 @@ export default {
 		 * carrito y un total que acaba de cambiar. Seguir crearía un pedido distinto del que
 		 * vio —y en Mercado Pago le cobraría otro monto— con un aviso que dura unos segundos
 		 * mientras la pantalla ya se fue a "Gracias". Cortando, se queda en el checkout con el
-		 * carrito corregido, el aviso explica qué pasó, y vuelve a confirmar.
+		 * carrito corregido, el aviso explica qué pasó, y vuelve a confirmar. Si el carrito quedó
+		 * VACÍO no hay nada que confirmar: se lo lleva al carrito (`llevar_al_carrito_vacio`).
 		 *
 		 * Pasa con un carrito viejo (de antes de que el comerciante restringiera la lista) que
 		 * `getLastCart` trae tal cual y nadie volvió a guardar hasta el checkout.
@@ -721,7 +726,12 @@ export default {
 			}
 			// El guardado ya dejó en el store el carrito que devolvió el servidor (en blanco si fue
 			// `cart: null`, o sin líneas): si descartó todo, el aviso lo dice.
-			avisar_articulos_no_disponibles(articulos, true, carrito_sin_lineas(this.$store.state.cart.cart))
+			let carrito_vacio = carrito_sin_lineas(this.$store.state.cart.cart)
+			avisar_articulos_no_disponibles(articulos, true, carrito_vacio)
+			if (carrito_vacio) {
+				// Y en el checkout no queda nada que volver a confirmar: se lo lleva al carrito.
+				this.llevar_al_carrito_vacio()
+			}
 			let corte = new Error('articulos_no_disponibles')
 			corte.articulos_no_disponibles_ya_avisados = true
 			throw corte
@@ -735,6 +745,26 @@ export default {
 		 */
 		es_corte_por_articulos_no_disponibles(err) {
 			return !!(err && err.articulos_no_disponibles_ya_avisados)
+		},
+		/**
+		 * Lleva al comprador a la página del carrito cuando el checkout se quedó sin nada que
+		 * confirmar: se descartaron todas las líneas (catalogo-por-lista-tienda) o el carrito ya
+		 * estaba vacío.
+		 *
+		 * 🔴 Por qué: "Confirmá tu pedido" (views/Payment.vue) no se redirige solo con el carrito
+		 * vacío y su botón sigue activo. Si el comprador volvía a tocar "Finalizar compra", se
+		 * guardaba un carrito sin líneas y, como no queda pedido que crear, lo único que veía era el
+		 * genérico "No pudimos guardar tu pedido. Probá de nuevo.", que no dice nada del carrito. En
+		 * el carrito, en cambio, ve cómo quedó y puede volver a elegir productos.
+		 *
+		 * `replace` y no `push`: el checkout vacío no es un lugar al que se pueda volver con "atrás".
+		 * El `.catch` vacío es por `NavigationDuplicated`: pasa cuando ya está en el carrito (el
+		 * modal de forma de pago se abre ahí) y no es un error para nadie.
+		 *
+		 * El aviso (toast) lo da quien llama o el store, y sigue en pantalla después de navegar.
+		 */
+		llevar_al_carrito_vacio() {
+			this.$router.replace({name: 'Cart'}).catch(() => {})
 		},
 		/**
 		 * Crea el pedido a partir del carrito.
@@ -754,9 +784,10 @@ export default {
 		 *     `manejar_articulos_no_disponibles`),
 		 *   - el llamador pidio `frenar_si_hay_descartes` y el `cart/save` del principio descarto
 		 *     articulos no disponibles (ver `cortar_si_el_guardado_descarto`), o
-		 *   - ese `cart/save` dejo el carrito sin guardar: se descartaron TODAS las lineas, el
-		 *     servidor borro el carrito (`cart: null`) y no hay `cart_id` con el que crear el
-		 *     pedido. No se le pega a `POST /orders`: sin `cart_id` respondia 403 y resolvia `null`.
+		 *   - ese `cart/save` dejo el carrito sin guardar o sin lineas: se descartaron TODAS (el
+		 *     servidor borro el carrito, `cart: null`, y no hay `cart_id`) o ya estaba vacio. No se
+		 *     le pega a `POST /orders`: sin `cart_id` respondia 403 y resolvia `null`, y un carrito
+		 *     vacio no es un pedido. Se lleva al comprador al carrito (`llevar_al_carrito_vacio`).
 		 * En los tres casos el pedido NO se creo. El aviso de lo descartado, si lo hubo, ya lo dio
 		 * el store (o `cortar_si_el_guardado_descarto`).
 		 *
@@ -812,17 +843,23 @@ export default {
 					self.cortar_si_el_guardado_descarto(descartados)
 				}
 				/*
-				 * 🔴 Sin carrito guardado no hay pedido que crear. Si el guardado descartó TODAS las
-				 * líneas (catalogo-por-lista-tienda), el servidor borra el carrito y responde
+				 * 🔴 Sin carrito guardado, o sin líneas, no hay pedido que crear. Si el guardado descartó
+				 * TODAS las líneas (catalogo-por-lista-tienda), el servidor borra el carrito y responde
 				 * `cart: null`: `setCart(null)` lo deja en blanco y `self.cart.id` queda undefined, y el
 				 * POST saldría sin `cart_id`, que tienda-api rechaza con 403. Eso resolvía `null` y
 				 * quienes no frenan (`savePayment()` corre DESPUÉS de cobrar la tarjeta) seguían como si
 				 * nada.
 				 *
-				 * Corta ANTES de pegarle a /orders y resuelve `false`, igual que los otros cortes. Con
-				 * una tienda-api vieja ese POST fallaba igual: no cambia nada que anduviera.
+				 * Un carrito con id pero SIN líneas (el POST de uno vacío lo crea igual) tampoco es un
+				 * pedido, y tienda-api no lo valida.
+				 *
+				 * Corta ANTES de pegarle a /orders y resuelve `false`, igual que los otros cortes, y
+				 * lleva al comprador al carrito: con el checkout vacío en pantalla el único aviso posible
+				 * era el genérico "No pudimos guardar tu pedido". Con una tienda-api vieja el POST sin
+				 * `cart_id` fallaba igual: no cambia nada que anduviera.
 				 */
-				if (!self.cart || !self.cart.id) {
+				if (!self.cart || !self.cart.id || carrito_sin_lineas(self.cart)) {
+					self.llevar_al_carrito_vacio()
 					let corte = new Error('carrito_sin_guardar')
 					corte.carrito_sin_guardar = true
 					throw corte
@@ -937,8 +974,8 @@ export default {
 				if (self.es_corte_por_articulos_no_disponibles(err)) {
 					return false
 				}
-				// El guardado dejo el carrito sin guardar (se descartaron todas las lineas): no se le
-				// pego a /orders. Ver el guard de arriba.
+				// El guardado dejo el carrito sin guardar o sin lineas: no se le pego a /orders (y ya se
+				// llevo al comprador al carrito). Ver el guard de arriba.
 				if (err && err.carrito_sin_guardar) {
 					return false
 				}
