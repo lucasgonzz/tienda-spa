@@ -22,20 +22,32 @@ export default {
 					this.recargar_catalogo()
 					/*
 					 * 🔴 Si estaba parado en una categoría, marca, bodega o cepa de la home
-					 * (`/inicio/herramientas`), la ruta sigue siendo 'Home' y el `replace` de abajo
-					 * no corre: la recarga suelta la selección y `getIndex` trae la portada, pero
-					 * la URL y el título seguirían diciendo "Herramientas". Se lleva la URL a la
-					 * portada para que diga lo mismo que la pantalla.
+					 * (`/inicio/herramientas`), o en una BÚSQUEDA (`/inicio?q=martillo`: es la misma
+					 * ruta 'Home' con `?q=` y sin categoría), la ruta sigue siendo 'Home' y el `replace`
+					 * de abajo no corre: la recarga suelta la selección y `getIndex` trae la portada, pero
+					 * la URL y el título seguirían diciendo "Herramientas" —o conservarían `?q=martillo`
+					 * y el texto en el buscador— mientras la pantalla muestra la portada. Se lleva la URL
+					 * a la portada, sin query, para que diga lo mismo que la pantalla.
+					 *
+					 * De la búsqueda se limpia también el texto del buscador (`search_query`, que
+					 * `getIndex` no toca). No se vuelve a ejecutar la búsqueda como visitante: dispararía
+					 * un evento de búsqueda que el comprador no hizo y ensuciaría la analítica.
 					 *
 					 * El `.catch` vacío no es descuido: vue-router 3 rechaza la promesa con
 					 * NavigationDuplicated si ya estaba ahí, y eso no es un error para nadie.
 					 */
 					let categoria_de_la_url = this.$route.params.category
+					let busqueda_de_la_url = this.$route.query.q
 					if (
 						this.$route.name == 'Home'
-						&& categoria_de_la_url
-						&& categoria_de_la_url != 'ultimos-ingresados'
+						&& (
+							(categoria_de_la_url && categoria_de_la_url != 'ultimos-ingresados')
+							|| busqueda_de_la_url
+						)
 					) {
+						if (busqueda_de_la_url) {
+							this.$store.commit('categories/setSearchQuery', '')
+						}
 						this.$router.replace({name: 'Home', params: {category: 'ultimos-ingresados'}})
 						.catch(() => {})
 					}
