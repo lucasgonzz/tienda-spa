@@ -751,10 +751,14 @@ export default {
 		 *
 		 * Desde el 5/10/2026 (catalogo-por-lista-tienda) tambien resuelve con `false` cuando:
 		 *   - el `POST /orders` respondio 422 `articulos_no_disponibles` (ver
-		 *     `manejar_articulos_no_disponibles`), o
+		 *     `manejar_articulos_no_disponibles`),
 		 *   - el llamador pidio `frenar_si_hay_descartes` y el `cart/save` del principio descarto
-		 *     articulos no disponibles (ver `cortar_si_el_guardado_descarto`).
-		 * En los dos casos el comprador ya fue avisado y el pedido NO se creo.
+		 *     articulos no disponibles (ver `cortar_si_el_guardado_descarto`), o
+		 *   - ese `cart/save` dejo el carrito sin guardar: se descartaron TODAS las lineas, el
+		 *     servidor borro el carrito (`cart: null`) y no hay `cart_id` con el que crear el
+		 *     pedido. No se le pega a `POST /orders`: sin `cart_id` respondia 403 y resolvia `null`.
+		 * En los tres casos el pedido NO se creo. El aviso de lo descartado, si lo hubo, ya lo dio
+		 * el store (o `cortar_si_el_guardado_descarto`).
 		 *
 		 * No rechaza nunca: los llamadores viejos (Payway, el modal del carrito, el gateway) la
 		 * invocan sin `.catch`, y una promesa rechazada ahi solo ensuciaria la consola.
@@ -773,7 +777,10 @@ export default {
 		 *                                  `savePayment()` de mixins/payment_gateway.js llama a
 		 *                                  makeOrder() DESPUES de cobrar la tarjeta, y frenar ahi
 		 *                                  dejaria un pago sin pedido. Con `false` el pedido sale
-		 *                                  con el carrito ya corregido y el aviso lo da el store.
+		 *                                  con el carrito ya corregido y el aviso lo da el store,
+		 *                                  salvo que se hayan descartado TODAS las lineas: sin
+		 *                                  carrito guardado no hay pedido que crear y resuelve
+		 *                                  `false` (ver arriba).
 		 * @returns {Promise<boolean|null>}
 		 */
 		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false) {
@@ -803,6 +810,22 @@ export default {
 			.then(function(descartados) {
 				if (frenar_si_hay_descartes) {
 					self.cortar_si_el_guardado_descarto(descartados)
+				}
+				/*
+				 * 🔴 Sin carrito guardado no hay pedido que crear. Si el guardado descartó TODAS las
+				 * líneas (catalogo-por-lista-tienda), el servidor borra el carrito y responde
+				 * `cart: null`: `setCart(null)` lo deja en blanco y `self.cart.id` queda undefined, y el
+				 * POST saldría sin `cart_id`, que tienda-api rechaza con 403. Eso resolvía `null` y
+				 * quienes no frenan (`savePayment()` corre DESPUÉS de cobrar la tarjeta) seguían como si
+				 * nada.
+				 *
+				 * Corta ANTES de pegarle a /orders y resuelve `false`, igual que los otros cortes. Con
+				 * una tienda-api vieja ese POST fallaba igual: no cambia nada que anduviera.
+				 */
+				if (!self.cart || !self.cart.id) {
+					let corte = new Error('carrito_sin_guardar')
+					corte.carrito_sin_guardar = true
+					throw corte
 				}
 				return self.$api.post('/orders', {
 					commerce_id 	: env('VUE_APP_COMMERCE_ID'),
@@ -912,6 +935,11 @@ export default {
 				// El guardado descarto articulos no disponibles y se freno antes de crear el
 				// pedido: el aviso ya salio en cortar_si_el_guardado_descarto.
 				if (self.es_corte_por_articulos_no_disponibles(err)) {
+					return false
+				}
+				// El guardado dejo el carrito sin guardar (se descartaron todas las lineas): no se le
+				// pego a /orders. Ver el guard de arriba.
+				if (err && err.carrito_sin_guardar) {
 					return false
 				}
 				// 422 `articulos_no_disponibles` del POST /orders (`manejar_error_de_envio` no
