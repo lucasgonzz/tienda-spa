@@ -144,7 +144,7 @@ export default {
 		 * que hay ahora: los artículos de la home (`getIndex`), el árbol de categorías y las
 		 * marcas. Antes suelta la selección activa (categoría, subcategoría, bodega, cepa y
 		 * marca), que es de la identidad anterior (ver `soltar_seleccion_por_cambio_de_identidad`
-		 * en store/categories.js).
+		 * en store/categories.js), y apaga el popup "Agregado al carrito" (ver más abajo).
 		 *
 		 * El árbol de categorías y las marcas NO se vacían mientras vuelve la respuesta: el menú
 		 * sigue dibujado con lo anterior y la respuesta nueva lo reemplaza. Vaciarlos lo hacía
@@ -174,10 +174,21 @@ export default {
 		 * catálogo muestren su skeleton, como en el arranque. La SPA no puede saber si el
 		 * catálogo de este comercio está restringido, así que ese costo lo pagan todos.
 		 *
+		 * 🔴 El popup "Agregado al carrito" también se apaga acá, en los dos sentidos: es una
+		 * confirmación de 5 segundos que no tiene sentido después de un cambio de identidad. Pasaba
+		 * así: un invitado agrega un artículo y va al login antes de que el popup se cierre; la
+		 * página de login no dibuja el header, `AddedArticleInfo` se desmonta y su timer se cancela
+		 * (`beforeDestroy`), pero `added_item_popup_visible` queda en true en el store. Al volver a
+		 * una página con header, el popup reaparecía 5 s mostrando ese artículo —aunque el login
+		 * lo acabara de descartar— con el precio del invitado y el total del mayorista.
+		 * Es inocuo contra cualquier tienda-api (solo apaga un popup de 5 s) y corre para todos los
+		 * comercios, tengan o no listas restringidas.
+		 *
 		 * @returns {Promise}
 		 */
 		recargar_catalogo() {
 			this.$store.commit('categories/soltar_seleccion_por_cambio_de_identidad')
+			this.$store.commit('cart/set_added_item_popup_visible', false)
 			return Promise.all([
 				this.$store.dispatch('categories/getIndex'),
 				this.$store.dispatch('categories/getCategories'),

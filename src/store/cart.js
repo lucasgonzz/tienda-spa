@@ -213,12 +213,19 @@ export function articulos_no_disponibles(lista) {
  * criterio que la mutación `quitar_articulos_no_disponibles`). Con `undefined`, `null` o una lista
  * vacía —siempre, contra una tienda-api vieja— devuelve false.
  *
+ * 🔴 Un combo o una promoción de vinoteca nunca está descartado: el catálogo por lista filtra solo
+ * ARTÍCULOS, y esas dos cosas tienen su propia secuencia de ids, así que el id de un combo puede
+ * coincidir con el de un artículo descartado y darle por perdido algo que sigue en el carrito.
+ *
  * @param {Array|undefined} descartados Lo que resolvió `cart/save`.
  * @param {object} articulo El artículo que se quiere saber si quedó afuera.
  * @returns {boolean}
  */
 export function articulo_fue_descartado(descartados, articulo) {
 	if (!articulo || articulo.id === undefined || articulo.id === null) {
+		return false
+	}
+	if (articulo.is_combo || articulo.is_promocion_vinoteca) {
 		return false
 	}
 	let id = String(articulo.id)
@@ -413,12 +420,20 @@ let ultimo_aviso_de_descartes = { firma: '', hasta: 0 }
  * Todo esto corre solo si la respuesta trae la clave `articulos_no_disponibles`: con una
  * tienda-api vieja (o sin descartes) no hay firma que calcular y no se toca nada.
  *
+ * 🔴 Con descartes, además apaga el popup "Agregado al carrito" si el artículo que muestra es uno de
+ * ellos (`apagar_popup_del_agregado_descartado`), con `avisar` o sin él: el popup y el aviso no se
+ * pueden contradecir. Es independiente del aviso, así que no pasa por la deduplicación.
+ *
  * @param {object} res Respuesta de axios.
  * @param {boolean} avisar
+ * @param {Function} commit El `commit` del módulo, que le pasa la acción que guarda.
  * @returns {Array} Los descartados (o []).
  */
-function descartados_del_guardado(res, avisar) {
+function descartados_del_guardado(res, avisar, commit) {
 	let descartados = articulos_no_disponibles(res && res.data ? res.data.articulos_no_disponibles : null)
+	if (descartados.length) {
+		commit('apagar_popup_del_agregado_descartado', descartados)
+	}
 	if (avisar && descartados.length) {
 		let ids = []
 		descartados.forEach(articulo => {
@@ -571,6 +586,25 @@ export default {
 		 */
 		set_added_item_popup_visible(state, value) {
 			state.added_item_popup_visible = value
+		},
+		/**
+		 * Apaga el popup "Agregado al carrito" si el artículo que muestra (`added_item`) es uno de los
+		 * que el servidor acaba de DESCARTAR por no estar disponible para este comprador
+		 * (catalogo-por-lista-tienda). Lo llama `descartados_del_guardado`, o sea cualquier guardado
+		 * del carrito que traiga descartes: el del login con carrito de invitado (`checkCart` de
+		 * mixins/auth.js, `getLastCart` de mixins/app.js), el del checkout o el de `removeArticle`.
+		 *
+		 * Sin esto el popup decía "Agregado al carrito — X" a la vez que el aviso decía que X se había
+		 * quitado. No se limpia `added_item`: ningún camino lo hace, y el popup no se dibuja sin
+		 * `added_item_popup_visible`; el próximo agregado lo pisa con `set_added_item`.
+		 *
+		 * @param {object} state
+		 * @param {Array} descartados [{id, name}, ...] lo que resolvió el guardado
+		 */
+		apagar_popup_del_agregado_descartado(state, descartados) {
+			if (state.added_item_popup_visible && articulo_fue_descartado(descartados, state.added_item)) {
+				state.added_item_popup_visible = false
+			}
 		},
 		setBuyer(state, value) {
 			state.buyer = value 
@@ -1196,7 +1230,7 @@ export default {
 					commit('setSaving', false)
 					console.log('Carrito creado')
 					commit('setCart', res.data.cart)
-					return descartados_del_guardado(res, avisar)
+					return descartados_del_guardado(res, avisar, commit)
 				})
 				.catch(err => {
 					commit('setSaving', false)
@@ -1210,7 +1244,7 @@ export default {
 					commit('setSaving', false)
 					console.log('Carrito actualizado')
 					commit('setCart', res.data.cart)
-					return descartados_del_guardado(res, avisar)
+					return descartados_del_guardado(res, avisar, commit)
 				})
 				.catch(err => {
 					commit('setSaving', false)
@@ -1251,7 +1285,7 @@ export default {
 					console.log('Carrito actualizado')
 					commit('setCart', res.data.cart)
 					// Mismo PUT que `save`: si el servidor descartó algo de lo que quedó, se avisa.
-					descartados_del_guardado(res, true)
+					descartados_del_guardado(res, true, commit)
 				})
 				.catch(err => {
 					console.log(err)
