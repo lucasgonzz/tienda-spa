@@ -52,12 +52,13 @@ export default {
 		loading_article_to_show: false,
 		/*
 		 * 🔴 Número del último pedido de la FICHA (`getArticleToShow`). Cada llamada lo
-		 * incrementa al salir y se guarda el suyo; el `catch` de un pedido que ya no es el
-		 * último no toca el artículo que hay en pantalla.
+		 * incrementa al salir y se guarda el suyo; ni el `.then` ni el `catch` de un pedido que
+		 * ya no es el último tocan el artículo que hay en pantalla ni el loading.
 		 *
 		 * Por qué: al ir de ficha en ficha rápido (A -> B -> C) hay varios pedidos en vuelo a
 		 * la vez. Si C vuelve bien y DESPUÉS falla B, el `catch` de B soltaba el artículo y la
-		 * pantalla mostraba "No pudimos cargar este producto" con la URL de C. Mismo patrón que
+		 * pantalla mostraba "No pudimos cargar este producto" con la URL de C; y si B vuelve
+		 * bien DESPUÉS de C, su `.then` ponía el artículo de B bajo la URL de C. Mismo patrón que
 		 * `pedido_del_listado` en store/categories.js.
 		 */
 		pedido_de_la_ficha: 0,
@@ -199,13 +200,20 @@ export default {
 			const pedido = state.pedido_de_la_ficha
 			return axios.get(url)
 			.then(res => {
+				/*
+				 * 🔴 Llegó tarde: ya salió otro pedido de la ficha (A -> B -> C rápido). Lo que hay en el
+				 * store es de un pedido más nuevo, y esta respuesta —de otro artículo— no puede pisarlo
+				 * ni apagar el loading del pedido vigente. Misma guarda que el `catch` de abajo.
+				 */
+				if (pedido !== state.pedido_de_la_ficha) {
+					return
+				}
 				console.log('getArticleToShow')
 				console.log(res.data.article)
 				commit('setLoadingArticleToShow', false)
 				commit('setArticleToShow', res.data.article)
 			})
 			.catch(err => {
-				commit('setLoadingArticleToShow', false)
 				console.log(err)
 				/*
 				 * 🔴 Se suelta el artículo que hubiera, salvo en dos casos. Esta acción también corre
@@ -232,6 +240,9 @@ export default {
 				if (pedido !== state.pedido_de_la_ficha) {
 					return
 				}
+				// El loading lo apaga solo el pedido vigente: uno viejo que falla no tiene que dejar
+				// "cargado" a la ficha que todavía está pidiendo.
+				commit('setLoadingArticleToShow', false)
 				let en_pantalla = state.article_to_show
 				if (en_pantalla && en_pantalla.slug === params.slug) {
 					return
