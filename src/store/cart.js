@@ -308,7 +308,9 @@ function lista_de_nombres(nombres, total) {
  * `MAX_NOMBRES_EN_EL_AVISO`; si son más, "y N más").
  *
  * No dice "no está habilitado para tu lista" a propósito: el comprador no sabe (ni tiene por
- * qué saber) qué lista de precios tiene, y para él la diferencia no cambia nada.
+ * qué saber) qué lista de precios tiene, y para él la diferencia no cambia nada. Tampoco dice
+ * "para tu cuenta": el invitado no tiene cuenta. Es "ya no está disponible" a secas, en todos
+ * los textos (también en el del carrito que quedó vacío).
  *
  * @param {Array} articulos Ya normalizados con `articulos_no_disponibles()`.
  * @param {boolean} antes_de_confirmar El aviso sale porque se frenó la confirmación del
@@ -338,11 +340,11 @@ export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirma
 		 * cómo quedó el carrito, sin pedirle que confirme nada.
 		 */
 		if (!lista) {
-			mensaje = 'Los productos de tu carrito no están disponibles para tu cuenta y se quitaron. Tu carrito quedó vacío.'
+			mensaje = 'Los productos de tu carrito ya no están disponibles y se quitaron. Tu carrito quedó vacío.'
 		} else if (articulos.length == 1) {
-			mensaje = lista + ' no está disponible para tu cuenta y se quitó del carrito. Tu carrito quedó vacío.'
+			mensaje = lista + ' ya no está disponible y se quitó del carrito. Tu carrito quedó vacío.'
 		} else {
-			mensaje = lista + ' no están disponibles para tu cuenta y se quitaron del carrito. Tu carrito quedó vacío.'
+			mensaje = lista + ' ya no están disponibles y se quitaron del carrito. Tu carrito quedó vacío.'
 		}
 	} else if (!lista) {
 		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles.'
