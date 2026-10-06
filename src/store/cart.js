@@ -286,11 +286,47 @@ export function escapar_html(texto) {
 const MAX_NOMBRES_EN_EL_AVISO = 3
 
 /**
+ * Cuántos caracteres de un nombre de artículo caben en el aviso. Uno más largo se recorta a sus
+ * primeros `MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO` caracteres y una "…". El tope de cantidad
+ * (`MAX_NOMBRES_EN_EL_AVISO`) no alcanza solo: un nombre de 130 caracteres entre los tres hacía un
+ * toast de 240 px de alto en un teléfono de 375 px de ancho (el 30 % de la pantalla), que tapaba el
+ * botón de login o la barra inferior durante 8 segundos.
+ */
+const MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO = 40
+
+/**
+ * Recorta el nombre de un artículo para el aviso: si tiene más de
+ * `MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO` caracteres, deja los primeros y agrega "…". Uno que mide
+ * justo ese largo, o menos, no se toca.
+ *
+ * 🔴 Se recorta el texto CRUDO, ANTES de escaparlo (`escapar_html` va después). Ya escapado, un `&`
+ * ocupa cinco caracteres, y cortar ahí podía dejar una entidad a la mitad ("&am…") que el toast
+ * dibuja como basura. Tampoco se corta un par sustituto (un emoji) por el medio: si el corte cae
+ * entre sus dos mitades, se descarta la que quedó sola. Y los espacios que quedan pegados a la "…"
+ * se sacan para que no diga "foo …".
+ *
+ * @param {*} nombre
+ * @returns {string} Sin escapar.
+ */
+function recortar_nombre(nombre) {
+	let texto = String(nombre)
+	if (texto.length <= MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO) {
+		return texto
+	}
+	let corte = texto.slice(0, MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO)
+	let ultimo = corte.charCodeAt(corte.length - 1)
+	if (ultimo >= 0xD800 && ultimo <= 0xDBFF) {
+		corte = corte.slice(0, -1)
+	}
+	return corte.replace(/\s+$/, '') + '…'
+}
+
+/**
  * Arma la lista de nombres del aviso, en castellano: "A", "A y B", "A, B y C" o, si hay más
  * de `MAX_NOMBRES_EN_EL_AVISO`, "A, B, C y 12 más".
  *
- * @param {Array} nombres Los nombres que vinieron, YA escapados (no todos los artículos
- *                        traen nombre).
+ * @param {Array} nombres Los nombres que vinieron, YA recortados y escapados (no todos los
+ *                        artículos traen nombre).
  * @param {number} total Cuántos artículos se descartaron en total. Puede ser más que
  *                       `nombres.length`: un artículo sin nombre igual entra en el "y N más".
  * @returns {string} '' si ninguno trae nombre.
@@ -312,7 +348,8 @@ function lista_de_nombres(nombres, total) {
 
 /**
  * Texto del aviso de artículos no disponibles, con los nombres (hasta
- * `MAX_NOMBRES_EN_EL_AVISO`; si son más, "y N más").
+ * `MAX_NOMBRES_EN_EL_AVISO`, cada uno recortado a `MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO`
+ * caracteres; si son más, "y N más").
  *
  * No dice "no está habilitado para tu lista" a propósito: el comprador no sabe (ni tiene por
  * qué saber) qué lista de precios tiene, y para él la diferencia no cambia nada. Tampoco dice
@@ -332,7 +369,8 @@ export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirma
 	let nombres = []
 	articulos.forEach(articulo => {
 		if (articulo.name) {
-			nombres.push(escapar_html(articulo.name))
+			// Primero se recorta el texto crudo y DESPUÉS se escapa: ver `recortar_nombre`.
+			nombres.push(escapar_html(recortar_nombre(articulo.name)))
 		}
 	})
 	let lista = lista_de_nombres(nombres, articulos.length)
