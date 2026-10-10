@@ -70,5 +70,30 @@ export default {
 			return axios.get(`/api/current-acount/sale-pdf-token/${sale_id}`)
 				.then(res => res.data.token)
 		},
+		/**
+		 * Pide a tienda-api el token del link de un PDF de cuenta corriente (misión
+		 * pdf-de-venta-publico, 10/10/2026): el estado de cuenta (`credit_account`) o el
+		 * comprobante de un pago o una nota de crédito (`current_acount`).
+		 *
+		 * empresa-api deja de servir esos PDF sin sesión ni token, y el comprador no tiene sesión
+		 * de empresa: el link tiene que llevar `?t=<token>`. tienda-api valida que el recurso sea
+		 * del comprador y reusa (o crea) la fila de `pdf_links` en la base compartida.
+		 *
+		 * Resuelve null si la base del cliente todavía no tiene `pdf_links` (empresa sin
+		 * actualizar): ahí la ruta del PDF sigue pública y se abre el link de siempre. Rechaza si
+		 * el pedido falla (sin sesión, no es suyo, red caída); el que llama abre el link de
+		 * siempre igual.
+		 *
+		 * @param {Object} context Contexto Vuex del módulo current_acount
+		 * @param {Object} payload { tipo: 'credit_account'|'current_acount', id }
+		 * @returns {Promise<string|null>} Token del link, o null si no hay tabla
+		 */
+		getPdfLinkToken(context, payload) {
+			let segmento = payload.tipo == 'credit_account' ? 'credit-account' : 'movement'
+			return axios.get(`/api/current-acount/pdf-token/${segmento}/${payload.id}`)
+				.then(function (res) {
+					return res.data && res.data.token ? res.data.token : null
+				})
+		},
 	}
 }
