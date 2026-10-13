@@ -139,8 +139,16 @@ export default {
 			auto_scroll_timeout: null,
 			auto_scroll_interval: null,
 			auto_scroll_pending_pixels: 0,
-			auto_scroll_programmatic: false,
-			auto_scroll_events: ['scroll'],
+			// Eventos con los que se detecta que el comprador intervino: rueda, toque,
+			// teclado y click. En Chrome/Edge el click incluye usar la barra de scroll (medido);
+			// en Firefox y Safari no se probó.
+			// NO se escucha 'scroll' a propósito: el evento del propio scrollBy del autoscroll
+			// se despacha en el siguiente frame de render, después de cualquier temporizador,
+			// así que una bandera de "es programático" bajada con setTimeout o
+			// requestAnimationFrame no es confiable y el autoscroll se cortaba solo en el
+			// primer paso (caso medido el 12/10/2026 en la tienda 1.1.0 con 80 px/s).
+			// Por eso la intervención se detecta por las entradas del comprador, no por el scroll.
+			auto_scroll_events: ['wheel', 'touchstart', 'keydown', 'mousedown'],
 		}
 	},
 	computed: {
@@ -266,10 +274,8 @@ export default {
 					: Math.ceil(this.auto_scroll_pending_pixels)
 
 				if (pixels_to_scroll !== 0) {
-					this.auto_scroll_programmatic = true
 					window.scrollBy(0, pixels_to_scroll)
 					this.auto_scroll_pending_pixels -= pixels_to_scroll
-					setTimeout(() => { this.auto_scroll_programmatic = false }, 0)
 				}
 			}, this.auto_scroll_home_interval_ms)
 		},
@@ -279,21 +285,16 @@ export default {
 				this.auto_scroll_interval = null
 			}
 			this.auto_scroll_pending_pixels = 0
-
-			// alert('Se limpio autoscroll')
 		},
 		onUserActivity() {
-			console.log('onUserActivity')
-			console.log('auto_scroll_programmatic: '+this.auto_scroll_programmatic)
-			console.log('auto_scroll_home_speed: '+this.auto_scroll_home_speed)
-			if (this.auto_scroll_programmatic) {
-				return
-			}
+			// Si el autoscroll no está corriendo no hay nada que frenar
 			if (!this.auto_scroll_interval) {
 				return
 			}
+			// Una vez que el comprador toma el control, el autoscroll NO se reanuda solo por
+			// inactividad (no se llama a restartAutoScroll): queda detenido hasta que se vuelva a
+			// montar la portada o cambie alguna de las tres opciones de auto scroll de la configuración.
 			this.stopAutoScroll()
-			// this.restartAutoScroll()
 		},
 		setAutoScrollListeners() {
 			this.auto_scroll_events.forEach(event_name => {
