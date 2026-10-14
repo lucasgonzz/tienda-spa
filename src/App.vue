@@ -465,7 +465,6 @@ export default {
                 // await this.$store.dispatch('last_searchs/getLastSearchs')
                 await this.$store.dispatch('orders/getCurrentOrder')
                 await this.$store.dispatch('messages/getMessages')
-                // await this.$store.dispatch('cupons/getActiveCupons')
                 await this.listenChannels()
                 await this.getLastCart()
 

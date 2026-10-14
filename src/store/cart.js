@@ -605,7 +605,6 @@ export default {
 		selected_buyer: null,
 		payment_method: null,
 		delivery_zone: null,
-		cupon: null,
 		loading_last_cart: false,
 		saving: false,
 
@@ -895,9 +894,6 @@ export default {
 		setPaymentStatus(state, value) {
 			state.cart.payment_status = value
 		},
-		setCupon(state, value) {
-			state.cupon = value
-		},
 		addItem(state, item) {
 
 			let is_promocion_vinoteca = item.is_promocion_vinoteca
@@ -1181,7 +1177,6 @@ export default {
 				})
 				state.payment_method = cart.payment_method
 				state.delivery_zone = cart.delivery_zone
-				state.cupon = cart.cupon
 				// Envío por correo guardado en el servidor (si lo hay): ver hidratar_envio_desde_cart.
 				hidratar_envio(state, cart)
 			} else {
@@ -1200,7 +1195,6 @@ export default {
 				state.payment_method = null
 				// Hasta el 14/9/2026 decia `delovery_zone`: la zona elegida sobrevivia al vaciado.
 				state.delivery_zone = null
-				state.cupon = null
 				resetear_envio(state)
 			}
 			console.log(state.cart)
@@ -1244,11 +1238,15 @@ export default {
 			} else {
 				state.cart.payment_method_id = null
 			}
-			if (state.cupon) {
-				state.cart.cupon_id = state.cupon.id
-			} else {
-				state.cart.cupon_id = null
-			}
+			/*
+			 * Cupones: la tienda ya no los tiene (14/10/2026, mision tiendas-demo-y-limpieza-tienda).
+			 * `cupon_id` se sigue mandando, pero SIEMPRE en null, y no es un resto: un carrito
+			 * guardado por una tienda vieja puede volver de la API con su `cupon_id` puesto, y
+			 * reenviado tal cual la API seguiria descontando un cupon que la pantalla ya no muestra
+			 * (MercadoPagoController usa `$cart->cupon` y OrderController copia `cart.cupon_id` al
+			 * pedido). Con null, CartController lo deja en null: la API vieja y la nueva lo aceptan.
+			 */
+			state.cart.cupon_id = null
 			if (state.delivery_zone) {
 				state.cart.delivery_zone_id = state.delivery_zone.id
 			} else {

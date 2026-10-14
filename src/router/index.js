@@ -30,7 +30,6 @@ import Thanks from '../views/Thanks.vue'
 import Maps from '../views/Maps.vue'
 import SocialLogin from '../views/SocialLogin.vue'
 import Callback from '../views/Callback.vue'
-import Cupons from '../views/Cupons.vue'
 import Contacto from '../views/Contacto.vue'
 import QuienesSomos from '../views/QuienesSomos.vue'
 import SeleccionEspecial from '../views/SeleccionEspecial.vue'
@@ -222,12 +221,7 @@ Vue.use(VueRouter)
         component: Callback,
         meta: { noindex: true },
     },
-    {
-        path: '/cupones',
-        name: 'Cupons',
-        component: Cupons,
-        meta: { noindex: true },
-    },
+    // `/cupones` (Cupons) se saco el 14/10/2026 junto con los cupones de la tienda.
     {
         path: '/contacto',
         name: 'Contacto',

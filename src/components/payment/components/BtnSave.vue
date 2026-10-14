@@ -273,7 +273,10 @@ export default {
 				self.cortar_si_el_guardado_descarto(descartados)
 				return self.$api.post('mercado-pago/preference', {
 					payment_method: self.cart_payment_method,
-					cupon: self.cupon,
+					// Hasta el 14/10/2026 viajaba tambien `cupon`: la tienda ya no tiene cupones. La
+					// API lo lee con `$request->cupon` solo sin carrito resuelto, y sin la clave le
+					// llega null, la vieja y la nueva (con carrito usa `$cart->cupon`, que tampoco
+					// hay: ver `save()` en store/cart.js).
 					// 🔴 La zona SOLO viaja si el pedido se envia. OnlinePaymentHelper::setPrices()
 					// agrega el item "Envio" con que la zona no sea null, sin mirar `deliver`, asi
 					// que un comprador que elegia envio, elegia zona y despues se pasaba a retiro

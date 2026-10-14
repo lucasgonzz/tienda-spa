@@ -51,14 +51,9 @@
 						<delivery-day></delivery-day>
 
 						<!--
-							El cupon va ANTES de la forma de pago, y no es indistinto: aplicarlo
-							limpia la forma de pago elegida (el total cambio y hay que volver a
-							elegir sobre el precio nuevo). Con el cupon abajo, el comprador elegia
-							Mercado Pago, bajaba, aplicaba el cupon, y el bloque de pago se le
-							deseleccionaba arriba, fuera de la vista.
+							Hasta el 14/10/2026 aca iba el bloque "¿Tenés un cupón?". Se saco con los
+							cupones de la tienda (mision tiendas-demo-y-limpieza-tienda).
 						-->
-						<cupon></cupon>
-
 						<payment-method></payment-method>
 
 						<description></description>
@@ -82,7 +77,6 @@ import PaymentMethod from '@/components/payment/components/payment-method/Index'
 import Addresses from '@/components/payment/components/Addresses'
 import FormasDeEnvio from '@/components/payment/components/FormasDeEnvio'
 import DireccionEnvio from '@/components/payment/components/DireccionEnvio'
-import Cupon from '@/components/payment/components/cupon/Index'
 import Description from '@/components/payment/components/Description'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 export default {
@@ -97,7 +91,6 @@ export default {
 		Addresses,
 		FormasDeEnvio,
 		DireccionEnvio,
-		Cupon,
 		Description,
 	},
 	created() {

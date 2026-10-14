@@ -12,9 +12,6 @@ export default {
 		messages_not_read() {
 			return this.$store.state.messages.messages_not_read
 		},
-		cupons_not_read() {
-			return this.$store.state.cupons.cupons_not_read
-		},
 		user_name() {
 			if (this.user.name.indexOf(' ') != -1) {
 				return this.user.name.substring(0, this.user.name.indexOf(' '))
@@ -108,16 +105,6 @@ export default {
 				this.$router.push({name: 'Questions'})
 				if (this.$store.state.questions.questions.length == 0) {
 					this.$store.dispatch('questions/getQuestions')
-				}
-			}
-		},
-		cupons() {
-			if (this.$route.name == 'Cupons') {
-				this.$store.dispatch('cupons/getActiveCupons')
-			} else {
-				this.$router.push({name: 'Cupons'})
-				if (this.$store.state.cupons.active_cupons.length == 0) {
-					this.$store.dispatch('cupons/getActiveCupons')
 				}
 			}
 		},

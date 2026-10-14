@@ -9,13 +9,6 @@
 			right>
 				<template v-slot:button-content>
 					{{ user_name }}
-					<b-badge
-                    v-show="cupons_not_read > 0"
-                    class="badge"
-                    variant="danger"
-                    size="sm">
-                        {{ cupons_not_read }}
-                    </b-badge>
 				</template>
 			<b-dropdown-item 
 			@click="toOrders">

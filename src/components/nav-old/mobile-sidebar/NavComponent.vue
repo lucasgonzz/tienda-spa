@@ -35,13 +35,7 @@
                         <i :class="getIconActive('Questions', 'comment')"></i>
                         Preguntas
                     </b-nav-item> -->
-                    <!-- <b-nav-item 
-                    @click="home()"
-                    :class="active('Cupons')">
-                        <i class="bi bi-ticket-perforated"></i>
-                        Cupones
-                    </b-nav-item> -->
-                    <b-nav-item 
+                    <b-nav-item
                     :to="{name: 'Configuration'}"
                     :class="active('Configuration')">
                         <i :class="getIconActive('Configuration', 'user')"></i>

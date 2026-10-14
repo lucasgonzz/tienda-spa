@@ -121,14 +121,6 @@ export default {
 		deliver() {
 			return this.$store.state.cart.cart.deliver
 		},
-		cupon: {
-			get() {
-				return this.$store.state.cart.cupon
-			},
-			set(value) {
-				this.$store.commit('cart/setCupon', value)
-			}
-		},
 		cart_payment_method: {
 			get() {
 				return this.$store.state.cart.payment_method
@@ -234,17 +226,6 @@ export default {
 			}
 			return this.total
 		},
-		total_with_cupon() {
-			let total = this.total_with_payment_method 
-			if (this.cupon) {
-				if (this.cupon.amount) {
-					total -= this.cupon.amount
-				} else {
-					total = total - (total * this.percentageToMultiply(this.cupon.percentage))
-				}
-			}
-			return total
-		},
 		/**
 		 * Estado del envío por correo (Zipnova) en el store: código postal, opciones cotizadas,
 		 * opción elegida, sucursal y destino.
@@ -309,10 +290,14 @@ export default {
 		 * Total.vue lo esquivaba con un cálculo propio. Ahora suma `envio_precio_elegido`, que ya
 		 * contempla la zona, la opción de Zipnova y el caso sin envío.
 		 *
+		 * Hasta el 14/10/2026 sumaba sobre `total_with_cupon` (el total con medio de pago menos el
+		 * cupón). La tienda ya no tiene cupones y sin cupón ese computed devolvía exactamente
+		 * `total_with_payment_method`, así que la cuenta es la misma de siempre.
+		 *
 		 * @returns {number}
 		 */
 		total_with_deliver() {
-			return this.total_with_cupon + this.envio_precio_elegido
+			return this.total_with_payment_method + this.envio_precio_elegido
 		},
 		total_final() {
 			return this.total_with_deliver
@@ -392,16 +377,6 @@ export default {
 		},
 	},
 	methods: {
-		discountCupon(total) {
-			if (this.cupon) {
-				if (this.cupon.amount) {
-					total -= this.cupon.amount
-				} else {
-					total = total - (total * this.percentageToMultiply(this.cupon.percentage))
-				}
-			}
-			return total
-		},
 		/**
 		 * Un valor del destino de envío como texto recortado, o cadena vacía.
 		 *

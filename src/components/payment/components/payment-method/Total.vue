@@ -20,22 +20,6 @@
 		</p>
 
 		<p
-		v-if="cupon"
-		class="checkout-summary__line checkout-summary__line--good">
-			<span
-			v-if="cupon.amount"
-			class="checkout-summary__concept">
-				Cupón de {{ price(cupon.amount) }}
-			</span>
-			<span
-			v-else
-			class="checkout-summary__concept">
-				Cupón del {{ porcentaje(cupon.percentage) }}%
-			</span>
-			<span>- {{ price(total_with_payment_method - total_with_cupon) }}</span>
-		</p>
-
-		<p
 		v-if="cart.deliver && cart_delivery_zone"
 		class="checkout-summary__line">
 			Envío ({{ cart_delivery_zone.name }})

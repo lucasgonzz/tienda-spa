@@ -17,7 +17,6 @@ import address from './address'
 import coins from './coins'
 import political from './political'
 import conditions from './conditions'
-import cupons from './cupons'
 import commerce from './commerce'
 import install_btn from './install_btn'
 import ws from './ws'
@@ -59,7 +58,6 @@ export default new Vuex.Store({
 		coins,
 		political,
 		conditions,
-		cupons,
 		commerce,
 		install_btn,
 		ws,
