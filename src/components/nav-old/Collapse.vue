@@ -6,12 +6,7 @@
 			@click="home">
 				Inicio
 			</b-nav-item>
-			<!-- <b-nav-item 
-			:class="active('Help')"
-			:to="{name: 'Help'}">
-				Ayuda
-			</b-nav-item> -->
-			<template 
+			<template
 			v-if="authenticated">
 				<b-nav-item 
 				:class="active('Messages')"

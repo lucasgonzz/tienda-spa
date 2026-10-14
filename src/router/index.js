@@ -24,7 +24,6 @@ import PaymentPending from '../views/PaymentPending.vue'
 import PaymentFailure from '../views/PaymentFailure.vue'
 import Cards from '../views/Cards.vue'
 import Location from '../views/Location.vue'
-import Help from '../views/Help.vue'
 import TerminosCondiciones from '../views/TerminosCondiciones.vue'
 import PoliticaDePrivacidad from '../views/PoliticaDePrivacidad.vue'
 import Thanks from '../views/Thanks.vue'
@@ -187,11 +186,8 @@ Vue.use(VueRouter)
         component: Location,
         meta: { noindex: true },
     },
-    {
-        path: '/ayuda/:selected_option?',
-        name: 'Help',
-        component: Help
-    },
+    // `/ayuda` (Help) se saco el 14/10/2026 (mision tiendas-demo-y-limpieza-tienda): la tienda ya
+    // no tiene seccion de ayuda. Un link viejo a /ayuda cae en NotFound, y tienda-api la responde 404.
     {
         path: '/terminos-y-condiciones',
         name: 'TerminosCondiciones',

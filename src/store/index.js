@@ -14,7 +14,6 @@ import titles from './titles'
 import payment_gateway from './payment_gateway'
 import messages from './messages'
 import address from './address'
-import help from './help'
 import coins from './coins'
 import political from './political'
 import conditions from './conditions'
@@ -57,7 +56,6 @@ export default new Vuex.Store({
 		payment_gateway,
 		messages,
 		address,
-		help,
 		coins,
 		political,
 		conditions,

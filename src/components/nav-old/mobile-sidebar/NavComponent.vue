@@ -61,13 +61,7 @@
                     <i class="bi bi-geo-alt"></i>
                     Nuestro local
                 </b-nav-item>
-                <b-nav-item 
-                :to="{name: 'Help'}"
-                :class="active('Help')">
-                    <i class="bi bi-headphones"></i>
-                    Ayuda
-                </b-nav-item>
-                <b-nav-item 
+                <b-nav-item
                 v-b-modal="'informacion-legal'"
                 :class="active('TerminosCondiciones')">
                     <i class="bi bi-info-circle"></i>

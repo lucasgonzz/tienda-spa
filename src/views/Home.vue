@@ -29,8 +29,7 @@
 			<b-col
 			:class="class_products"
 			cols="12">
-				<waiting-call></waiting-call>
-				<articles-list></articles-list> 
+				<articles-list></articles-list>
 			</b-col>
 		</b-row>
 		
@@ -50,7 +49,6 @@ import CategoriesButton from '@/components/home/components/CategoriesButton'
 import Categories from '@/components/categories/components/Categories'
 import OrderBy from '@/components/home/components/OrderBy'
 import SubCategories from '@/components/categories/components/SubCategories'
-import WaitingCall from '@/components/home/components/WaitingCall'
 export default {
 	name: 'Home',
 	/**
@@ -91,7 +89,6 @@ export default {
         // Categories,
         OrderBy,
         SubCategories,
-        WaitingCall,
 	},
 	computed: {
 		/**
