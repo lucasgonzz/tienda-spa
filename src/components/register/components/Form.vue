@@ -283,7 +283,7 @@ export default {
 				.catch(err => {
 					console.log(err)
 					this.loading = false
-					this.$toast.error('Error al registrarse, probá ingresando con tu cuenta de google')
+					this.$toast.error('No pudimos registrarte. Revisá los datos y probá de nuevo.')
 				})
 			}
 		},
