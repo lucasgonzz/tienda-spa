@@ -1,54 +1,16 @@
 import Vue from 'vue'
 
 import VueAxios from 'vue-axios'
-import VueSocialauth from 'vue-social-auth'
 import axios from 'axios'
 import { env } from '@/runtime_config'
 
 Vue.use(VueAxios, axios)
 /*
- * Configuracion de vue-social-auth (login social).
- *
- * Repositorio publico: la mitad secreta del par de credenciales OAuth (lo que Google/
- * Facebook llaman "client secret") NUNCA puede vivir en este archivo (ni siquiera en
- * variables de entorno del build, porque VUE_APP_* termina igual dentro del bundle que se
- * descarga cada visitante). Se saco por completo, incluidos los bloques comentados de
- * otros comercios: un secreto comentado sigue publicado en el historial de git igual que
- * uno activo.
- *
- * Ademas, vue-social-auth (version instalada: 1.4.3) nunca leyo ni uso ese valor desde el
- * navegador: la libreria solo junta clientId + redirectUri + code del popup de OAuth y
- * resuelve con eso (responseType 'code' por default). El intercambio real de code por
- * token ya lo hace tienda-api en POST /sociallogin/{provider}/{commerce_id}
- * (AuthController@social, via Laravel Socialite), usando ese secreto guardado del lado del
- * servidor (.env para Facebook, tabla online_configurations por comercio para Google). Por
- * eso sacar ese valor de aca no cambia el comportamiento del login: nunca cumplio ninguna
- * funcion en el frontend.
+ * Login social (vue-social-auth, Google y Facebook): se saco el 14/10/2026 (mision
+ * tiendas-demo-y-limpieza-tienda). La tienda ya no ofrece "Continuar con Google" y tienda-api
+ * ya no tiene POST /sociallogin/{provider}/{commerce_id}. El paquete sigue en package.json
+ * sin usarse: sacarlo reescribe el package-lock y queda para otra pasada.
  */
-Vue.use(VueSocialauth, {
-	providers: {
-		facebook: {
-			clientId: '369275451245680',
-			redirectUri: 'https://kioscoverde.com/auth/facebook/callback' // Your client app URL
-		},
-		google: {
-
-			// ComercioCity
-			clientId: '986563485547-vt27uakkeqiachchbjp0f0h45lfuifaf.apps.googleusercontent.com',
-
-			// NebulaStore
-			// clientId: '948578513354-b7t5mv02b8aegju603ui740rroj75rsi.apps.googleusercontent.com',
-
-			// Pinocho
-			// clientId: '155655053035-t8gcff3733ahefb4a5n6dr0qia21o2qv.apps.googleusercontent.com',
-
-			// Kas aberturas
-			// clientId: '496981463433-ivm5vbh49idfkrhvvgjkrrd531vcri84.apps.googleusercontent.com',
-
-
-		},
-	}
-})
 
 // Vue Scrool
 Vue.prototype.$scrollToTop = (() => {

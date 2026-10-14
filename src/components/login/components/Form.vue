@@ -111,25 +111,8 @@ export default {
 			},
 		}
 	},
-	methods: {
-		AuthProvider(provider) {
-			var self = this
-			this.$auth.authenticate(provider).then(response =>{
-				self.SocialLogin(provider,response)
-			})
-			.catch(err => {
-				console.log('error 1')
-				console.log({err:err})
-			})
-		},
-		SocialLogin(provider,response){
-			this.$axios.post('/sociallogin/'+provider,response).then(response => {
-				console.log(response.data)
-			}).catch(err => {
-				console.log({err:err})
-			})
-		},
-	}
+	// Los metodos AuthProvider/SocialLogin (login social, que ningun boton llamaba) se sacaron
+	// el 14/10/2026 con el login con Google.
 }
 </script>
 <style lang="sass">

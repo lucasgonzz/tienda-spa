@@ -28,8 +28,6 @@ import TerminosCondiciones from '../views/TerminosCondiciones.vue'
 import PoliticaDePrivacidad from '../views/PoliticaDePrivacidad.vue'
 import Thanks from '../views/Thanks.vue'
 import Maps from '../views/Maps.vue'
-import SocialLogin from '../views/SocialLogin.vue'
-import Callback from '../views/Callback.vue'
 import Contacto from '../views/Contacto.vue'
 import QuienesSomos from '../views/QuienesSomos.vue'
 import SeleccionEspecial from '../views/SeleccionEspecial.vue'
@@ -209,18 +207,8 @@ Vue.use(VueRouter)
         component: Maps,
         meta: { noindex: true },
     },
-    {
-        path: '/social-login',
-        name: 'SocialLogin',
-        component: SocialLogin,
-        meta: { noindex: true },
-    },
-    {
-        path: '/auth/:provider/callback',
-        name: 'Callback',
-        component: Callback,
-        meta: { noindex: true },
-    },
+    // `/social-login` (SocialLogin) y `/auth/:provider/callback` (Callback) se sacaron el 14/10/2026
+    // con el login con Google: la tienda ya no tiene login social.
     // `/cupones` (Cupons) se saco el 14/10/2026 junto con los cupones de la tienda.
     {
         path: '/contacto',
