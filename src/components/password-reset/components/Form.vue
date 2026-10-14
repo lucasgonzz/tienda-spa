@@ -250,6 +250,11 @@ export default {
 				.catch(err => {
 					console.log(err)
 					this.loading = false
+					// Desde el 14/10/2026 tienda-api responde 422 con `message` cuando el servidor de
+					// correo rechaza el envio del codigo (antes era un 500 y aca no se avisaba nada).
+					// Se muestra ese texto; ante cualquier otro error, uno generico.
+					let message = err && err.response && err.response.data && err.response.data.message
+					this.$toast.error(message || 'No pudimos enviarte el código. Probá de nuevo en unos minutos.')
 				})
 			}
 		},
