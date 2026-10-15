@@ -62,7 +62,7 @@ function seo_rutas_privadas()
     return array(
         '/buscar', '/carrito', '/compras', '/favoritos', '/login', '/registro', '/recuperar-clave',
         '/confirmar-compra', '/pagar', '/pago-', '/configuracion', '/mensajes', '/notificaciones',
-        '/cupones', '/cuenta-corriente', '/tarjetas', '/ubicacion', '/mapas', '/social-login',
+        '/cuenta-corriente', '/tarjetas', '/ubicacion', '/mapas',
         '/auth/', '/gracias-por-tu-compra', '/preguntas', '/seleccion-especial/',
     );
 }

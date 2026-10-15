@@ -16,12 +16,10 @@ Disallow: /pago-
 Disallow: /configuracion
 Disallow: /mensajes
 Disallow: /notificaciones
-Disallow: /cupones
 Disallow: /cuenta-corriente
 Disallow: /tarjetas
 Disallow: /ubicacion
 Disallow: /mapas
-Disallow: /social-login
 Disallow: /auth/
 Disallow: /gracias-por-tu-compra
 Disallow: /preguntas
