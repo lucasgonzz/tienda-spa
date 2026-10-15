@@ -570,6 +570,128 @@ function payload_envio(state) {
 	}
 }
 
+/**
+ * Cuotas de Mercado Pago que ofrece una forma de pago de la tienda (mision
+ * tienda-cuotas-mercado-pago, 15/10/2026).
+ *
+ * Las manda `GET payment-methods/{commerce_id}` en `cuotas_disponibles`:
+ * `[{cantidad_cuotas: 3, recargo: "10.00"}, ...]`, donde `recargo` es el porcentaje NETO que ya
+ * resolvio el servidor (el recargo de la fila de cuotas del ERP menos su descuento), como string
+ * decimal. Viene ordenado por cantidad, pero aca no se confia en eso.
+ *
+ * 🔴 ES LO UNICO QUE DECIDE SI EXISTE EL SELECTOR DE CUOTAS. Una tienda-api vieja no manda el
+ * campo, una forma de pago que no es de Mercado Pago tampoco, y una de Mercado Pago sin vinculo o
+ * sin cuotas cargadas en el ERP lo manda `[]`: en los tres casos esto devuelve `[]` y el checkout
+ * es EXACTAMENTE el de antes — sin selector, sin `contado` ni `cuotas` en la preferencia, sin
+ * `cuotas` en el carrito.
+ *
+ * Una fila sin sentido (cantidad menor a 1 o no entera, recargo ausente, no numerico o negativo, o
+ * una cantidad repetida) se descarta en vez de dibujarse: la API valida igual contra su propia
+ * lista, asi que lo peor que puede pasar por descartar de mas es no mostrar una opcion.
+ *
+ * @param {object|null} metodo Forma de pago, tal como la lista el endpoint.
+ * @returns {Array} [{cantidad_cuotas: number, recargo: number}] ordenado por cantidad.
+ */
+export function cuotas_ofrecidas(metodo) {
+	if (!metodo || !metodo.type || metodo.type.name != 'MercadoPago') {
+		return []
+	}
+	if (!Array.isArray(metodo.cuotas_disponibles)) {
+		return []
+	}
+	let ofrecidas = []
+	let vistas = {}
+	metodo.cuotas_disponibles.forEach(fila => {
+		let cantidad = Number(fila ? fila.cantidad_cuotas : null)
+		let recargo = parseFloat(fila ? fila.recargo : null)
+		if (!Number.isInteger(cantidad) || cantidad < 1 || !isFinite(recargo) || recargo < 0 || vistas[cantidad]) {
+			return
+		}
+		vistas[cantidad] = true
+		ofrecidas.push({ cantidad_cuotas: cantidad, recargo: recargo })
+	})
+	ofrecidas.sort((a, b) => a.cantidad_cuotas - b.cantidad_cuotas)
+	return ofrecidas
+}
+
+/**
+ * La forma de pago elegida, pero con los datos que trae la LISTA del endpoint.
+ *
+ * 🔴 No alcanza con `state.payment_method`: cada guardado del carrito (`setCart`) lo reemplaza por
+ * el que devuelve el servidor dentro del carrito, y ese NO trae `cuotas_disponibles` (solo lo agrega
+ * `GET payment-methods`). Leer las cuotas del metodo "elegido" hacía desaparecer el selector, y
+ * antes de armar la preferencia: `pagar_con_mercado_pago()` guarda el carrito primero.
+ *
+ * @param {object|null} metodo La forma de pago elegida (la del store).
+ * @param {Array} lista Las formas de pago de la tienda (`state.payment_methods.models`).
+ * @returns {object|null}
+ */
+export function metodo_de_la_lista(metodo, lista) {
+	if (!metodo) {
+		return null
+	}
+	let de_la_lista = (lista || []).find(item => item.id == metodo.id)
+	return de_la_lista || metodo
+}
+
+/**
+ * Lo que el comprador tiene elegido en el selector de cuotas, validado contra lo que el metodo
+ * ofrece de verdad: `null` si no hay selector, `'contado'`, o la cantidad de cuotas (number).
+ *
+ * Sin eleccion previa, o con una cantidad que el metodo ya no ofrece (la lista se recargo), cae a
+ * 'contado': es lo que el comprador ve preseleccionado y lo que paga hoy.
+ *
+ * @param {string|number|null} elegida Lo guardado en `state.cuotas_elegidas`.
+ * @param {Array} ofrecidas Resultado de `cuotas_ofrecidas()`.
+ * @returns {string|number|null}
+ */
+export function cuota_elegida_efectiva(elegida, ofrecidas) {
+	if (!ofrecidas.length) {
+		return null
+	}
+	if (elegida !== 'contado' && ofrecidas.some(fila => fila.cantidad_cuotas === elegida)) {
+		return elegida
+	}
+	return 'contado'
+}
+
+/**
+ * Redondea a centavos como lo hace `round($x, 2)` de PHP: limpia primero el ruido del punto
+ * flotante (1.005 * 100 da 100.49999999999999 y se redondearia mal para abajo).
+ *
+ * @param {number|string} importe
+ * @returns {number}
+ */
+export function redondear_a_centavos(importe) {
+	return Math.round(Number((Number(importe) * 100).toPrecision(15))) / 100
+}
+
+/**
+ * Cuanto se paga con una fila de cuotas sobre lo que se cobraria hoy. Es la MISMA cuenta que hace la
+ * API (CuotasMercadoPagoHelper), pero acá es solo para MOSTRAR: lo que se cobra lo resuelve el
+ * servidor con el porcentaje de su base, y la SPA nunca lo manda.
+ *
+ *   recargo_monto = round(base * recargo / 100, 2)
+ *   total_cobrado = base + recargo_monto
+ *   valor_cuota   = round(total_cobrado / cantidad, 2)
+ *
+ * @param {number} base Total con el ajuste propio del metodo, los descuentos y el envio.
+ * @param {object} fila Una fila de `cuotas_ofrecidas()`.
+ * @returns {object} {cantidad_cuotas, recargo, recargo_monto, total_cobrado, valor_cuota}
+ */
+export function calcular_cuota(base, fila) {
+	let base_redondeada = redondear_a_centavos(base)
+	let recargo_monto = redondear_a_centavos(base_redondeada * fila.recargo / 100)
+	let total_cobrado = redondear_a_centavos(base_redondeada + recargo_monto)
+	return {
+		cantidad_cuotas: fila.cantidad_cuotas,
+		recargo: fila.recargo,
+		recargo_monto: recargo_monto,
+		total_cobrado: total_cobrado,
+		valor_cuota: redondear_a_centavos(total_cobrado / fila.cantidad_cuotas),
+	}
+}
+
 export default {
 	namespaced: true,
 	state: {
@@ -604,6 +726,13 @@ export default {
 		buyer_id: null,
 		selected_buyer: null,
 		payment_method: null,
+		/*
+		 * Lo que el comprador eligió en el selector de cuotas de Mercado Pago: null (no eligió
+		 * forma de pago, o la que eligió no ofrece cuotas), 'contado' o la cantidad de cuotas
+		 * (number). Para leerlo se pasa por cuota_elegida_efectiva(): el valor crudo puede estar
+		 * viejo (la lista de formas de pago se recargó y esa cantidad ya no se ofrece).
+		 */
+		cuotas_elegidas: null,
 		delivery_zone: null,
 		loading_last_cart: false,
 		saving: false,
@@ -677,6 +806,18 @@ export default {
 		},
 		setPaymentMethod(state, value) {
 			state.payment_method = value
+			// Cambiar de forma de pago limpia lo que se había elegido de cuotas. Si la nueva ofrece
+			// cuotas queda "Contado" preseleccionado (lo que el comprador paga hoy); si no, null.
+			state.cuotas_elegidas = cuotas_ofrecidas(value).length ? 'contado' : null
+		},
+		/**
+		 * Elige entre "Contado" y una cantidad de cuotas en el selector de Mercado Pago.
+		 *
+		 * @param {object} state
+		 * @param {string|number|null} value 'contado' o la cantidad de cuotas.
+		 */
+		set_cuotas_elegidas(state, value) {
+			state.cuotas_elegidas = value
 		},
 		setDeliveryZone(state, value) {
 			state.delivery_zone = value
@@ -1193,6 +1334,7 @@ export default {
 					envio: null,
 				}
 				state.payment_method = null
+				state.cuotas_elegidas = null
 				// Hasta el 14/9/2026 decia `delovery_zone`: la zona elegida sobrevivia al vaciado.
 				state.delivery_zone = null
 				resetear_envio(state)
@@ -1231,12 +1373,33 @@ export default {
 		 * @param {object|undefined} opciones { avisar_no_disponibles?: boolean }
 		 * @returns {Promise<Array>}
 		 */
-		save({ state, commit }, opciones) {
+		save({ state, commit, rootState }, opciones) {
 			let avisar = !(opciones && opciones.avisar_no_disponibles === false)
 			if (state.payment_method) {
 				state.cart.payment_method_id = state.payment_method.id
 			} else {
 				state.cart.payment_method_id = null
+			}
+			/*
+			 * Cuotas de Mercado Pago (15/10/2026): `carts.cuotas` es la cantidad que el comprador
+			 * eligió, o null si eligió "Contado" o la forma de pago no ofrece cuotas. Se lee de la
+			 * lista de formas de pago y no de `state.payment_method` (ver metodo_de_la_lista).
+			 *
+			 * 🔴 La clave SOLO se escribe si la forma de pago ofrece cuotas, o si el carrito ya la
+			 * trae (la API nueva la devuelve en null): contra una API vieja, o con una forma de pago
+			 * sin cuotas, el carrito viaja EXACTAMENTE como antes. Y cuando ya la trae, se pone en
+			 * null: cambiar de Mercado Pago con cuotas a otra forma de pago no puede dejar guardada
+			 * la cantidad vieja.
+			 */
+			let cuotas_ofrecidas_del_metodo = cuotas_ofrecidas(metodo_de_la_lista(
+				state.payment_method,
+				rootState.payment_methods ? rootState.payment_methods.models : []
+			))
+			let cuota_elegida = cuota_elegida_efectiva(state.cuotas_elegidas, cuotas_ofrecidas_del_metodo)
+			if (typeof cuota_elegida === 'number') {
+				state.cart.cuotas = cuota_elegida
+			} else if (state.cart.cuotas !== undefined || cuota_elegida === 'contado') {
+				state.cart.cuotas = null
 			}
 			/*
 			 * Cupones: la tienda ya no los tiene (14/10/2026, mision tiendas-demo-y-limpieza-tienda).

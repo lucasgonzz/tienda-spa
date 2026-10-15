@@ -1,5 +1,5 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
-import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html } from '@/store/cart'
+import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
 export default {
 	computed: {
@@ -128,6 +128,36 @@ export default {
 			set(value) {
 				this.$store.commit('cart/setPaymentMethod', value)
 			}
+		},
+		/**
+		 * La forma de pago elegida, con los datos de la LISTA de formas de pago de la tienda (la
+		 * que trae `cuotas_disponibles`) y no los del carrito guardado. Ver metodo_de_la_lista().
+		 *
+		 * Los `cuotas_mp_*` llevan prefijo porque este mixin se mezcla en muchos componentes y un
+		 * nombre repetido pisa a otro sin avisar.
+		 *
+		 * @returns {object|null}
+		 */
+		cuotas_mp_metodo() {
+			return metodo_de_la_lista(this.cart_payment_method, this.$store.state.payment_methods.models)
+		},
+		/**
+		 * Las cuotas que ofrece la forma de pago elegida: [{cantidad_cuotas, recargo}], o [] si no es
+		 * de Mercado Pago, no tiene vinculo / cuotas cargadas en el ERP, o la API es vieja y no manda
+		 * el campo. Con [] no hay selector y el checkout es el de siempre.
+		 *
+		 * @returns {Array}
+		 */
+		cuotas_mp_ofrecidas() {
+			return cuotas_ofrecidas(this.cuotas_mp_metodo)
+		},
+		/**
+		 * Lo elegido en el selector: null (no hay selector), 'contado' o la cantidad de cuotas.
+		 *
+		 * @returns {string|number|null}
+		 */
+		cuotas_mp_elegida() {
+			return cuota_elegida_efectiva(this.$store.state.cart.cuotas_elegidas, this.cuotas_mp_ofrecidas)
 		},
 		cart_delivery_zone: {
 			get() {
