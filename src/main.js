@@ -8,8 +8,8 @@ Vue.use(VueAxios, axios)
 /*
  * Login social (vue-social-auth, Google y Facebook): se saco el 14/10/2026 (mision
  * tiendas-demo-y-limpieza-tienda). La tienda ya no ofrece "Continuar con Google" y tienda-api
- * ya no tiene POST /sociallogin/{provider}/{commerce_id}. El paquete sigue en package.json
- * sin usarse: sacarlo reescribe el package-lock y queda para otra pasada.
+ * ya no tiene POST /sociallogin/{provider}/{commerce_id}. El paquete vue-social-auth se sacó de
+ * package.json y del package-lock (misión sacar-cupones-y-login-google).
  */
 
 // Vue Scrool
