@@ -282,6 +282,9 @@ export default {
 			// `carts.cuotas`, y lo que viaja en la preferencia tiene que ser lo mismo que quedó guardado
 			// aunque el comprador toque el selector mientras espera.
 			let cuotas_elegida = this.cuotas_mp_elegida
+			// Se prende si la API rechazó la PREFERENCIA (no el guardado del carrito) con un 422 habiendo
+			// mandado `contado` o `cuotas`. Ver revisar_cuotas_tras_rechazo().
+			let preferencia_rechazada_con_cuotas = false
 
 			// 🔴 El carrito se guarda ANTES de pedir la preferencia, y no alcanza con que
 			// makeOrder() lo guarde después: la API escribe `carts.id` como `external_reference` de
@@ -319,6 +322,12 @@ export default {
 					cuerpo.cuotas = cuotas_elegida
 				}
 				return self.$api.post('mercado-pago/preference', cuerpo)
+				.catch(function(err) {
+					if (cuotas_elegida !== null && err && err.response && err.response.status == 422) {
+						preferencia_rechazada_con_cuotas = true
+					}
+					throw err
+				})
 			})
 			.then(function(res) {
 				const init_point = res.data && res.data.init_point ? res.data.init_point : null
@@ -366,6 +375,12 @@ export default {
 				// en inglés. Al comprador se le dice qué puede hacer él; el detalle queda en la
 				// consola y en el log de la API, que es donde lo busca quien lo puede arreglar.
 				console.log(err)
+				// La API rechazó la preferencia con `contado` o `cuotas`: puede ser que la lista de
+				// cuotas que tiene la pantalla ya no sea la vigente. `procesando` queda en true hasta que
+				// se refresque la lista, para que no se reintente con la elección vieja en el medio.
+				if (preferencia_rechazada_con_cuotas) {
+					return self.revisar_cuotas_tras_rechazo(cuotas_elegida)
+				}
 				self.procesando = false
 				// El `cart/save` del principio descartó artículos no disponibles: el comprador ya
 				// fue avisado (y no es un problema de Mercado Pago).
@@ -378,6 +393,55 @@ export default {
 					return
 				}
 				self.$toast.error('No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.')
+			})
+		},
+		/**
+		 * La API rechazó (422) la preferencia habiendo recibido `contado` o `cuotas`: vuelve a pedir
+		 * la lista de formas de pago —el mismo camino que usa App.vue al arrancar— y decide qué
+		 * decirle al comprador.
+		 *
+		 * 🔴 Por qué hace falta: la SPA pide la lista UNA sola vez, al cargar. Si el comercio cambia o
+		 * saca una cantidad de cuotas con el checkout abierto, la API (que valida contra su base) la
+		 * rechaza con 422, y sin esto el comprador veía el cartel genérico y reintentaba con la misma
+		 * elección vieja, otra vez 422, hasta recargar la página.
+		 *
+		 * Con la lista nueva, `cuotas_mp_elegida` ya dice si lo que se mandó sigue siendo una opción:
+		 *   - NO sigue (la cantidad ya no se ofrece, o el método perdió sus cuotas): la elección queda
+		 *     en «Contado» (o sin selector, si ya no ofrece cuotas) y se avisa que las cuotas
+		 *     cambiaron. Nunca se muestra el mensaje de la API (política de este botón).
+		 *   - SIGUE: la lista no era el problema (por ejemplo, el comercio sin cuenta de Mercado Pago
+		 *     conectada, que también responde 422), así que va el cartel genérico de siempre. Decir que
+		 *     «las cuotas cambiaron» ahí mandaría al comprador a elegir de nuevo algo que no tiene
+		 *     arreglo desde su lado.
+		 *
+		 * El selector busca las cuotas por id en la lista del store, que `getModels` reemplaza entera,
+		 * así que sigue andando con la lista nueva. Si el pedido de la lista falla, `getModels` lo
+		 * resuelve igual con la lista vieja y se cae en el cartel genérico.
+		 *
+		 * @param {string|number} enviada Lo que se mandó: 'contado' o la cantidad de cuotas.
+		 * @returns {Promise}
+		 */
+		revisar_cuotas_tras_rechazo(enviada) {
+			let self = this
+			let terminar = function(cuotas_cambiaron) {
+				self.procesando = false
+				if (cuotas_cambiaron) {
+					self.$toast.warning('Las cuotas de este comercio cambiaron. Revisá las opciones y elegí de nuevo.', { duration: 7000 })
+					return
+				}
+				self.$toast.error('No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.')
+			}
+			return this.$store.dispatch('payment_methods/getModels')
+			.then(function() {
+				let sigue_vigente = self.cuotas_mp_elegida === enviada
+				if (!sigue_vigente) {
+					self.$store.commit('cart/set_cuotas_elegidas', self.cuotas_mp_ofrecidas.length ? 'contado' : null)
+				}
+				terminar(!sigue_vigente)
+			})
+			.catch(function(err) {
+				console.log(err)
+				terminar(false)
 			})
 		},
 		/**
