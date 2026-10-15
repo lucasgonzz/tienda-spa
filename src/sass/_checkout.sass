@@ -198,6 +198,62 @@ $checkout-tenue: rgba(0, 0, 0, .55)
 	color: #96591a
 	background: rgba(150, 89, 26, .12)
 
+// ── Cuotas de Mercado Pago (15/10/2026) ───────────────────────────────────────────────────────
+//
+// La forma de pago de Mercado Pago y, debajo y como hermano, el selector «Contado / N cuotas»
+// (CuotasMercadoPago.vue). Las opciones del selector son `.checkout-option` normales: se ven igual
+// que las del resto del checkout y heredan el foco, el hover y la selección.
+
+// Contenedor de UNA forma de pago de la lista. Va porque el selector de cuotas no puede ser hijo de
+// la opción (que es un role="radio"): el margen de abajo, que antes lo ponía `.checkout-option`
+// (con `:last-child` en cero), ahora lo pone este contenedor.
+.checkout-method
+	margin-bottom: .6rem
+
+	&:last-child
+		margin-bottom: 0
+
+	> .checkout-option
+		margin-bottom: 0
+
+.checkout-cuotas
+	// Sangría para que se lea como parte de la forma de pago de arriba. En teléfono se achica: ahí
+	// cada pixel de ancho es texto que no se parte.
+	margin: .6rem 0 0 1.25rem
+	padding: .9rem 1rem 1rem
+	background: color-mix(in srgb, var(--secondary-color, #0d6efd) 4%, #fff)
+	border: 1px solid $checkout-borde
+	border-radius: 12px
+
+	@media screen and (max-width: 767px)
+		margin-left: .5rem
+		padding: .75rem .7rem .8rem
+
+	.checkout-option
+		padding: .75rem .9rem
+
+		@media screen and (max-width: 767px)
+			padding: .7rem .75rem
+
+.checkout-cuotas__title
+	font-size: .95rem
+	font-weight: 700
+	color: #1a1a1a
+	text-align: left
+	margin: 0 0 .15rem
+
+.checkout-cuotas__hint
+	font-size: .82rem
+	color: $checkout-tenue
+	text-align: left
+	line-height: 1.4
+	margin: 0 0 .7rem
+
+// «Sin recargo» de una cuota: el mismo verde que las etiquetas de descuento.
+.checkout-option__description--good
+	color: #1b7a3d
+	font-weight: 600
+
 // ── Formularios de la columna izquierda ───────────────────────────────────────────────────────
 
 .checkout-field

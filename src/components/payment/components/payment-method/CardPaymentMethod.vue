@@ -1,58 +1,70 @@
 <template>
-	<div
-	@click="setSelected"
-	@keyup.enter="setSelected"
-	@keyup.space.prevent="setSelected"
-	:class="{'checkout-option--selected': esta_elegido}"
-	class="checkout-option"
-	role="radio"
-	tabindex="0"
-	:aria-checked="esta_elegido ? 'true' : 'false'">
+	<!--
+		La opción elegible y, debajo, el selector de cuotas de Mercado Pago (solo si esta forma de pago
+		es de Mercado Pago, está elegida y la API le ofrece cuotas: si no, no se dibuja nada). El
+		selector es HERMANO de la opción y no hijo: dentro de un role="radio" no puede haber otros
+		radios, y un click en ellos burbujearía al setSelected de la opción.
+	-->
+	<div class="checkout-method">
+		<div
+		@click="setSelected"
+		@keyup.enter="setSelected"
+		@keyup.space.prevent="setSelected"
+		:class="{'checkout-option--selected': esta_elegido}"
+		class="checkout-option"
+		role="radio"
+		tabindex="0"
+		:aria-checked="esta_elegido ? 'true' : 'false'">
 
-		<span class="checkout-option__radio"></span>
+			<span class="checkout-option__radio"></span>
 
-		<div class="checkout-option__body">
-			<p class="checkout-option__name">
-				{{ payment_method.name }}
-				<span
-				v-if="mostrar_chip_de_marca"
-				class="checkout-option__brand">
-					<i class="bi bi-wallet2"></i>
-					Mercado Pago
-				</span>
-			</p>
+			<div class="checkout-option__body">
+				<p class="checkout-option__name">
+					{{ payment_method.name }}
+					<span
+					v-if="mostrar_chip_de_marca"
+					class="checkout-option__brand">
+						<i class="bi bi-wallet2"></i>
+						Mercado Pago
+					</span>
+				</p>
 
-			<p
-			v-if="payment_method.description"
-			class="checkout-option__description">
-				{{ payment_method.description }}
-			</p>
+				<p
+				v-if="payment_method.description"
+				class="checkout-option__description">
+					{{ payment_method.description }}
+				</p>
 
-			<p
-			v-else-if="es_mercado_pago"
-			class="checkout-option__description">
-				Tarjeta de crédito o débito, o dinero en tu cuenta de Mercado Pago
-			</p>
+				<p
+				v-else-if="es_mercado_pago"
+				class="checkout-option__description">
+					Tarjeta de crédito o débito, o dinero en tu cuenta de Mercado Pago
+				</p>
 
-			<div
-			v-if="payment_method.discount || payment_method.surchage"
-			class="checkout-option__tags">
-				<span
-				v-if="payment_method.discount"
-				class="checkout-tag checkout-tag--good">
-					{{ porcentaje(payment_method.discount) }}% de descuento
-				</span>
-				<span
-				v-if="payment_method.surchage"
-				class="checkout-tag checkout-tag--warn">
-					{{ porcentaje(payment_method.surchage) }}% de recargo
-				</span>
+				<div
+				v-if="payment_method.discount || payment_method.surchage"
+				class="checkout-option__tags">
+					<span
+					v-if="payment_method.discount"
+					class="checkout-tag checkout-tag--good">
+						{{ porcentaje(payment_method.discount) }}% de descuento
+					</span>
+					<span
+					v-if="payment_method.surchage"
+					class="checkout-tag checkout-tag--warn">
+						{{ porcentaje(payment_method.surchage) }}% de recargo
+					</span>
+				</div>
 			</div>
 		</div>
+
+		<cuotas-mercado-pago
+		v-if="es_mercado_pago && esta_elegido"></cuotas-mercado-pago>
 	</div>
 </template>
 <script>
 import cart from '@/mixins/cart'
+import CuotasMercadoPago from '@/components/payment/components/payment-method/CuotasMercadoPago'
 
 /**
  * Una forma de pago de la lista del checkout.
@@ -66,10 +78,18 @@ import cart from '@/mixins/cart'
  *
  * Ahora todo eso vive en el único botón del final del checkout (`BtnSave.vue`), que es donde el
  * comprador confirma. Elegir una forma de pago no manda ningún request.
+ *
+ * Cuotas de Mercado Pago (15/10/2026): si esta forma de pago es de Mercado Pago y está elegida, monta
+ * debajo el selector «Contado / N cuotas» (CuotasMercadoPago.vue). La raíz es un contenedor y no la
+ * opción misma porque el selector va DEBAJO de ella y como hermano; el margen entre formas de pago
+ * lo pone `.checkout-method` (ver _checkout.sass).
  */
 export default {
 	props: ['payment_method'],
 	mixins: [cart],
+	components: {
+		CuotasMercadoPago,
+	},
 	computed: {
 		/**
 		 * Si esta forma de pago es la que el comprador tiene elegida.
