@@ -235,6 +235,50 @@ $checkout-tenue: rgba(0, 0, 0, .55)
 		@media screen and (max-width: 767px)
 			padding: .7rem .75rem
 
+// Fila «Contado». Su precio no puede ser una columna a la derecha de toda la fila: con
+// `white-space: nowrap` le saca ancho a la descripción (84 caracteres), que en teléfono se partía en
+// 4 a 8 renglones (con $8.711.550,00, 8 renglones y 205px de alto contra 70px de una fila de cuotas).
+// Por eso la fila es una grilla y el cuerpo no es una caja (`display: contents`): nombre, precio y
+// descripción son celdas de la grilla, y el DOM queda en el orden de lectura nombre → precio →
+// descripción.
+//   - Escritorio y tablet: igual que siempre — el precio a la derecha de toda la fila, arriba, y la
+//     descripción debajo del nombre, sin pasar por debajo del precio.
+//   - Teléfono (< 768px): el precio queda en el renglón del nombre y la descripción baja debajo, a
+//     TODO el ancho de la fila (también por debajo del radio), un punto más chica: así ocupa 2
+//     renglones de 360 a 414px, en vez de los 4 a 8 de antes.
+.checkout-option--cuotas-contado
+	display: grid
+	grid-template-columns: 20px minmax(0, 1fr) auto
+	gap: 0 .8rem
+	align-items: start
+
+	.checkout-option__radio
+		grid-column: 1
+		grid-row: 1 / span 2
+
+	.checkout-option__body
+		display: contents
+
+	.checkout-option__name
+		grid-column: 2
+		grid-row: 1
+
+	.checkout-option__price
+		grid-column: 3
+		grid-row: 1 / span 2
+
+	.checkout-option__description
+		grid-column: 2
+		grid-row: 2
+
+	@media screen and (max-width: 767px)
+		.checkout-option__price
+			grid-row: 1
+
+		.checkout-option__description
+			grid-column: 1 / -1
+			font-size: .78rem
+
 // Congelado mientras el botón confirma: no se puede tocar con el mouse y la opción elegida sigue
 // bien a la vista. Con el teclado no se llega (tabindex -1) y elegir() también corta.
 .checkout-cuotas--bloqueado

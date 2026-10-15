@@ -38,18 +38,22 @@
 
 				<span class="checkout-option__radio"></span>
 
+				<!--
+					El precio va DENTRO del cuerpo y entre el nombre y la descripción: es el orden de lectura
+					(nombre, precio, descripción). Dónde se dibuja cada uno lo decide la grilla de
+					.checkout-option--cuotas-contado en _checkout.sass.
+				-->
 				<div class="checkout-option__body">
 					<p class="checkout-option__name">
 						Contado
+					</p>
+					<p class="checkout-option__price">
+						{{ price(total_with_deliver) }}
 					</p>
 					<p class="checkout-option__description">
 						Débito, dinero en tu cuenta de Mercado Pago y otros medios (sin tarjeta de crédito)
 					</p>
 				</div>
-
-				<p class="checkout-option__price">
-					{{ price(total_with_deliver) }}
-				</p>
 			</div>
 
 			<!--
