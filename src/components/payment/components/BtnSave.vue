@@ -250,10 +250,21 @@ export default {
 		 * preferencia: con eso el webhook sabe a qué pedido atarle el pago aunque el comprador
 		 * nunca vuelva a la tienda.
 		 *
+		 * Cuotas (15/10/2026): si la forma de pago ofrece cuotas, el cuerpo suma `contado: true` o
+		 * `cuotas: N` (nunca los dos). Con una forma de pago sin cuotas, o contra una API que no manda
+		 * `cuotas_disponibles`, no se agrega ninguna de las dos claves y el cuerpo es el de siempre.
+		 * Solo viaja QUÉ eligió el comprador: el porcentaje lo resuelve la API en su base.
+		 *
 		 * @returns {Promise}
 		 */
 		pagar_con_mercado_pago() {
 			let self = this
+
+			// null (la forma de pago no ofrece cuotas), 'contado' o la cantidad. Se lee ANTES del
+			// guardado y no adentro del .then: `cart/save` toma lo elegido en este mismo instante para
+			// `carts.cuotas`, y lo que viaja en la preferencia tiene que ser lo mismo que quedó guardado
+			// aunque el comprador toque el selector mientras espera.
+			let cuotas_elegida = this.cuotas_mp_elegida
 
 			// 🔴 El carrito se guarda ANTES de pedir la preferencia, y no alcanza con que
 			// makeOrder() lo guarde después: la API escribe `carts.id` como `external_reference` de
@@ -271,7 +282,7 @@ export default {
 			return this.$store.dispatch('cart/save', { avisar_no_disponibles: false })
 			.then(function(descartados) {
 				self.cortar_si_el_guardado_descarto(descartados)
-				return self.$api.post('mercado-pago/preference', {
+				let cuerpo = {
 					payment_method: self.cart_payment_method,
 					// Hasta el 14/10/2026 viajaba tambien `cupon`: la tienda ya no tiene cupones. La
 					// API lo lee con `$request->cupon` solo sin carrito resuelto, y sin la clave le
@@ -284,7 +295,13 @@ export default {
 					delivery_zone: self.cart.deliver ? self.cart_delivery_zone : null,
 					articles: self.articles,
 					cart_id: self.cart ? self.cart.id : null,
-				})
+				}
+				if (cuotas_elegida === 'contado') {
+					cuerpo.contado = true
+				} else if (cuotas_elegida !== null) {
+					cuerpo.cuotas = cuotas_elegida
+				}
+				return self.$api.post('mercado-pago/preference', cuerpo)
 			})
 			.then(function(res) {
 				const init_point = res.data && res.data.init_point ? res.data.init_point : null
