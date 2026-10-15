@@ -235,6 +235,16 @@ $checkout-tenue: rgba(0, 0, 0, .55)
 		@media screen and (max-width: 767px)
 			padding: .7rem .75rem
 
+// Congelado mientras el botón confirma: no se puede tocar con el mouse y la opción elegida sigue
+// bien a la vista. Con el teclado no se llega (tabindex -1) y elegir() también corta.
+.checkout-cuotas--bloqueado
+	.checkout-option
+		pointer-events: none
+		opacity: .6
+
+	.checkout-option--selected
+		opacity: 1
+
 .checkout-cuotas__title
 	font-size: .95rem
 	font-weight: 700

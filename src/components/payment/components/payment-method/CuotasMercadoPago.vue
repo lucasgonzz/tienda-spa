@@ -6,6 +6,7 @@
 	-->
 	<div
 	v-if="cuotas_mp_ofrecidas.length"
+	:class="{'checkout-cuotas--bloqueado': bloqueado}"
 	class="checkout-cuotas">
 
 		<p
@@ -31,7 +32,8 @@
 			:class="{'checkout-option--selected': es_elegida('contado')}"
 			class="checkout-option checkout-option--cuotas-contado"
 			role="radio"
-			tabindex="0"
+			:tabindex="bloqueado ? -1 : 0"
+			:aria-disabled="bloqueado ? 'true' : 'false'"
 			:aria-checked="es_elegida('contado') ? 'true' : 'false'">
 
 				<span class="checkout-option__radio"></span>
@@ -64,7 +66,8 @@
 			:class="{'checkout-option--selected': es_elegida(opcion.cantidad_cuotas)}"
 			class="checkout-option checkout-option--cuotas"
 			role="radio"
-			tabindex="0"
+			:tabindex="bloqueado ? -1 : 0"
+			:aria-disabled="bloqueado ? 'true' : 'false'"
 			:aria-checked="es_elegida(opcion.cantidad_cuotas) ? 'true' : 'false'">
 
 				<span class="checkout-option__radio"></span>
@@ -114,6 +117,15 @@ export default {
 	mixins: [cart],
 	computed: {
 		/**
+		 * Si el selector está congelado: el botón de confirmar está trabajando y lo elegido ya viajó
+		 * (o está por viajar) a Mercado Pago. Ver `cuotas_bloqueadas` en el store.
+		 *
+		 * @returns {boolean}
+		 */
+		bloqueado() {
+			return this.$store.state.cart.cuotas_bloqueadas
+		},
+		/**
 		 * Cada cuota ofrecida con su valor y el total financiado calculados sobre lo que el
 		 * comprador pagaría hoy.
 		 *
@@ -143,7 +155,7 @@ export default {
 		 * @param {string|number} clave 'contado' o la cantidad de cuotas.
 		 */
 		elegir(clave) {
-			if (this.es_elegida(clave)) {
+			if (this.bloqueado || this.es_elegida(clave)) {
 				return
 			}
 			this.$store.commit('cart/set_cuotas_elegidas', clave)

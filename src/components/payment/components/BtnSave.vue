@@ -63,6 +63,23 @@ export default {
 			procesando: false,
 		}
 	},
+	watch: {
+		/**
+		 * Congela el selector de cuotas mientras el botón confirma y lo libera cuando termina —también
+		 * cuando el flujo falla y el comprador vuelve a la pantalla: todos los caminos de error
+		 * devuelven `procesando` a false—. Hace falta porque la elección de cuotas se lee DOS veces
+		 * en un mismo checkout (el guardado de antes de la preferencia y el de `makeOrder`), y si
+		 * cambiara en el medio Mercado Pago cobraría una cantidad y el pedido nacería con otra.
+		 */
+		procesando(valor) {
+			this.$store.commit('cart/set_cuotas_bloqueadas', valor)
+		},
+	},
+	beforeDestroy() {
+		// Si el comprador se va de la pantalla con el flujo en curso, el selector no puede quedar
+		// congelado para la próxima vez que entre.
+		this.$store.commit('cart/set_cuotas_bloqueadas', false)
+	},
 	computed: {
 		is_payway() {
 			return this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'Payway'

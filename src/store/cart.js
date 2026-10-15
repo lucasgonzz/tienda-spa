@@ -733,6 +733,15 @@ export default {
 		 * viejo (la lista de formas de pago se recargó y esa cantidad ya no se ofrece).
 		 */
 		cuotas_elegidas: null,
+		/*
+		 * El selector de cuotas no se puede tocar mientras el botón de confirmar trabaja (lo prende
+		 * BtnSave.vue con su `procesando`). Va en el store y no en el componente porque lo que hay
+		 * que proteger es `cuotas_elegidas`, que el flujo de confirmación lee DOS veces: en el
+		 * guardado del carrito que precede a la preferencia y en el que hace `makeOrder` antes de
+		 * crear el pedido. Si cambiara en el medio, Mercado Pago cobraría una cantidad de cuotas y el
+		 * pedido nacería con otra.
+		 */
+		cuotas_bloqueadas: false,
 		delivery_zone: null,
 		loading_last_cart: false,
 		saving: false,
@@ -818,6 +827,15 @@ export default {
 		 */
 		set_cuotas_elegidas(state, value) {
 			state.cuotas_elegidas = value
+		},
+		/**
+		 * Congela o libera el selector de cuotas. Ver `cuotas_bloqueadas` en el estado.
+		 *
+		 * @param {object} state
+		 * @param {boolean} value
+		 */
+		set_cuotas_bloqueadas(state, value) {
+			state.cuotas_bloqueadas = !!value
 		},
 		setDeliveryZone(state, value) {
 			state.delivery_zone = value
