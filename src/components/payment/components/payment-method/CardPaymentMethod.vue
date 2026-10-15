@@ -124,6 +124,14 @@ export default {
 			if (this.esta_elegido) {
 				return
 			}
+			// Mientras el botón de confirmar trabaja no se cambia de forma de pago: el segundo guardado
+			// del carrito (el de makeOrder) relee `payment_method_id` y, al cambiar de forma de pago,
+			// `cuotas_elegidas` se limpia — el pedido nacería con otra forma de pago y sin las cuotas
+			// que ya viajaron a Mercado Pago. La bandera es la misma que congela el selector de cuotas
+			// y BtnSave la baja cuando el flujo termina o falla (`procesando` vuelve a false).
+			if (this.$store.state.cart.cuotas_bloqueadas) {
+				return
+			}
 			this.$store.commit('cart/setPaymentMethod', this.payment_method)
 		},
 		/**
