@@ -203,6 +203,12 @@ module.exports = {
     pwa: {
         workboxOptions: {
             skipWaiting: true,
+
+            // El service worker nuevo toma el control de la pestaña que ya estaba abierta sin
+            // recargarla. Con skipWaiting solo, esa pestaña quedaba sin service worker hasta recargar
+            // (misión quitar-animacion-de-actualizacion, 16/10/2026).
+            clientsClaim: true,
+
             // Los cuatro primeros son los que excluye @vue/cli-plugin-pwa por defecto (este array
             // los reemplaza, no se suma). seo.php y .htaccess son archivos de servidor: si entran al
             // precache, el service worker baja /seo.php al instalarse y lo guarda como si fuera un
@@ -211,7 +217,108 @@ module.exports = {
             // config.js (window.__CC_CONFIG__) lo escribe admin-api por tienda en cada despliegue: no
             // se precachea, para que el service worker nunca sirva la configuración de antes (otra
             // API, otro comercio) ni el default vacío que viene en el bundle (misión versiones-tienda).
-            exclude: [/\.map$/, /img\/icons\//, /favicon\.ico$/, /^manifest.*\.js?$/, /seo\.php$/, /\.htaccess$/, /config\.js$/]
+            //
+            // 🔴 NO sacar /index.html ni /manifest.json del precache (y no tocar este exclude para
+            // eso): EcommerceDistCustomizer de admin-api falla cerrado si el precache no los trae con
+            // `revision`, porque recalcula esa revision al personalizar cada tienda. Para que el
+            // index.html deje de servirse caché-primero se usa directoryIndex (abajo), no el exclude.
+            exclude: [/\.map$/, /img\/icons\//, /favicon\.ico$/, /^manifest.*\.js?$/, /seo\.php$/, /\.htaccess$/, /config\.js$/],
+
+            // Por defecto Workbox atiende "/" desde el precache buscándolo como "/index.html" (ese es
+            // el directoryIndex de precacheAndRoute), o sea caché primero: al entrar se mostraba la
+            // versión ANTERIOR de la tienda y recién después, cuando el service worker bajaba la nueva,
+            // aparecía la barra de "Descargando actualización" y se recargaba todo. Con un nombre de
+            // directoryIndex que no existe, "/" deja de coincidir con una entrada del precache y la
+            // navegación cae a la ruta de runtimeCaching de abajo (red primero). /index.html SIGUE
+            // dentro del precache a propósito: es lo que exige el admin (ver el exclude) y además es
+            // el respaldo (el único) para abrir la tienda sin conexión.
+            directoryIndex: 'cc-sin-directory-index.html',
+
+            // Las navegaciones (el documento HTML) van a la red primero, con el index.html del precache
+            // como respaldo. Con internet, se entra directo a lo último: sin animación y sin recarga. La
+            // actualización del resto de los archivos precacheados se hace en segundo plano y en
+            // silencio. En la tienda esto importa más que en otros sitios: la navegación a "/" la
+            // sirve public/seo.php (inyecta el SEO en el index.html), así que también tiene que
+            // pedirse siempre a la red y no quedar fija en una copia vieja.
+            //
+            // 🔴 NO se guarda ninguna copia del HTML de cada visita (ni en cc-navegacion ni en otro lado):
+            // el único respaldo es el /index.html del PRECACHE ACTIVO, que siempre es coherente con los
+            // bundles (js/app.<hash>.js...) que ese mismo precache tiene guardados. Si se guardara el
+            // HTML de cada visita online y el service worker nuevo no llegara a terminar de instalarse
+            // (se corta la señal, se cierra el celular), quedaría el worker viejo con su precache viejo
+            // y, sin conexión, el respaldo entregaría el HTML NUEVO, que pide un js/app.<hash nuevo>.js
+            // que ese precache no tiene: pantalla en blanco. Además se estarían guardando URLs con
+            // parámetros de un solo uso. Por eso cacheWillUpdate devuelve null y el respaldo (abajo)
+            // sale siempre del precache. Quien "optimice" esto guardando copias vuelve al problema.
+            //
+            // ⚠️ Estas funciones se serializan con toString() DENTRO de service-worker.js (workbox-build
+            // las copia como texto) y ese archivo NO pasa por babel: tienen que ser autocontenidas
+            // (nada de este vue.config.js) y en ES5 (function y var; sin flechas, ?. ni async/await).
+            // Ninguna línea de acá puede empezar con "name:" ni "themeColor:": el sed de admin-api
+            // (patch_spa_vue_config, vía vieja) pisa esas líneas enteras; por eso es cacheName.
+            //
+            // ⚠️ Las funciones de `plugins` tienen DOS reglas más, propias de workbox-build 4.3.1, y
+            // romperlas tira el build entero ("Unable to generate service worker from template"):
+            //   1. Van NOMBRADAS (function requestWillFetch (args) {...}), no anónimas: workbox-build
+            //      les saca los comentarios parseando el texto como un programa, y un
+            //      "function (args) {...}" suelto no es un programa válido ("Unexpected token (1:9)").
+            //   2. Cada sentencia termina en punto y coma: workbox-build junta el código de los plugins
+            //      en UNA sola línea (oneLine), y sin ";" dos sentencias quedan pegadas y el service
+            //      worker generado no compila (no hay salto de línea que active el ASI).
+            // El urlPattern de abajo no pasa por ese camino: se copia tal cual, con sus saltos de línea.
+            runtimeCaching: [{
+                // Solo navegaciones del documento, de la propia app y sin extensión de archivo. Un pedido
+                // de imagen, script o API no es una navegación y no entra acá. Un "/index.html" escrito
+                // literal NO es una entrada normal (el start_url del manifest es "/"): lo atiende el
+                // listener del precache, que se registra primero y responde caché-primero.
+                urlPattern: function (args) {
+                    if (!args.request || args.request.mode !== 'navigate') return false
+                    var ruta = args.url.pathname
+                    return !/\.[A-Za-z0-9]+$/.test(ruta)
+                },
+                handler: 'NetworkFirst',
+                options: {
+                    cacheName: 'cc-navegacion',
+                    // Si la red no contesta en 5 s se usa el index.html del precache (conexión mala o
+                    // caída). Son 5 y no 3 a propósito: public/seo.php espera hasta 3 s a tienda-api para
+                    // armar el SEO de la página. Con 3 s en el service worker los dos plazos coincidirían
+                    // y, con la API lenta, se entregaría el index.html del precache (la versión vieja)
+                    // aunque el servidor estuviera por contestar. Los 5 s le dejan margen.
+                    networkTimeoutSeconds: 5,
+                    plugins: [{
+                        // Workbox IGNORA fetchOptions en las navegaciones (fetchWrapper de workbox-core),
+                        // así que la revalidación contra el servidor se fuerza reescribiendo el pedido.
+                        // Sin esto, un servidor que mande "Cache-Control: max-age" (o la caché heurística
+                        // de LiteSpeed/nginx) entregaría un index.html viejo y volvería el problema.
+                        requestWillFetch: function requestWillFetch (args) {
+                            return new Request(args.request, { cache: 'no-cache' });
+                        },
+                        // Un 5xx del servidor (503 en un deploy, por ejemplo) no se le muestra a la persona:
+                        // se trata como "sin red" y cae al index.html del precache.
+                        fetchDidSucceed: function fetchDidSucceed (args) {
+                            if (args.response && args.response.status >= 500) {
+                                throw new Error('El servidor contestó ' + args.response.status);
+                            }
+                            return args.response;
+                        },
+                        // Nada se guarda en cc-navegacion: devolver null le dice a Workbox que la respuesta
+                        // no es cacheable. Ver el 🔴 de arriba (coherencia con el precache activo).
+                        cacheWillUpdate: function cacheWillUpdate () {
+                            return null;
+                        },
+                        // Respaldo (sin red, 5xx o demora): SIEMPRE el /index.html del precache activo, que
+                        // es coherente con los bundles que ese precache tiene guardados. No mira la caché
+                        // de navegación (está vacía a propósito) ni la URL pedida: un link directo que
+                        // nunca se visitó también abre la app, y el router de Vue resuelve la ruta.
+                        cachedResponseWillBeUsed: function cachedResponseWillBeUsed () {
+                            // `workbox` es una global que existe solo adentro de service-worker.js.
+                            // eslint-disable-next-line no-undef
+                            var clave = workbox.precaching.getCacheKeyForURL('/index.html');
+                            return clave ? caches.match(clave) : null;
+                        }
+                    }]
+                }
+            }]
         },
 
         // Estos valores son un fallback: en la vía vieja admin-api los reescribe por cliente antes
