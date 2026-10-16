@@ -17,21 +17,34 @@
 
 		<title-jumbotron></title-jumbotron>
 
-		<categorias-home></categorias-home>
+		<!-- Con el diseño de lista, las tarjetas de categorías serían la misma información dos veces. -->
+		<categorias-home
+		v-if="!es_diseno_lista"></categorias-home>
 
 		<sub-categories-sidebar></sub-categories-sidebar>
 
+		<!--
+			Diseño del inicio «Lista de categorías» (online_configuration.diseno_home): en la portada,
+			la lista reemplaza a Destacados, Novedades y Últimos ingresos. Con una categoría, marca o
+			búsqueda elegida, el listado de siempre.
+		-->
+		<lista-categorias
+		v-if="mostrar_lista_categorias"
+		:categories="categorias_con_productos"></lista-categorias>
 
-		<order-by></order-by>
+		<template
+		v-else>
+			<order-by></order-by>
 
-		<b-row
-		class="row-articles">
-			<b-col
-			:class="class_products"
-			cols="12">
-				<articles-list></articles-list>
-			</b-col>
-		</b-row>
+			<b-row
+			class="row-articles">
+				<b-col
+				:class="class_products"
+				cols="12">
+					<articles-list></articles-list>
+				</b-col>
+			</b-row>
+		</template>
 		
 		<contact-info></contact-info> 
 	</div>
@@ -42,6 +55,7 @@ import CanSeePrices from '@/components/home/components/CanSeePrices'
 import ArticlesList from '@/components/home/components/articles-list/Index'
 import TitleJumbotron from '@/components/home/components/TitleJumbotron'
 import CategoriasHome from '@/components/home/components/categorias-home/Index'
+import ListaCategorias from '@/components/home/components/lista-categorias/Index'
 import OrderPhone from '@/components/home/components/OrderPhone'
 import UpdateButton from '@/components/home/components/UpdateButton'
 import Platelets from '@/components/home/components/platelets/Index'
@@ -80,6 +94,7 @@ export default {
 		SubCategoriesSidebar,
 		TitleJumbotron,
 		CategoriasHome,
+		ListaCategorias,
 		OrderPhone,
 		CategoriesButton,
 		UpdateButton,
@@ -90,7 +105,64 @@ export default {
         OrderBy,
         SubCategories,
 	},
+	watch: {
+		/**
+		 * Con el diseño de lista, el botón «atrás» del navegador desde una categoría (o desde una
+		 * búsqueda) tiene que volver a la lista: la ruta vuelve a la portada pero el store queda con
+		 * el filtro elegido, porque App.vue solo lee la ruta al arrancar. Con el diseño de siempre no
+		 * se toca nada (ese comportamiento es anterior y no es de esta misión).
+		 * @param {object} to
+		 */
+		$route(to) {
+			if (!this.es_diseno_lista || to.name != 'Home') {
+				return
+			}
+			let es_portada = !to.params.category || to.params.category == 'ultimos-ingresados'
+			if (es_portada && !to.query.q && this.hay_filtro_o_busqueda) {
+				this.$store.commit('categories/setIsFromSearch', false)
+				this.$store.commit('categories/setSelectedCategory', null)
+				this.$store.commit('categories/setSelectedSubCategory', null)
+				this.$store.commit('categories/setSelectedBrand', null)
+				this.$store.commit('categories/setSelectedBodega', null)
+				this.$store.commit('categories/setSelectedCepa', null)
+			}
+		},
+	},
 	computed: {
+		/**
+		 * online_configuration.diseno_home == 'lista_categorias'. Cualquier otro valor -- incluido
+		 * undefined, cuando el empresa-api del comercio todavia no tiene la columna -- es el inicio
+		 * de siempre.
+		 * @returns {boolean}
+		 */
+		es_diseno_lista() {
+			return !!(this.commerce && this.commerce.online_configuration && this.commerce.online_configuration.diseno_home == 'lista_categorias')
+		},
+		/**
+		 * @returns {boolean}
+		 */
+		hay_filtro_o_busqueda() {
+			return this.hay_filtro_elegido || !!this.$store.state.categories.is_from_search
+		},
+		/**
+		 * Categorias con al menos un producto: las vacias serian renglones que no despliegan nada.
+		 * articles_count puede no venir (tienda-api vieja): ahi se muestran todas.
+		 * @returns {Array}
+		 */
+		categorias_con_productos() {
+			return this.categories.filter(category => category.articles_count === undefined || category.articles_count === null || Number(category.articles_count) > 0)
+		},
+		/**
+		 * La lista va en la portada (sin filtro ni busqueda). Si el comercio no tiene ninguna
+		 * categoria con productos, la portada queda como siempre en lugar de una lista vacia.
+		 * @returns {boolean}
+		 */
+		mostrar_lista_categorias() {
+			if (!this.es_diseno_lista || this.hay_filtro_o_busqueda) {
+				return false
+			}
+			return !!this.$store.state.categories.loading_categories || this.categorias_con_productos.length > 0
+		},
 		/**
 		 * Mismo criterio que articles-list/Index.vue para dibujar su titulo (que es el h1 cuando
 		 * hay un filtro elegido).
