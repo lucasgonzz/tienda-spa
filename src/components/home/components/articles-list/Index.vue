@@ -384,11 +384,12 @@ export default {
 		.vhl-item
 			margin: 0 0 20px !important
 		// Las flechas de vue-horizontal-list traen `margin: -24px` hacia afuera (cuelgan la mitad de
-		// sus 48px fuera del carrusel). El colchon lateral de la portada es de 15px, asi que desde los
-		// 993px —donde la libreria las muestra— la derecha terminaba 9px despues del borde y le agregaba
-		// scroll horizontal a la pagina, y la izquierda quedaba cortada 9px antes del borde (medido el
-		// 15/10/2026 en Masquito y en el slot: x=1289 a 1280px y x=-9). Con 12px siguen sobresaliendo
-		// del carrusel y entran en el colchon. Si el colchon baja de 12px, hay que bajar este numero.
+		// sus 48px fuera del carrusel). El colchón lateral de la portada es de 15px (el padding del
+		// `b-container fluid` de App.vue), así que desde los 993px —donde la librería las muestra— la
+		// derecha terminaba 9px después del borde y le agregaba scroll horizontal a la página, y la
+		// izquierda quedaba cortada 9px antes del borde (medido el 15/10/2026 en Masquito y en el slot:
+		// x=1289 a 1280px y x=-9). Con 12px siguen sobresaliendo del carrusel y entran en el colchón.
+		// Si el colchón baja de 12px, hay que bajar este número.
 		.vue-horizontal-list
 			.vhl-btn-left
 				margin-left: -12px

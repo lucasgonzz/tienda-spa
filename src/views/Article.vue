@@ -479,9 +479,12 @@ export default {
 
   /*
    * El <contact-info> de adentro es un `.row` de Bootstrap, con margin -15px a cada lado pensado para
-   * un padre con 15px de colchon (asi se usa en la portada). Esta seccion ya ocupa todo el ancho
+   * un padre con 15px de colchón (así se usa en la portada). Esta sección ya ocupa todo el ancho
    * del viewport: esos -15px sacaban la franja gris 15px por cada lado y le agregaban 15px de
    * scroll horizontal a la ficha, en todos los anchos (medido el 15/10/2026). Cada lado en 0.
+   * Depende de que `.contact-info` sea la raíz de ContactInfo.vue: el atributo scoped de este
+   * componente solo llega a la raíz del hijo. Si se envuelve su template, esto deja de aplicar
+   * sin avisar y vuelven los 15px.
    */
   .contact-info {
     margin-left: 0;
