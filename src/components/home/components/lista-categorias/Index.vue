@@ -11,7 +11,9 @@
 		<div class="cat-lista__cabecera">
 			<h2 class="cat-lista__titulo">
 				Categorías
-				<span class="cat-lista__total">{{ categories.length }}</span>
+				<span
+				v-if="categories.length"
+				class="cat-lista__total">{{ categories.length }}</span>
 			</h2>
 			<label
 			v-if="categories.length > 8"
@@ -60,7 +62,8 @@
 						<img
 						v-if="imagen_de(category)"
 						:src="imagen_de(category)"
-						:alt="category.name">
+						:alt="category.name"
+						loading="lazy">
 						<span
 						v-else
 						class="cat-lista__inicial">
@@ -69,11 +72,6 @@
 					</span>
 					<span class="cat-lista__nombre">
 						{{ category.name | first_upper }}
-					</span>
-					<span
-					v-if="cantidad_de(category) !== null"
-					class="cat-lista__cantidad">
-						{{ cantidad_de(category) }} {{ cantidad_de(category) == 1 ? 'producto' : 'productos' }}
 					</span>
 					<i class="bi bi-chevron-down cat-lista__chevron"></i>
 				</a>
@@ -118,7 +116,7 @@
 					type="button"
 					class="cat-lista__ver-todos"
 					@click="setSelectedCategory(category)">
-						Ver los {{ cantidad_de(category) }} productos de {{ category.name | first_upper }}
+						Ver todos los productos de {{ category.name | first_upper }}
 						<i class="bi bi-arrow-right"></i>
 					</button>
 				</div>
@@ -160,11 +158,29 @@ export default {
 			filtro: '',
 			abierta_id: null,
 			/**
-			 * Productos ya traidos, por id de categoria: { cargando, error, articles, total }.
+			 * Productos ya traidos, por id de categoria: { cargando, error, articles, hay_mas }.
 			 * Se guardan para que volver a abrir una categoria no repita el pedido.
 			 */
 			por_categoria: {},
+			/**
+			 * Sube cada vez que lo traido deja de valer (ver reiniciar): una respuesta que vuelve
+			 * de un pedido anterior se descarta en lugar de pisar lo nuevo.
+			 */
+			generacion: 0,
 		}
+	},
+	watch: {
+		/**
+		 * Al iniciar o cerrar sesion cambian los precios (lista de precios del comprador, precios
+		 * ocultos al anonimo): lo traido con la identidad anterior no se puede seguir mostrando.
+		 * El cierre de sesion no sale de la portada, asi que la lista sigue montada.
+		 */
+		'$store.state.auth.authenticated'() {
+			this.reiniciar()
+		},
+		order_by() {
+			this.reiniciar()
+		},
 	},
 	computed: {
 		/**
@@ -221,21 +237,40 @@ export default {
 		 * @param {object} category
 		 */
 		cargar(category) {
-			this.$set(this.por_categoria, category.id, { cargando: true, error: false, articles: [], total: null })
+			let generacion = this.generacion
+			this.$set(this.por_categoria, category.id, { cargando: true, error: false, articles: [], hay_mas: false })
 			let url = 'articles/from-category/' + category.id + '/0/0/0/' + this.order_by + '/' + env('VUE_APP_COMMERCE_ID') + '?page=1'
 			this.$api.get(url)
 			.then(res => {
+				if (generacion !== this.generacion) {
+					return
+				}
+				// El listado pagina con simplePaginate: no trae el total, solo si hay otra pagina.
 				this.$set(this.por_categoria, category.id, {
 					cargando: false,
 					error: false,
 					articles: res.data.articles.data,
-					total: res.data.articles.total,
+					hay_mas: !!res.data.articles.next_page_url,
 				})
 			})
 			.catch(err => {
 				console.log(err)
-				this.$set(this.por_categoria, category.id, { cargando: false, error: true, articles: [], total: null })
+				if (generacion !== this.generacion) {
+					return
+				}
+				this.$set(this.por_categoria, category.id, { cargando: false, error: true, articles: [], hay_mas: false })
 			})
+		},
+		/**
+		 * Descarta todo lo traido y vuelve a pedir la categoria abierta, si hay una.
+		 */
+		reiniciar() {
+			this.generacion++
+			this.por_categoria = {}
+			let abierta = this.abierta_id ? this.categories.find(category => category.id == this.abierta_id) : null
+			if (abierta) {
+				this.cargar(abierta)
+			}
 		},
 		/**
 		 * Si el renglon que se acaba de abrir quedo tapado por el nav fijo (porque se cerro otro
@@ -259,33 +294,21 @@ export default {
 		},
 		/**
 		 * @param {object} category
-		 * @returns {{cargando: boolean, error: boolean, articles: Array, total: (number|null)}}
+		 * @returns {{cargando: boolean, error: boolean, articles: Array, hay_mas: boolean}}
 		 */
 		estado_de(category) {
-			return this.por_categoria[category.id] || { cargando: true, error: false, articles: [], total: null }
+			return this.por_categoria[category.id] || { cargando: true, error: false, articles: [], hay_mas: false }
 		},
 		/**
-		 * Cantidad de productos de la categoria: la que trae el listado de categorias
-		 * (articles_count) o, si no vino, la del paginado ya traido.
-		 * @param {object} category
-		 * @returns {number|null}
-		 */
-		cantidad_de(category) {
-			if (category.articles_count !== undefined && category.articles_count !== null) {
-				return Number(category.articles_count)
-			}
-			let estado = this.por_categoria[category.id]
-			return estado && estado.total !== null ? Number(estado.total) : null
-		},
-		/**
-		 * Hay mas productos que los que entran en la primera pagina desplegada.
+		 * Hay mas productos que los de la primera pagina desplegada. No se usa articles_count de
+		 * la categoria: cuenta tambien los articulos que no se publican (HomeController::categories
+		 * en tienda-api), y prometeria productos que el listado no muestra.
 		 * @param {object} category
 		 * @returns {boolean}
 		 */
 		hay_mas(category) {
 			let estado = this.estado_de(category)
-			let cantidad = this.cantidad_de(category)
-			return !estado.cargando && !estado.error && cantidad !== null && cantidad > estado.articles.length
+			return !estado.cargando && !estado.error && estado.hay_mas
 		},
 		/**
 		 * Imagen de la categoria, resuelta igual que Card.vue (http directa, Cloudinary o storage).
@@ -320,7 +343,7 @@ export default {
 		 * @returns {string}
 		 */
 		normalizar(texto) {
-			return String(texto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+			return String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
 		},
 	},
 }
@@ -458,12 +481,6 @@ export default {
 		text-overflow: ellipsis
 		white-space: nowrap
 		transition: color 0.2s ease
-	&__cantidad
-		flex: 0 0 auto
-		font-size: 0.85rem
-		color: rgba(0, 0, 0, 0.5)
-		@media screen and (max-width: 576px)
-			font-size: 0.78rem
 	&__chevron
 		flex: 0 0 auto
 		font-size: 0.95rem

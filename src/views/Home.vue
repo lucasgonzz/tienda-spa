@@ -55,7 +55,6 @@ import CanSeePrices from '@/components/home/components/CanSeePrices'
 import ArticlesList from '@/components/home/components/articles-list/Index'
 import TitleJumbotron from '@/components/home/components/TitleJumbotron'
 import CategoriasHome from '@/components/home/components/categorias-home/Index'
-import ListaCategorias from '@/components/home/components/lista-categorias/Index'
 import OrderPhone from '@/components/home/components/OrderPhone'
 import UpdateButton from '@/components/home/components/UpdateButton'
 import Platelets from '@/components/home/components/platelets/Index'
@@ -94,7 +93,8 @@ export default {
 		SubCategoriesSidebar,
 		TitleJumbotron,
 		CategoriasHome,
-		ListaCategorias,
+		// Diferido: solo lo baja una tienda con el diseño de lista.
+		ListaCategorias: () => import('@/components/home/components/lista-categorias/Index'),
 		OrderPhone,
 		CategoriesButton,
 		UpdateButton,
@@ -107,25 +107,30 @@ export default {
 	},
 	watch: {
 		/**
-		 * Con el diseño de lista, el botón «atrás» del navegador desde una categoría (o desde una
-		 * búsqueda) tiene que volver a la lista: la ruta vuelve a la portada pero el store queda con
-		 * el filtro elegido, porque App.vue solo lee la ruta al arrancar. Con el diseño de siempre no
-		 * se toca nada (ese comportamiento es anterior y no es de esta misión).
-		 * @param {object} to
+		 * Con el diseño de lista, volver a la portada tiene que mostrar la lista: con el «atrás» del
+		 * navegador desde una categoría o una búsqueda, o al llegar desde un link a la home (ficha,
+		 * carrito, pago), la ruta es la portada pero el store queda con el filtro elegido, porque
+		 * App.vue solo lee la ruta al arrancar. immediate cubre el segundo caso (Home recién
+		 * montada). Con el diseño de siempre no se toca nada (ese comportamiento es anterior y no es
+		 * de esta misión).
 		 */
-		$route(to) {
-			if (!this.es_diseno_lista || to.name != 'Home') {
-				return
-			}
-			let es_portada = !to.params.category || to.params.category == 'ultimos-ingresados'
-			if (es_portada && !to.query.q && this.hay_filtro_o_busqueda) {
-				this.$store.commit('categories/setIsFromSearch', false)
-				this.$store.commit('categories/setSelectedCategory', null)
-				this.$store.commit('categories/setSelectedSubCategory', null)
-				this.$store.commit('categories/setSelectedBrand', null)
-				this.$store.commit('categories/setSelectedBodega', null)
-				this.$store.commit('categories/setSelectedCepa', null)
-			}
+		$route: {
+			immediate: true,
+			handler(to) {
+				if (!this.es_diseno_lista || to.name != 'Home') {
+					return
+				}
+				// Una búsqueda (aunque sea vacía) navega con ?q=: no es volver a la portada.
+				if (this.es_ruta_de_portada(to) && this.hay_filtro_o_busqueda) {
+					this.$store.commit('categories/setIsFromSearch', false)
+					this.$store.commit('categories/setSearchQuery', '')
+					this.$store.commit('categories/setSelectedCategory', null)
+					this.$store.commit('categories/setSelectedSubCategory', null)
+					this.$store.commit('categories/setSelectedBrand', null)
+					this.$store.commit('categories/setSelectedBodega', null)
+					this.$store.commit('categories/setSelectedCepa', null)
+				}
+			},
 		},
 	},
 	computed: {
@@ -145,8 +150,10 @@ export default {
 			return this.hay_filtro_elegido || !!this.$store.state.categories.is_from_search
 		},
 		/**
-		 * Categorias con al menos un producto: las vacias serian renglones que no despliegan nada.
-		 * articles_count puede no venir (tienda-api vieja): ahi se muestran todas.
+		 * Sin las categorias que no tienen ningun articulo: serian renglones que no despliegan nada.
+		 * articles_count cuenta tambien los articulos no publicados (HomeController::categories), asi
+		 * que una categoria con articulos pero ninguno publicado igual aparece y al abrirla avisa que
+		 * no hay productos. articles_count puede no venir (tienda-api vieja): ahi se muestran todas.
 		 * @returns {Array}
 		 */
 		categorias_con_productos() {
@@ -158,7 +165,9 @@ export default {
 		 * @returns {boolean}
 		 */
 		mostrar_lista_categorias() {
-			if (!this.es_diseno_lista || this.hay_filtro_o_busqueda) {
+			// La ruta manda: entrando directo a /inicio/<categoria> o a una búsqueda, la lista no se
+			// dibuja mientras App.vue resuelve qué filtro elegir.
+			if (!this.es_diseno_lista || !this.es_ruta_de_portada(this.$route) || this.hay_filtro_o_busqueda) {
 				return false
 			}
 			return !!this.$store.state.categories.loading_categories || this.categorias_con_productos.length > 0
@@ -284,6 +293,17 @@ export default {
 				return 10
 			}
 			return 12
+		},
+	},
+	methods: {
+		/**
+		 * La portada: /inicio o /inicio/ultimos-ingresados, sin búsqueda (?q=, aunque venga vacía).
+		 * @param {object} route
+		 * @returns {boolean}
+		 */
+		es_ruta_de_portada(route) {
+			let categoria = route.params.category
+			return route.name == 'Home' && (!categoria || categoria == 'ultimos-ingresados') && !('q' in route.query)
 		},
 	},
 }
