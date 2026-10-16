@@ -476,6 +476,17 @@ export default {
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
   box-sizing: border-box;
+
+  /*
+   * El <contact-info> de adentro es un `.row` de Bootstrap, con margin -15px a cada lado pensado para
+   * un padre con 15px de colchon (asi se usa en la portada). Esta seccion ya ocupa todo el ancho
+   * del viewport: esos -15px sacaban la franja gris 15px por cada lado y le agregaban 15px de
+   * scroll horizontal a la ficha, en todos los anchos (medido el 15/10/2026). Cada lado en 0.
+   */
+  .contact-info {
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
 
 .article-page__section-eyebrow {
