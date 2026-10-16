@@ -100,6 +100,16 @@ export default {
 		display: flex
 		flex-direction: column
 		align-items: center
+		// Con `align-items: center` el carrusel mide lo que mide su contenido y no lo que mide la
+		// columna: cuatro contactos son 608px, y en un telefono (375px) quedaba de x=-116 a x=492, con
+		// 125px de scroll horizontal en la pagina (medido el 15/10/2026 en Masquito y en el slot). Con
+		// el tope, el carrusel nunca es mas ancho que la columna: la libreria lo mide al montar y
+		// reparte los casilleros dentro, y lo que no entra se desliza (autoplay o dedo).
+		// No achicar `.contact-item` para "arreglarlo" de otra forma: la libreria elige 3 o 4 casilleros
+		// segun el ANCHO DEL CARRUSEL (menos de 576px = 3), y un carrusel mas angosto en escritorio pasa
+		// a deslizarse y le aparece una flecha que hoy no tiene (se probo el 15/10/2026: 608px -> 470px).
+		.vue-horizontal-list
+			max-width: 100%
 	.title 
 		font-size: 25px
 		margin: 25px 0 -15px
