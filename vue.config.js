@@ -318,6 +318,105 @@ module.exports = {
                         }
                     }]
                 }
+            }, {
+                // config.js (window.__CC_CONFIG__: URL de la API, id del comercio, Pusher...) TAMBIÉN va red
+                // primero, y esta ruta existe para que la tienda ABRA SIN CONEXIÓN en un build de release.
+                //
+                // Por qué hace falta: el release se compila sin .env, así que NO hay ninguna VUE_APP_*
+                // horneada en el bundle y todo sale de config.js, que admin-api escribe por tienda en cada
+                // despliegue. config.js está fuera del precache a propósito (arriba, en `exclude`: el
+                // precache responde caché primero y entregaría una configuración vieja, de otra API o de
+                // otro comercio). Sin esta ruta, sin red config.js no cargaba y la pantalla quedaba en
+                // blanco (misión config-js-sin-conexion, 17/10/2026).
+                //
+                // Cómo evita servir una configuración vieja:
+                //   - ONLINE siempre se pide a la red (el pedido se reescribe con cache: 'no-cache', además
+                //     del Cache-Control: no-cache que le pone el .htaccess) y la respuesta buena refresca la
+                //     copia. La copia SOLO se usa si no hay red, si la red pasa del tope (3 s) o si el
+                //     servidor contesta 5xx.
+                //   - La caché de un service worker es por origen: cada tienda guarda su propio config.js.
+                //   - Solo se guarda una copia BUENA (ver cacheWillUpdate). Si el servidor contesta algo que
+                //     no es una configuración (el config.js vacío por defecto que trae el release, el
+                //     index.html que sirve seo.php cuando el archivo falta, un 404), no se guarda Y SE BORRA
+                //     la copia anterior.
+                //   - El calentamiento (src/registerServiceWorker.js) guarda la primera copia apenas el
+                //     service worker toma el control, sin esperar a la segunda visita.
+                // NO sumar config.js al precache ni "simplificar" esta ruta a caché primero.
+                urlPattern: function (args) {
+                    return args.url.origin === self.location.origin && /\/config\.js$/.test(args.url.pathname);
+                },
+                handler: 'NetworkFirst',
+                options: {
+                    cacheName: 'cc-config',
+                    // 3 s y no los 5 de las navegaciones: config.js es un archivo estático, no pasa por seo.php.
+                    networkTimeoutSeconds: 3,
+                    // ⚠️ Mismas reglas de workbox-build 4.3.1 que arriba: funciones NOMBRADAS, autocontenidas,
+                    // en ES5 y con ";" en cada sentencia. Y una más: el texto de la función pasa por
+                    // strip-comments, que lee la secuencia de barra-asterisco o de dos barras como un
+                    // comentario aunque esté dentro de un regex o de un string: por eso acá esas
+                    // secuencias se arman por partes ('/' + '*').
+                    plugins: [{
+                        requestWillFetch: function requestWillFetch (args) {
+                            return new Request(args.request, { cache: 'no-cache' });
+                        },
+                        // Un 5xx (503 en un despliegue) cuenta como "sin red": se usa la copia si hay.
+                        fetchDidSucceed: function fetchDidSucceed (args) {
+                            if (args.response && args.response.status >= 500) {
+                                throw new Error('El servidor contestó ' + args.response.status);
+                            }
+                            return args.response;
+                        },
+                        // Decide si lo que contestó el servidor se guarda: solo una configuración de verdad.
+                        // Devolver null = no guardar. Con un 404/410 o un 200 que no es configuración
+                        // (el servidor contestó y dijo que la configuración ya no es esa) se borra además la
+                        // copia anterior; otro 4xx (puede ser transitorio) no la toca.
+                        cacheWillUpdate: function cacheWillUpdate (args) {
+                            var respuesta = args.response;
+                            var direccion = args.request.url;
+                            var borrar_copia = function () {
+                                return caches.open('cc-config').then(function (cache) {
+                                    return cache.delete(direccion);
+                                }).then(function () {
+                                    return null;
+                                });
+                            };
+                            // Una respuesta opaca (status 0) cae en el `!== 200` de más abajo.
+                            if (!respuesta) {
+                                return null;
+                            }
+                            if (respuesta.status === 404 || respuesta.status === 410) {
+                                return borrar_copia();
+                            }
+                            if (respuesta.status !== 200) {
+                                return null;
+                            }
+                            return respuesta.clone().text().then(function (texto) {
+                                var inicio_bloque = '/' + '*';
+                                var fin_bloque = '*' + '/';
+                                var inicio_linea = '/' + '/';
+                                var limpio = String(texto);
+                                var desde = limpio.indexOf(inicio_bloque);
+                                var hasta = -1;
+                                // Se sacan los comentarios: el config.js vacío por defecto del release trae
+                                // VUE_APP_API_URL escrita DENTRO de un comentario de ejemplo.
+                                while (desde !== -1) {
+                                    hasta = limpio.indexOf(fin_bloque, desde + 2);
+                                    limpio = limpio.slice(0, desde) + (hasta === -1 ? '' : limpio.slice(hasta + 2));
+                                    desde = limpio.indexOf(inicio_bloque);
+                                }
+                                limpio = limpio.split(String.fromCharCode(10)).filter(function (linea) {
+                                    return linea.replace(/^\s+/, '').indexOf(inicio_linea) !== 0;
+                                }).join(String.fromCharCode(10));
+                                // Una configuración buena asigna un objeto a window.__CC_CONFIG__ y trae la URL de
+                                // la API con valor. "window.__CC_CONFIG__ = window.__CC_CONFIG__ || {}" (el vacío
+                                // del release) no cumple: después del "=" no viene una llave.
+                                var es_buena = limpio.length < 200000
+                                    && /__CC_CONFIG__\s*=\s*\{[\s\S]*?VUE_APP_API_URL["']?\s*:\s*["'][^"'\s]/.test(limpio);
+                                return es_buena ? respuesta : borrar_copia();
+                            });
+                        }
+                    }]
+                }
             }]
         },
 
