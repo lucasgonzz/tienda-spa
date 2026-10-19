@@ -318,6 +318,67 @@ export function direccion_desde_lugar(lugar, sugerencia) {
 	}
 }
 
+/** Cuánto se espera al geocodificador (carga a mano) antes de seguir sin coordenadas. */
+const TIEMPO_LIMITE_GEOCODER_MS = 5000
+
+/**
+ * Coordenadas de una dirección cargada a mano, con el Geocoder de Maps, si está. Para que el
+ * vendedor pueda ver el pin en el ERP también cuando el comprador no usó el buscador.
+ *
+ * 🔴 SILENCIOSO SIEMPRE: resuelve `{lat, lng}` o null, nunca rechaza y no avisa nada. Al
+ * 19/10/2026, sin facturación en Google, responde REQUEST_DENIED para todo y no se tiene que
+ * notar: la dirección se guarda igual, sin coordenadas. Tiempo límite de 5 s.
+ *
+ * @param {object} direccion Forma del contrato (calle, altura, localidad, provincia).
+ * @returns {Promise<object|null>}
+ */
+export function geocodificar(direccion) {
+	let google = typeof window !== 'undefined' ? window.google : null
+	if (!google || !google.maps || typeof google.maps.Geocoder !== 'function' || !direccion) {
+		return Promise.resolve(null)
+	}
+	let partes = []
+	let calle = (texto_limpio(direccion.street) + ' ' + texto_limpio(direccion.street_number)).trim()
+	if (calle) {
+		partes.push(calle)
+	}
+	let otras = ['city', 'province']
+	otras.forEach(clave => {
+		if (texto_limpio(direccion[clave])) {
+			partes.push(texto_limpio(direccion[clave]))
+		}
+	})
+	if (!calle || partes.length < 2) {
+		return Promise.resolve(null)
+	}
+	partes.push('Argentina')
+	let pedido = new Promise(resolve => {
+		try {
+			let geocoder = new google.maps.Geocoder()
+			let respuesta = geocoder.geocode({
+				address: partes.join(', '),
+				componentRestrictions: { country: 'AR' },
+			}, function(results, status) {
+				if (status !== 'OK' || !results || !results.length || !results[0].geometry) {
+					resolve(null)
+					return
+				}
+				let location = results[0].geometry.location
+				let lat = coordenada(typeof location.lat === 'function' ? location.lat() : location.lat, 90)
+				let lng = coordenada(typeof location.lng === 'function' ? location.lng() : location.lng, 180)
+				resolve(lat !== null && lng !== null ? { lat: lat, lng: lng } : null)
+			})
+			// Las versiones nuevas devuelven además una promesa que rechaza con el error: se calla.
+			if (respuesta && typeof respuesta.catch === 'function') {
+				respuesta.catch(() => resolve(null))
+			}
+		} catch (e) {
+			resolve(null)
+		}
+	})
+	return con_tiempo_limite(pedido, TIEMPO_LIMITE_GEOCODER_MS).catch(() => null)
+}
+
 /**
  * Trae el detalle del lugar de una sugerencia y lo convierte en dirección. Usa el mismo token de
  * sesión de la búsqueda (lo lleva la predicción adentro).

@@ -97,6 +97,99 @@ export function texto_limpio(valor, largo) {
 }
 
 /**
+ * Un código postal con solo letras y números, en mayúsculas ("b 1642" → "B1642"). Es la misma
+ * limpieza que hace tienda-api (`ZipnovaCotizadorService::zipcode_limpio`) antes de cotizar: si
+ * acá quedara de otra forma, la dirección y la cotización parecerían de dos destinos distintos.
+ *
+ * @param {*} valor
+ * @returns {string}
+ */
+export function codigo_postal_limpio(valor) {
+	if (valor === null || valor === undefined) {
+		return ''
+	}
+	return String(valor).replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+}
+
+/**
+ * El código postal limpio si sirve para cotizar (de 4 a 8 letras o números: "2000", "B1642",
+ * "C1043AAZ"), o '' si no hay o no sirve. Mismo rango que valida tienda-api al cotizar.
+ *
+ * @param {*} valor
+ * @returns {string}
+ */
+export function codigo_postal_valido(valor) {
+	let limpio = codigo_postal_limpio(valor)
+	return limpio.length >= 4 && limpio.length <= 8 ? limpio : ''
+}
+
+/**
+ * El código postal con el que se COTIZA, igual que lo deja tienda-api
+ * (`ZipnovaCotizadorService::zipcode_limpio`, 19/10/2026): limpio, de 4 a 8, y la forma "letra
+ * de provincia + 4 dígitos" que da Google Places ("X5000", "C1425") pasada a los 4 dígitos. El
+ * CPA completo ("X5000ABC") queda igual.
+ *
+ * 🔴 Tiene que dar EXACTAMENTE lo mismo que el servidor: el 200 de la cotización devuelve el código
+ * postal así y `set_envio_opciones` lo escribe en el store. Si acá quedara "X5000" y allá "5000",
+ * cada respuesta parecería de otro destino y el cotizador volvería a cotizar sin fin.
+ *
+ * @param {*} valor
+ * @returns {string} '' si no sirve para cotizar.
+ */
+export function codigo_postal_para_cotizar(valor) {
+	let valido = codigo_postal_valido(valor)
+	let letra_y_numero = valido.match(/^[A-Z](\d{4})$/)
+	return letra_y_numero ? letra_y_numero[1] : valido
+}
+
+/**
+ * Si dos códigos postales son el mismo lugar para el envío: iguales para cotizar, o con el mismo
+ * número de 4 dígitos cuando uno es CPA ("X5000ABC") y el otro numérico ("5000"). Réplica de
+ * `ZipnovaCotizadorService::mismo_codigo_postal` de tienda-api.
+ *
+ * @param {*} uno
+ * @param {*} otro
+ * @returns {boolean}
+ */
+export function mismo_codigo_postal(uno, otro) {
+	let a = codigo_postal_para_cotizar(uno)
+	let b = codigo_postal_para_cotizar(otro)
+	if (a === '' || b === '') {
+		return false
+	}
+	let numero = function(cp) {
+		let partes = cp.match(/^[A-Z]?(\d{4})[A-Z]{0,3}$/)
+		return partes ? partes[1] : cp
+	}
+	return a === b || numero(a) === numero(b)
+}
+
+/**
+ * Si el comprador de la sesión es una CUENTA (con contraseña), que es lo único que tiene lista de
+ * direcciones guardadas: `/api/buyer/addresses` no atiende a la ficha que deja el checkout de
+ * invitado (BuyerController::esFichaDeInvitado de tienda-api).
+ *
+ * El SPA no ve la contraseña (va oculta), así que acá se descarta lo que se puede saber: sin
+ * sesión, el vendedor (carga pedidos de clientes) y una ficha que la API marque como invitado si
+ * algún día manda la marca (`es_ficha_de_invitado: true` o `es_cuenta: false`). Si igual le toca
+ * a una ficha de invitado, la API responde `sin_cuenta` y el bloque del checkout pasa a una sola
+ * dirección sin mostrar ningún error (components/common/direcciones/Index.vue).
+ *
+ * @param {boolean} authenticated
+ * @param {object|null} user
+ * @returns {boolean}
+ */
+export function es_cuenta_del_comprador(authenticated, user) {
+	if (!authenticated || !user || user.seller_id) {
+		return false
+	}
+	if (user.es_ficha_de_invitado === true || user.es_cuenta === false) {
+		return false
+	}
+	return true
+}
+
+/**
  * Una coordenada como número, o null si no es un número válido o está fuera de rango.
  *
  * @param {*} valor
@@ -183,6 +276,7 @@ export function normalizar_direccion(direccion) {
 	CLAVES_DE_TEXTO.forEach(clave => {
 		limpia[clave] = texto_limpio(direccion[clave], LARGOS[clave])
 	})
+	limpia.zip_code = codigo_postal_limpio(limpia.zip_code).substring(0, LARGOS.zip_code)
 	let provincia = normalizar_provincia(limpia.province)
 	if (provincia) {
 		limpia.province = provincia
@@ -296,25 +390,31 @@ export function linea_de_direccion(direccion) {
 }
 
 /**
- * Campos obligatorios que le faltan a una dirección: calle, altura, localidad y provincia
- * siempre; el código postal solo si se pide (la tienda cotiza por correo con Zipnova, que cotiza
- * por código postal).
+ * Campos obligatorios que le faltan (o que están mal) a una dirección: calle, altura, localidad y
+ * provincia siempre; el código postal si se pide (la tienda cotiza por correo con Zipnova, que
+ * cotiza por código postal) y, si se escribió aunque no se pida, que tenga de 4 a 8 letras o
+ * números: uno de 3 dígitos no cotiza y dejaba al cotizador sin input ni opciones.
  *
  * @param {object} direccion
  * @param {boolean} pide_codigo_postal
+ * @param {boolean} revisar_codigo_postal Revisar el código postal escrito (default true). El
+ *                  checkout lo apaga para una dirección ya elegida: ahí el código postal que vale
+ *                  es el cotizado, y una guardada vieja no se puede corregir desde el pedido.
  * @returns {string[]} claves del contrato
  */
-export function faltantes_de_direccion(direccion, pide_codigo_postal) {
+export function faltantes_de_direccion(direccion, pide_codigo_postal, revisar_codigo_postal = true) {
 	let faltan = []
-	let obligatorios = ['street', 'street_number', 'city', 'province']
-	if (pide_codigo_postal) {
-		obligatorios.push('zip_code')
-	}
-	obligatorios.forEach(clave => {
+	;['street', 'street_number', 'city', 'province'].forEach(clave => {
 		if (!direccion || texto_limpio(direccion[clave]) === '') {
 			faltan.push(clave)
 		}
 	})
+	if (revisar_codigo_postal) {
+		let escrito = direccion ? codigo_postal_limpio(direccion.zip_code) : ''
+		if ((pide_codigo_postal || escrito !== '') && codigo_postal_valido(escrito) === '') {
+			faltan.push('zip_code')
+		}
+	}
 	return faltan
 }
 
@@ -335,6 +435,27 @@ export function etiqueta_de_campo(clave) {
 		reference: 'Referencia',
 	}
 	return etiquetas[clave] ? etiquetas[clave] : clave
+}
+
+/**
+ * Si la calle termina en un número y la altura está vacía ("San Martín 450" en el campo Calle),
+ * los separa. Es lo que hace el comprador apurado en la carga a mano, y no tiene por qué ser un
+ * error. "Ruta 2" se queda igual: un solo dígito suelto suele ser parte del nombre.
+ *
+ * @param {object} direccion
+ * @returns {object} La misma dirección, o una copia con calle y altura separadas.
+ */
+export function partir_altura_de_la_calle(direccion) {
+	if (!direccion || texto_limpio(direccion.street_number) !== '') {
+		return direccion
+	}
+	let calle = texto_limpio(direccion.street)
+	// "Calle 7 1234" (La Plata) se parte en "Calle 7" y "1234": el prefijo es el más corto posible.
+	let match = calle.match(/^(.*?)\s+(\d{2,}[a-zA-Z]?)$/)
+	if (!match || !/[A-Za-zÀ-ÿ]/.test(match[1])) {
+		return direccion
+	}
+	return Object.assign({}, direccion, { street: match[1].trim(), street_number: match[2] })
 }
 
 /**
