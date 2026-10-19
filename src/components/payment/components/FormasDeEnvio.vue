@@ -23,7 +23,7 @@
 			@keyup.enter="cart_delivery_zone = delivery_zone"
 			@keyup.space.prevent="cart_delivery_zone = delivery_zone"
 			:class="{'checkout-option--selected': esta_elegida(delivery_zone)}"
-			class="checkout-option"
+			class="checkout-option formas-de-envio__zona"
 			role="radio"
 			tabindex="0"
 			:aria-checked="esta_elegida(delivery_zone) ? 'true' : 'false'">
@@ -183,6 +183,23 @@ export default {
 	font-weight: 600
 	line-height: 1.3
 	color: rgba(0, 0, 0, .65)
+
+// Teléfono (< 576px): el precio o "A coordinar con el vendedor" baja debajo del nombre, alineado
+// con el texto (radio de 20px + el gap de .8rem). A la derecha se apilaba en cuatro renglones
+// angostos y le comía el ancho al nombre de la forma. Va DESPUÉS de la regla de a convenir: le pisa
+// el ancho máximo y la alineación a la derecha.
+.formas-de-envio__zona
+	@media screen and (max-width: 575px)
+		flex-wrap: wrap
+		// El gap de .checkout-option (.8rem) separaría también el renglón del precio.
+		row-gap: 0
+
+		.checkout-option__price
+			flex: 1 0 100%
+			max-width: none
+			margin-top: .25rem
+			padding-left: calc(20px + .8rem)
+			text-align: left
 
 .formas-de-envio__falta-direccion
 	display: flex
