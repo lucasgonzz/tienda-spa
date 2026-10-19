@@ -32,6 +32,7 @@
 				:aria-controls="id_base + '-lista'"
 				:aria-activedescendant="activa >= 0 && sugerencias.length ? id_base + '-lista-' + activa : null"
 				@input="al_escribir"
+				@blur="al_salir_del_input"
 				@keydown.down.prevent="mover(1)"
 				@keydown.up.prevent="mover(-1)"
 				@keydown.enter.prevent="elegir_activa"
@@ -64,7 +65,7 @@
 			<button
 			type="button"
 			class="buscador-direccion__link"
-			@click="pasar_a_mano('')">
+			@click="pasar_a_mano('', true)">
 				<i class="bi bi-pencil-square"></i>
 				No encuentro mi dirección
 			</button>
@@ -128,8 +129,23 @@
 			</button>
 		</div>
 
+		<!-- Se aplica sola (una dirección para el pedido): qué falta, o a dónde va. -->
+		<template v-if="aplicar_solo && fase !== 'buscar'">
+			<p
+			v-if="completa"
+			class="buscador-direccion__lista">
+				<i class="bi bi-check-circle-fill"></i>
+				<span>Te lo enviamos a {{ linea_completa }}</span>
+			</p>
+			<p
+			v-else
+			class="buscador-direccion__aviso buscador-direccion__aviso--falta">
+				Para usar esta dirección, completá: {{ etiquetas_faltantes.join(', ') }}.
+			</p>
+		</template>
+
 		<p
-		v-if="texto_faltantes"
+		v-else-if="texto_faltantes"
 		class="buscador-direccion__error"
 		role="alert">
 			{{ texto_faltantes }}
@@ -137,13 +153,13 @@
 
 		<div class="buscador-direccion__acciones">
 			<b-button
-			v-if="fase !== 'buscar'"
+			v-if="fase !== 'buscar' && !aplicar_solo"
 			block
-			:disabled="guardando"
+			:disabled="ocupado"
 			class="buscador-direccion__confirmar"
 			@click="confirmar">
 				<b-spinner
-				v-if="guardando"
+				v-if="ocupado"
 				small
 				class="m-r-10"></b-spinner>
 				{{ texto_confirmar }}
@@ -151,7 +167,7 @@
 			<button
 			v-if="cancelable"
 			type="button"
-			:disabled="guardando"
+			:disabled="ocupado"
 			class="buscador-direccion__link buscador-direccion__cancelar"
 			@click="$emit('cancelar')">
 				Cancelar
@@ -169,6 +185,9 @@ import {
 	faltantes_de_direccion,
 	etiqueta_de_campo,
 	separar_calle_y_altura,
+	partir_altura_de_la_calle,
+	codigo_postal_limpio,
+	linea_de_direccion,
 	renglon_de_la_calle,
 	renglon_de_la_localidad,
 } from '@/helpers/direcciones'
@@ -180,6 +199,7 @@ import {
 	avisar_una_vez,
 	google_ya_fallo,
 	marcar_google_ok,
+	geocodificar,
 } from '@/helpers/google_places'
 
 /** Cuánto se espera después de la última tecla para pedirle sugerencias a Google. */
@@ -187,6 +207,15 @@ const DEBOUNCE_MS = 300
 
 /** Desde cuántos caracteres se busca. */
 const MINIMO_DE_CARACTERES = 3
+
+/**
+ * Si Google falla mientras el comprador escribe, cuánto tiene que pasar sin teclas para recién ahí
+ * pasar a la carga a mano (ver `diferir_paso_a_mano`).
+ */
+const PAUSA_PARA_PASAR_A_MANO_MS = 1500
+
+/** Con `aplicar_solo`: cuánto se espera después del último cambio para aplicar la dirección. */
+const DEBOUNCE_APLICAR_MS = 600
 
 /**
  * Buscador de direcciones con autocompletado de Google Places (New) (misión
@@ -209,9 +238,24 @@ const MINIMO_DE_CARACTERES = 3
  * la consola una sola vez (`avisar_una_vez`), y si Google ya falló en esta carga de página el
  * buscador arranca directo a mano.
  *
- * No guarda nada: al tocar el botón emite `confirmar` con la dirección normalizada (forma del
- * contrato, ver helpers/direcciones.js) y el padre decide (guardarla en la cuenta, o usarla para
- * este pedido). `cancelar` si el comprador se arrepiente (solo con `cancelable`).
+ * 🔴 Y SI FALLA MIENTRAS ESCRIBE, NO SE LE CAMBIA LA PANTALLA EN LA CARA: se espera a que deje de
+ * tipear (1,5 s sin teclas) o a que salga del campo, y recién ahí pasa a mano con lo escrito
+ * repartido en calle y altura y el cursor al final del campo que corresponde. Hoy, sin
+ * facturación, es el camino de todos los compradores.
+ *
+ * Dos formas de entregar la dirección:
+ *   - Por defecto, el botón (`texto_confirmar`) emite `confirmar` con la dirección normalizada
+ *     (forma del contrato, ver helpers/direcciones.js) y el padre decide (guardarla en la cuenta).
+ *     Mientras haya una completa sin confirmar emite `pendiente: true` (el checkout avisa si el
+ *     comprador quiere terminar la compra sin confirmarla).
+ *   - Con `aplicar_solo` (una sola dirección para el pedido: invitado, vendedor) no hay botón:
+ *     apenas la dirección está completa se emite `aplicar` con ella, y otra vez con cada cambio
+ *     (piso, referencia...), o con null si deja de estar completa.
+ *
+ * Una dirección cargada a mano se intenta geocodificar en silencio (Geocoder de Maps, 5 s) para
+ * que el vendedor tenga el pin en el ERP; sin facturación falla y no se nota.
+ *
+ * `cancelar` si el comprador se arrepiente (solo con `cancelable`).
  *
  * Para probarlo sin facturación, se inyecta un `window.google.maps.places` falso desde el
  * navegador: nada de esto guarda referencias a `google` al importarse (ver helpers/google_places.js).
@@ -246,6 +290,14 @@ export default {
 			type: Boolean,
 			default: false,
 		},
+		/**
+		 * Sin botón: la dirección se aplica sola apenas está completa (evento `aplicar`). Es el modo
+		 * de una sola dirección para el pedido, donde no hay nada que guardar.
+		 */
+		aplicar_solo: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	data() {
 		return {
@@ -271,6 +323,20 @@ export default {
 			pedido: 0,
 			/* Token de sesión de Google para la búsqueda en curso. */
 			token: null,
+			/*
+			 * Google falló mientras escribía: el motivo, cuándo fue la última tecla y el temporizador
+			 * que pasa a mano cuando deja de tipear. Ver `diferir_paso_a_mano`.
+			 */
+			fallo_pendiente: '',
+			ultima_tecla: 0,
+			timer_mano: null,
+			/* Con `aplicar_solo`: temporizador y firma de la última dirección aplicada. */
+			timer_aplicar: null,
+			ultima_aplicada: '',
+			/* Número de la última aplicación, para descartar coordenadas que llegan tarde. */
+			serie_aplicada: 0,
+			/* Geocodificando una dirección a mano antes de confirmarla (hasta 5 s). */
+			geocodificando: false,
 		}
 	},
 	computed: {
@@ -282,6 +348,9 @@ export default {
 		 */
 		id_base() {
 			return 'direccion-' + this._uid
+		},
+		ocupado() {
+			return this.guardando || this.geocodificando
 		},
 		requeridos() {
 			let requeridos = ['street', 'street_number', 'city', 'province']
@@ -311,11 +380,39 @@ export default {
 		campos_a_mano() {
 			return ['street', 'street_number', 'apartment', 'zip_code', 'city', 'province', 'reference']
 		},
+		/**
+		 * El borrador como se va a usar: en la carga a mano, si la altura está vacía y la calle
+		 * termina en un número ("San Martín 450"), se separan solos en vez de dar error.
+		 *
+		 * @returns {object}
+		 */
+		borrador_efectivo() {
+			return this.fase === 'manual' ? partir_altura_de_la_calle(this.borrador) : this.borrador
+		},
 		faltantes() {
-			return faltantes_de_direccion(this.borrador, this.pide_codigo_postal)
+			return faltantes_de_direccion(this.borrador_efectivo, this.pide_codigo_postal)
+		},
+		/** La dirección está lista para usarse (fuera del buscador y sin nada que falte). */
+		completa() {
+			return this.fase !== 'buscar' && !this.faltantes.length
 		},
 		errores_visibles() {
 			return this.intento_confirmar ? this.faltantes : []
+		},
+		/**
+		 * Los nombres de lo que falta. El código postal escrito pero que no sirve (menos de 4
+		 * letras o números) dice cómo tiene que ser.
+		 *
+		 * @returns {string[]}
+		 */
+		etiquetas_faltantes() {
+			let escrito = codigo_postal_limpio(this.borrador.zip_code) !== ''
+			return this.faltantes.map(clave => {
+				if (clave === 'zip_code' && escrito) {
+					return 'Código postal (de 4 a 8 letras o números)'
+				}
+				return etiqueta_de_campo(clave)
+			})
 		},
 		/**
 		 * "Completá: Altura, Código postal", debajo de los campos y arriba del botón, después del
@@ -327,8 +424,11 @@ export default {
 			if (!this.intento_confirmar || this.fase === 'buscar' || !this.faltantes.length) {
 				return ''
 			}
-			let etiquetas = this.faltantes.map(clave => etiqueta_de_campo(clave))
-			return 'Completá: ' + etiquetas.join(', ') + '.'
+			return 'Completá: ' + this.etiquetas_faltantes.join(', ') + '.'
+		},
+		/** La línea de la dirección completa, para el "Te lo enviamos a..." de `aplicar_solo`. */
+		linea_completa() {
+			return this.completa ? linea_de_direccion(this.construir()) : ''
 		},
 		renglon_calle() {
 			return renglon_de_la_calle(Object.assign({}, this.borrador, { apartment: '' })) || 'Dirección elegida'
@@ -337,23 +437,58 @@ export default {
 			return renglon_de_la_localidad(this.borrador)
 		},
 	},
+	watch: {
+		/* Sin `aplicar_solo`: el checkout tiene que saber si hay una completa sin confirmar. */
+		completa(valor) {
+			if (!this.aplicar_solo) {
+				this.$emit('pendiente', valor)
+			}
+		},
+		borrador() {
+			if (this.aplicar_solo) {
+				this.programar_aplicar()
+			}
+		},
+		fase() {
+			if (this.aplicar_solo) {
+				this.programar_aplicar()
+			}
+		},
+	},
 	beforeDestroy() {
-		if (this.timer) {
-			clearTimeout(this.timer)
-		}
+		let timers = [this.timer, this.timer_mano, this.timer_aplicar]
+		timers.forEach(timer => {
+			if (timer) {
+				clearTimeout(timer)
+			}
+		})
 		// Cualquier respuesta que llegue después ya no es de nadie.
 		this.pedido++
+		this.serie_aplicada++
+		if (!this.aplicar_solo) {
+			this.$emit('pendiente', false)
+		}
 	},
 	methods: {
 		/**
 		 * Cada tecla: reprograma la búsqueda (debounce) o, con menos de 3 caracteres, limpia la
-		 * lista.
+		 * lista. Si Google ya falló, no se busca más: solo se corre la espera para pasar a mano.
 		 */
 		al_escribir() {
+			this.ultima_tecla = Date.now()
 			this.sin_resultados = false
+			// Escribió de nuevo: el detalle que se estaba trayendo ya no corresponde.
+			if (this.cargando_detalle) {
+				this.cargando_detalle = false
+				this.pedido++
+			}
 			if (this.timer) {
 				clearTimeout(this.timer)
 				this.timer = null
+			}
+			if (this.fallo_pendiente) {
+				this.reprogramar_paso_a_mano()
+				return
 			}
 			if (this.texto.trim().length < MINIMO_DE_CARACTERES) {
 				// Un pedido en vuelo ya no corresponde a lo que está escrito.
@@ -371,7 +506,8 @@ export default {
 		},
 		/**
 		 * Le pide sugerencias a Google para lo escrito. Una respuesta que llega cuando ya se
-		 * escribió otra cosa se descarta (`pedido`). Sin Google o con error: a mano.
+		 * escribió otra cosa se descarta (`pedido`). Sin Google o con error: a mano, pero cuando
+		 * deje de escribir (`diferir_paso_a_mano`).
 		 */
 		buscar() {
 			let texto = this.texto.trim()
@@ -387,9 +523,8 @@ export default {
 					return null
 				}
 				if (!libreria) {
-					self.buscando = false
 					avisar_una_vez('google.maps.places no está cargado')
-					self.pasar_a_mano('sin_google')
+					self.diferir_paso_a_mano('sin_google')
 					return null
 				}
 				if (!self.token) {
@@ -411,10 +546,59 @@ export default {
 				if (pedido !== self.pedido) {
 					return
 				}
-				self.buscando = false
 				avisar_una_vez('la búsqueda falló', err)
-				self.pasar_a_mano('error')
+				self.diferir_paso_a_mano('error')
 			})
+		},
+		/**
+		 * Google falló mientras el comprador escribía. No se le cambia la pantalla ni se le mueve
+		 * el foco en la cara: se espera a que pase `PAUSA_PARA_PASAR_A_MANO_MS` sin teclas (cada
+		 * tecla corre la espera, ver `al_escribir`) o a que salga del campo
+		 * (`al_salir_del_input`), y recién ahí se pasa a mano.
+		 *
+		 * @param {string} motivo 'sin_google' o 'error'.
+		 */
+		diferir_paso_a_mano(motivo) {
+			this.fallo_pendiente = motivo
+			this.buscando = false
+			this.sin_resultados = false
+			this.cerrar_sugerencias()
+			this.reprogramar_paso_a_mano()
+		},
+		reprogramar_paso_a_mano() {
+			if (this.timer_mano) {
+				clearTimeout(this.timer_mano)
+				this.timer_mano = null
+			}
+			let espera = PAUSA_PARA_PASAR_A_MANO_MS - (Date.now() - this.ultima_tecla)
+			if (espera <= 0) {
+				this.pasar_a_mano(this.fallo_pendiente, true)
+				return
+			}
+			let self = this
+			this.timer_mano = setTimeout(function() {
+				self.timer_mano = null
+				if (self.fase === 'buscar' && self.fallo_pendiente) {
+					self.pasar_a_mano(self.fallo_pendiente, true)
+				}
+			}, espera)
+		},
+		/**
+		 * Salió del campo con Google caído: se pasa a mano ya. El foco se lleva a los campos solo si
+		 * no se fue a otro lado (si tocó otro campo de la página, se lo respeta).
+		 */
+		al_salir_del_input() {
+			if (!this.fallo_pendiente) {
+				return
+			}
+			let self = this
+			setTimeout(function() {
+				if (self.fase !== 'buscar' || !self.fallo_pendiente) {
+					return
+				}
+				let activo = document.activeElement
+				self.pasar_a_mano(self.fallo_pendiente, !activo || activo === document.body)
+			}, 0)
 		},
 		/**
 		 * Flechas del teclado sobre la lista (da la vuelta en los extremos).
@@ -439,7 +623,8 @@ export default {
 		},
 		/**
 		 * Eligió una sugerencia: se trae el detalle del lugar (componentes, coordenadas) y se pasa
-		 * a completar lo que falte. Si el detalle falla, a mano con lo que se sabe de la sugerencia.
+		 * a completar lo que falte. Si el detalle falla, a mano con lo que se sabe de la sugerencia
+		 * (ahí no está escribiendo: se pasa enseguida).
 		 *
 		 * @param {object} sugerencia
 		 */
@@ -475,7 +660,7 @@ export default {
 				self.token = null
 				avisar_una_vez('no se pudo traer el detalle de la dirección', err)
 				self.texto = sugerencia.principal || self.texto
-				self.pasar_a_mano('error')
+				self.pasar_a_mano('error', true)
 			})
 		},
 		/**
@@ -518,17 +703,24 @@ export default {
 		},
 		/**
 		 * Pasa a la carga a mano. Lo escrito en el buscador ("Corrientes 1234") se aprovecha como
-		 * calle y altura, si todavía no hay nada cargado.
+		 * calle y altura, si todavía no hay nada cargado, y el cursor queda al final del campo
+		 * donde venía escribiendo (la altura si lo último fue un número, si no la calle).
 		 *
 		 * @param {string} motivo '' (lo pidió el comprador), 'sin_google' o 'error'.
+		 * @param {boolean} enfocar Llevar el foco a los campos.
 		 */
-		pasar_a_mano(motivo) {
-			if (this.timer) {
-				clearTimeout(this.timer)
-				this.timer = null
-			}
+		pasar_a_mano(motivo, enfocar) {
+			let timers = ['timer', 'timer_mano']
+			timers.forEach(clave => {
+				if (this[clave]) {
+					clearTimeout(this[clave])
+					this[clave] = null
+				}
+			})
+			this.fallo_pendiente = ''
 			this.pedido++
 			this.buscando = false
+			this.cargando_detalle = false
 			this.cerrar_sugerencias()
 			this.token = null
 			this.formatted_de_google = ''
@@ -540,12 +732,21 @@ export default {
 			this.borrador = Object.assign({}, this.borrador, { lat: null, lng: null, place_id: null })
 			this.motivo_manual = motivo ? 'No pudimos buscar tu dirección automáticamente. Cargala acá:' : ''
 			this.fase = 'manual'
-			this.enfocar_primer_campo()
+			if (enfocar) {
+				this.enfocar_al_final(this.borrador.street_number ? 'street_number' : 'street')
+			}
 		},
 		/**
-		 * Vuelve al buscador (desde la tarjeta o desde la carga a mano) con lo escrito antes.
+		 * Vuelve al buscador (desde la tarjeta o desde la carga a mano) con lo escrito antes. Con
+		 * `aplicar_solo`, la dirección que estaba aplicada se suelta: ya no es la que se ve.
 		 */
 		volver_a_buscar() {
+			if (this.timer_mano) {
+				clearTimeout(this.timer_mano)
+				this.timer_mano = null
+			}
+			this.fallo_pendiente = ''
+			this.cargando_detalle = false
 			this.borrador = direccion_vacia()
 			this.trajo_altura = false
 			this.trajo_codigo_postal = false
@@ -577,27 +778,125 @@ export default {
 			})
 		},
 		/**
-		 * Valida y emite la dirección. Si falta algo, se marca en rojo y se dice qué.
+		 * Foco en un campo con el cursor al final de lo que ya tiene escrito.
+		 *
+		 * @param {string} clave Clave del contrato (street, street_number...).
+		 */
+		enfocar_al_final(clave) {
+			let id = this.id_base + '-campos-' + clave
+			this.$nextTick(function() {
+				let campo = document.getElementById(id)
+				if (!campo) {
+					return
+				}
+				campo.focus()
+				try {
+					let largo = campo.value ? campo.value.length : 0
+					campo.setSelectionRange(largo, largo)
+				} catch (e) {
+					// Un input que no admite selección: alcanza con el foco.
+				}
+			})
+		},
+		/**
+		 * La dirección lista para usar, a partir del borrador (con la altura separada de la calle
+		 * si hacía falta).
 		 *
 		 * La línea (`formatted_address`) es la de Google si trajo la altura; si no (o si se cargó
 		 * a mano), se arma con las partes: la de Google sin altura diría "Av. Corrientes, CABA".
+		 *
+		 * @returns {object}
 		 */
-		confirmar() {
-			if (this.guardando) {
-				return
-			}
-			this.intento_confirmar = true
-			if (this.faltantes.length) {
-				this.enfocar_primer_faltante()
-				return
-			}
-			let direccion = normalizar_direccion(this.borrador)
+		construir() {
+			let direccion = normalizar_direccion(this.borrador_efectivo)
 			if (this.fase === 'completar' && this.formatted_de_google) {
 				direccion.formatted_address = this.formatted_de_google
 			} else {
 				direccion.formatted_address = armar_formatted_address(direccion)
 			}
-			this.$emit('confirmar', direccion)
+			return direccion
+		},
+		/**
+		 * Valida y emite la dirección (modo con botón). Si falta algo, se marca en rojo y se dice
+		 * qué. Una cargada a mano se intenta geocodificar antes (en silencio, hasta 5 s).
+		 */
+		confirmar() {
+			if (this.ocupado) {
+				return
+			}
+			this.intento_confirmar = true
+			// La altura que estaba pegada a la calle se ve separada en sus campos.
+			if (this.borrador_efectivo !== this.borrador) {
+				this.borrador = this.borrador_efectivo
+			}
+			if (this.faltantes.length) {
+				this.enfocar_primer_faltante()
+				return
+			}
+			let direccion = this.construir()
+			if (this.fase !== 'manual' || direccion.lat !== null) {
+				this.$emit('confirmar', direccion)
+				return
+			}
+			let self = this
+			this.geocodificando = true
+			geocodificar(direccion)
+			.then(function(coordenadas) {
+				self.geocodificando = false
+				if (coordenadas) {
+					direccion.lat = coordenadas.lat
+					direccion.lng = coordenadas.lng
+				}
+				self.$emit('confirmar', direccion)
+			})
+		},
+		/** Con `aplicar_solo`: aplica la dirección un rato después del último cambio. */
+		programar_aplicar() {
+			if (this.timer_aplicar) {
+				clearTimeout(this.timer_aplicar)
+			}
+			let self = this
+			this.timer_aplicar = setTimeout(function() {
+				self.timer_aplicar = null
+				self.aplicar_ahora()
+			}, DEBOUNCE_APLICAR_MS)
+		},
+		/**
+		 * Con `aplicar_solo`: emite `aplicar` con la dirección si está completa (y cambió desde la
+		 * última vez), o con null si dejó de estarlo después de haberse aplicado. Una cargada a mano
+		 * se geocodifica después, en silencio: si llegan coordenadas y la dirección sigue siendo la
+		 * misma, se vuelve a aplicar con ellas.
+		 */
+		aplicar_ahora() {
+			if (!this.completa) {
+				if (this.ultima_aplicada !== '') {
+					this.ultima_aplicada = ''
+					this.serie_aplicada++
+					this.$emit('aplicar', null)
+				}
+				return
+			}
+			let direccion = this.construir()
+			let firma = JSON.stringify(direccion)
+			if (firma === this.ultima_aplicada) {
+				return
+			}
+			this.ultima_aplicada = firma
+			let serie = ++this.serie_aplicada
+			this.$emit('aplicar', direccion)
+			if (this.fase !== 'manual' || direccion.lat !== null) {
+				return
+			}
+			let self = this
+			geocodificar(direccion)
+			.then(function(coordenadas) {
+				if (!coordenadas || serie !== self.serie_aplicada) {
+					return
+				}
+				let con_coordenadas = Object.assign({}, direccion, coordenadas)
+				self.ultima_aplicada = JSON.stringify(con_coordenadas)
+				self.$emit('aplicar', con_coordenadas)
+			})
 		},
 		enfocar_primer_faltante() {
 			let id = this.id_base + '-campos-' + this.faltantes[0]
@@ -649,6 +948,22 @@ export default {
 
 .buscador-direccion__aviso--manual
 	margin: 0 0 .75rem
+
+.buscador-direccion__aviso--falta
+	margin: .25rem 0 .5rem
+
+.buscador-direccion__lista
+	display: flex
+	align-items: flex-start
+	gap: .45rem
+	font-size: .88rem
+	font-weight: 600
+	color: #1b7a3d
+	margin: .25rem 0 .5rem
+	overflow-wrap: anywhere
+
+	i
+		margin-top: 2px
 
 .buscador-direccion__error
 	font-size: .85rem

@@ -21,6 +21,7 @@
 <script>
 import cart from '@/mixins/cart'
 import Direcciones from '@/components/common/direcciones/Index'
+import { es_cuenta_del_comprador } from '@/helpers/direcciones'
 
 /**
  * Bloque "¿A dónde te lo enviamos?" del checkout (misión formas-envio-direcciones-maps,
@@ -49,14 +50,20 @@ export default {
 			return this.direcciones_de_envio_activas && Number(this.deliver) === 1
 		},
 		/**
-		 * Un comprador con cuenta que compra para sí mismo: el único que tiene lista de
+		 * Un comprador con CUENTA que compra para sí mismo: el único que tiene lista de
 		 * direcciones. El vendedor (`seller_id`) carga pedidos de clientes y el invitado no tiene
 		 * cuenta (su `user` existe recién después de identificarse, y `authenticated` sigue false).
+		 * Mismo criterio que tienda-api en `/api/buyer/addresses`: ver `es_cuenta_del_comprador`
+		 * (si igual responde `sin_cuenta`, el bloque sigue con una sola dirección, sin avisos).
 		 *
 		 * @returns {boolean}
 		 */
 		es_comprador_logueado() {
-			return !!(this.authenticated && this.user && !this.user.seller_id)
+			if (!es_cuenta_del_comprador(this.authenticated, this.user)) {
+				return false
+			}
+			// La API ya dijo `sin_cuenta` para esta sesión: es la ficha del checkout de invitado.
+			return this.$store.state.buyer_addresses.sin_cuenta_para !== this.user.id
 		},
 		direccion: {
 			get() {

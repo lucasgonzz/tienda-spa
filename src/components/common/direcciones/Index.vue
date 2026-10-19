@@ -26,6 +26,7 @@
 				:guardando="guardando"
 				:texto_confirmar="modo === 'checkout' ? 'Guardar y usar esta dirección' : 'Guardar dirección'"
 				@confirmar="guardar_nueva"
+				@pendiente="marcar_pendiente"
 				@cancelar="agregando = false"></buscador-direccion>
 
 				<template v-else>
@@ -95,12 +96,18 @@
 				{{ aviso_sin_lista }}
 			</p>
 
+			<!--
+				Sin botón de confirmar: la dirección se aplica sola apenas está completa, y el buscador
+				queda a la vista para seguir corrigiendo piso, referencia, etc. (`editando`).
+			-->
 			<buscador-direccion
-			v-if="!value || agregando"
+			v-if="!value || agregando || editando"
+			:key="'una-' + clave_buscador"
 			:pide_codigo_postal="pide_codigo_postal"
-			:cancelable="!!value"
-			@confirmar="usar_para_este_pedido"
-			@cancelar="agregando = false"></buscador-direccion>
+			:cancelable="agregando"
+			aplicar_solo
+			@aplicar="aplicar_para_este_pedido"
+			@cancelar="cancelar_cambio"></buscador-direccion>
 
 			<template v-else>
 				<tarjeta-direccion
@@ -109,7 +116,7 @@
 				<button
 				type="button"
 				class="direcciones__agregar"
-				@click="agregando = true">
+				@click="cambiar_direccion">
 					<i class="bi bi-pencil"></i>
 					Cambiar la dirección
 				</button>
@@ -122,6 +129,16 @@ import BuscadorDireccion from '@/components/common/direcciones/BuscadorDireccion
 import TarjetaDireccion from '@/components/common/direcciones/TarjetaDireccion'
 import { snapshot_de_guardada, renglon_de_la_calle, MAXIMO_DE_DIRECCIONES } from '@/helpers/direcciones'
 import { mensaje_de_error } from '@/store/buyer_addresses'
+
+/**
+ * El `codigo` de un error de la API (sin_cuenta, sin_direcciones, direccion), o ''.
+ *
+ * @param {object} err Error de axios.
+ * @returns {string}
+ */
+function codigo_de_error(err) {
+	return err && err.response && err.response.data && err.response.data.codigo ? String(err.response.data.codigo) : ''
+}
 
 /**
  * Direcciones del comprador: la lista de la cuenta y el buscador para agregar, o una sola
@@ -137,15 +154,20 @@ import { mensaje_de_error } from '@/store/buyer_addresses'
  *         guarda con `POST /api/buyer/addresses` y queda elegido. Sin ninguna guardada, el
  *         buscador abierto de entrada.
  *       · Sin `guardar_en_la_cuenta` (invitado, o vendedor cargando el pedido de un cliente): el
- *         buscador para UNA dirección, que no se guarda en ninguna lista; confirmada, se ve en
- *         una tarjeta con "Cambiar la dirección".
+ *         buscador para UNA dirección, que no se guarda en ninguna lista y se aplica sola apenas
+ *         está completa (sin botón: `aplicar_solo`). Una que ya venía elegida (el carrito del
+ *         servidor) se ve en una tarjeta con "Cambiar la dirección"; "Cancelar" vuelve a ella.
  *   - `cuenta` ("Mi cuenta → Mis direcciones"): la lista con "Hacer principal" y "Borrar", y
  *     "Agregar una dirección".
  *
  * 🔴 La compra no puede quedar trabada por esto: si la lista no se puede traer en el checkout
- * (la base sin la tabla, `sin_direcciones`, o cualquier otro error), o si una dirección nueva no
- * se puede guardar por `sin_direcciones`, el bloque pasa al modo de una sola dirección y el
- * comprador la carga para este pedido igual (el carrito la manda completa).
+ * (la base sin la tabla, `sin_direcciones`; una sesión que no es de cuenta, `sin_cuenta`; o
+ * cualquier otro error), o si una dirección nueva no se puede guardar por esos dos motivos, el
+ * bloque pasa al modo de una sola dirección y el comprador la carga para este pedido igual (el
+ * carrito la manda completa). Con `sin_cuenta` no se le muestra ningún aviso: para él es lo normal.
+ *
+ * En el checkout con la lista, una dirección nueva completa en el buscador que todavía no se
+ * guardó marca `cart.direccion_sin_confirmar` (BtnSave avisa que la confirme).
  */
 export default {
 	name: 'Direcciones',
@@ -186,6 +208,17 @@ export default {
 			aviso_sin_lista: '',
 			/* Error al traer la lista (solo en `cuenta`, donde no hay a qué volver). */
 			error_de_lista: '',
+			/* Modo de una sola dirección: el buscador aplicó una y sigue abierto para corregirla. */
+			editando: false,
+			/* La dirección que estaba elegida cuando tocó "Cambiar la dirección" (vuelve con Cancelar). */
+			valor_previo: null,
+			/*
+			 * Lo último que el buscador aplicó (null si dejó de estar completa) y la clave que lo
+			 * rearma vacío cuando la dirección se suelta desde AFUERA (el vendedor cambió de cliente,
+			 * cerró sesión, un 422 `direccion`): si no, seguiría mostrando la anterior completa.
+			 */
+			ultimo_aplicado: null,
+			clave_buscador: 0,
 			borrando_id: null,
 			marcando_id: null,
 			maximo: MAXIMO_DE_DIRECCIONES,
@@ -226,7 +259,13 @@ export default {
 			this.elegir_principal_si_hace_falta()
 		},
 		/* La soltó el carrito (un 422 `direccion`, o el servidor la limpió): se vuelve a elegir. */
-		value() {
+		value(nuevo) {
+			if (!this.usa_lista && !nuevo && this.ultimo_aplicado) {
+				this.ultimo_aplicado = null
+				this.editando = false
+				this.agregando = false
+				this.clave_buscador++
+			}
 			this.elegir_principal_si_hace_falta()
 		},
 		/* Inició sesión en el medio: se pasa a la lista de la cuenta. */
@@ -242,6 +281,9 @@ export default {
 		this.cargar_si_hace_falta()
 		this.elegir_principal_si_hace_falta()
 	},
+	beforeDestroy() {
+		this.marcar_pendiente(false)
+	},
 	methods: {
 		/**
 		 * Trae la lista de la cuenta si no está cargada para este comprador.
@@ -256,9 +298,12 @@ export default {
 			.catch(function(err) {
 				console.log(err)
 				if (self.modo === 'checkout') {
-					// Sin la lista se sigue igual: una dirección para este pedido.
+					// Sin la lista se sigue igual: una dirección para este pedido. Con `sin_cuenta` (la
+					// ficha del checkout de invitado, no una cuenta) es lo normal y no se avisa nada.
 					self.sin_lista = true
-					self.aviso_sin_lista = 'No pudimos traer tus direcciones guardadas. Cargá la dirección para este pedido.'
+					self.aviso_sin_lista = codigo_de_error(err) == 'sin_cuenta'
+						? ''
+						: 'No pudimos traer tus direcciones guardadas. Cargá la dirección para este pedido.'
 					return
 				}
 				self.error_de_lista = mensaje_de_error(err)
@@ -324,10 +369,10 @@ export default {
 			.catch(function(err) {
 				console.log(err)
 				self.guardando = false
-				let data = err && err.response && err.response.data ? err.response.data : {}
-				if (data.codigo == 'sin_direcciones' && self.modo === 'checkout') {
+				let codigo = codigo_de_error(err)
+				if ((codigo == 'sin_direcciones' || codigo == 'sin_cuenta') && self.modo === 'checkout') {
 					self.sin_lista = true
-					self.aviso_sin_lista = 'No pudimos guardarla en tu cuenta, pero la usamos para este pedido.'
+					self.aviso_sin_lista = codigo == 'sin_direcciones' ? 'No pudimos guardarla en tu cuenta, pero la usamos para este pedido.' : ''
 					self.agregando = false
 					self.$emit('input', direccion)
 					return
@@ -336,14 +381,47 @@ export default {
 			})
 		},
 		/**
-		 * Invitado (o sin lista): la dirección confirmada es la del pedido, sin guardarse en
-		 * ningún lado más que en el carrito.
+		 * Invitado (o sin lista): la dirección que el buscador aplicó sola es la del pedido, sin
+		 * guardarse en ningún lado más que en el carrito. Con null, dejó de estar completa. El
+		 * buscador queda abierto (`editando`) para seguir corrigiéndola.
 		 *
-		 * @param {object} direccion
+		 * @param {object|null} direccion
 		 */
-		usar_para_este_pedido(direccion) {
-			this.agregando = false
+		aplicar_para_este_pedido(direccion) {
+			this.editando = true
+			this.ultimo_aplicado = direccion
 			this.$emit('input', direccion)
+		},
+		/**
+		 * "Cambiar la dirección": abre el buscador y se acuerda de la que estaba, por si cancela.
+		 */
+		cambiar_direccion() {
+			this.valor_previo = this.value
+			this.editando = false
+			this.agregando = true
+		},
+		/**
+		 * "Cancelar" después de "Cambiar la dirección": vuelve a la que estaba, aunque el buscador
+		 * ya haya aplicado otra a medio camino.
+		 */
+		cancelar_cambio() {
+			this.ultimo_aplicado = this.valor_previo
+			this.$emit('input', this.valor_previo)
+			this.valor_previo = null
+			this.agregando = false
+			this.editando = false
+		},
+		/**
+		 * Hay (o deja de haber) una dirección nueva completa sin guardar en el buscador de la
+		 * lista. Solo importa en el checkout: BtnSave avisa en vez de mandar el pedido a la
+		 * dirección que sigue elegida.
+		 *
+		 * @param {boolean} valor
+		 */
+		marcar_pendiente(valor) {
+			if (this.modo === 'checkout') {
+				this.$store.commit('cart/set_direccion_sin_confirmar', !!valor)
+			}
 		},
 		/**
 		 * "Mis direcciones": la marca como principal (la que el checkout elige sola).
