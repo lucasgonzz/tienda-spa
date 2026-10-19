@@ -18,8 +18,13 @@
 			{{ hint_envio_gratis }}
 		</p>
 
-		<!-- Código postal + Calcular. `form` para que Enter también cotice, en el teléfono sobre todo. -->
+		<!--
+			Código postal + Calcular. `form` para que Enter también cotice, en el teléfono sobre todo.
+			No se muestra si el código postal sale de la dirección elegida en el checkout (prop
+			`direccion_envio`): el comprador no lo vuelve a escribir.
+		-->
 		<form
+		v-if="!zipcode_de_la_direccion"
 		class="envio-cotizador__form"
 		@submit.prevent="cotizar">
 			<b-form-input
@@ -276,6 +281,26 @@ export default {
 			type: String,
 			default: 'Calculá el envío',
 		},
+		/**
+		 * Dirección de entrega elegida en el checkout (direcciones de envío, 19/10/2026; forma del
+		 * contrato, ver helpers/direcciones.js), o null. Si trae código postal, el cotizador cotiza
+		 * con ESE (lo pone en el store y vuelve a cotizar cuando cambia) y esconde su input: el
+		 * comprador no escribe dos veces a dónde va el paquete, y el destino del envío y la
+		 * cotización no pueden quedar con códigos postales distintos.
+		 *
+		 * Solo cotiza con el código postal, sin la localidad y la provincia de la dirección como
+		 * pista: Zipnova resuelve por código postal y una pareja localidad/provincia que matchee
+		 * OTRO lugar de su padrón le gana al código postal (ver `ZipnovaCotizadorService` de
+		 * tienda-api). La localidad que resolvió se sigue viendo arriba de las opciones, con "No es
+		 * mi localidad" para corregirla.
+		 *
+		 * Una dirección guardada sin código postal (de antes de que el comercio conectara Zipnova)
+		 * deja el input como siempre.
+		 */
+		direccion_envio: {
+			type: Object,
+			default: null,
+		},
 	},
 	data() {
 		return {
@@ -290,6 +315,13 @@ export default {
 			corrigiendo_localidad: false,
 			/* Temporizador de la re-cotización automática al cambiar el carrito. */
 			timer_recotizar: null,
+			/*
+			 * Cuántas veces seguidas se puso en el store el código postal de la dirección sin que la
+			 * dirección cambiara. Es un seguro: si el servidor devolviera el código postal escrito de
+			 * otra forma, `tomar_codigo_postal_de_la_direccion` lo volvería a poner después de cada
+			 * cotización, sin fin. Con tres alcanza para cubrir una cotización vieja en vuelo.
+			 */
+			tomas_seguidas_de_la_direccion: 0,
 			/*
 			 * Ids que este cotizador estaba mostrando la última vez que cambió la firma. Sirve
 			 * para una sola cosa: distinguir "cambió la CANTIDAD del mismo artículo" (se vuelve a
@@ -341,6 +373,22 @@ export default {
 		},
 		cotizando() {
 			return this.envio.cotizando
+		},
+		/**
+		 * Código postal de la dirección elegida (prop `direccion_envio`), '' si no hay dirección o
+		 * no trae.
+		 *
+		 * 🔴 Se limpia IGUAL que `ZipnovaCotizadorService::zipcode_limpio` de tienda-api (solo
+		 * letras y números, en mayúsculas), porque el 200 de la cotización devuelve el código
+		 * postal limpio y `set_envio_opciones` lo escribe en el store: si acá quedara "c1043aaz" y
+		 * allá "C1043AAZ", cada respuesta parecería otro destino y se cotizaría para siempre.
+		 * @returns {string}
+		 */
+		zipcode_de_la_direccion() {
+			if (!this.direccion_envio || !this.direccion_envio.zip_code) {
+				return ''
+			}
+			return String(this.direccion_envio.zip_code).replace(/[^A-Za-z0-9]/g, '').toUpperCase().substring(0, 8)
 		},
 		error() {
 			return this.envio.error
@@ -756,9 +804,28 @@ export default {
 		zipcode() {
 			this.corrigiendo_localidad = false
 		},
+		/* El comprador eligió otra dirección en el checkout: se cotiza a su código postal. */
+		zipcode_de_la_direccion() {
+			this.tomas_seguidas_de_la_direccion = 0
+			this.tomar_codigo_postal_de_la_direccion()
+		},
+		/*
+		 * Terminó una cotización (de este cotizador o de otro: el del carrito puede seguir en vuelo
+		 * al entrar al checkout): si la dirección tiene otro código postal, se cotiza a ese.
+		 */
+		cotizando(valor) {
+			if (!valor) {
+				this.tomar_codigo_postal_de_la_direccion()
+			}
+		},
 	},
 	created() {
 		this.ids_de_la_ficha_anterior = this.ids_de_la_ficha
+
+		// Checkout con dirección elegida: el código postal es el de la dirección (y si cambia, se cotiza).
+		if (this.tomar_codigo_postal_de_la_direccion()) {
+			return
+		}
 
 		// Carrito y checkout: si hay código postal y las opciones no son de estas líneas, se
 		// cotiza solo. En la página del artículo NO, salvo la excepción de abajo: cada artículo
@@ -800,6 +867,31 @@ export default {
 				lineas.push({ id: linea.id, amount: amount })
 			})
 			return lineas
+		},
+		/**
+		 * Si hay una dirección elegida con código postal y no es el que tiene el store, lo pone
+		 * (`set_envio_zipcode` suelta las opciones y la opción elegida: eran de otro destino) y
+		 * cotiza.
+		 *
+		 * Con una cotización en curso no se puede cotizar de nuevo, y además esa respuesta vuelve a
+		 * escribir SU código postal en el store (`set_envio_opciones`): por eso `cotizar()` llama a
+		 * esto otra vez cuando termina, y la dirección siempre gana.
+		 *
+		 * @returns {boolean} true si cambió el código postal (y ya se pidió la cotización).
+		 */
+		tomar_codigo_postal_de_la_direccion() {
+			let zipcode = this.zipcode_de_la_direccion
+			if (!zipcode || zipcode === this.envio.zipcode || this.tomas_seguidas_de_la_direccion >= 3) {
+				return false
+			}
+			if (this.cotizando) {
+				// Lo retoma `cotizar()` al terminar la que está en curso.
+				return true
+			}
+			this.tomas_seguidas_de_la_direccion++
+			this.$store.commit('cart/set_envio_zipcode', zipcode)
+			this.cotizar()
+			return true
 		},
 		/**
 		 * Cotiza si hay código postal, hay líneas, y las opciones del store no son de estas
@@ -902,9 +994,14 @@ export default {
 				self.corrigiendo_localidad = false
 				self.$emit('cotizado')
 				self.guardar_zipcode_en_el_perfil()
+				// Si mientras cotizaba se eligió otra dirección, se cotiza a la nueva.
+				self.tomar_codigo_postal_de_la_direccion()
 			})
 			.catch(function(err) {
 				let data = err && err.response && err.response.data ? err.response.data : {}
+				if (self.tomar_codigo_postal_de_la_direccion()) {
+					return
+				}
 				if (data.needs_location && !self.envio.city) {
 					self.resolver_localidad_con_google()
 				}

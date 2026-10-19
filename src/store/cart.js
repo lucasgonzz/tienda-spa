@@ -2,6 +2,7 @@
 import axios from 'axios'
 import { normalizar_provincia } from '@/constants/provincias'
 import { env } from '@/runtime_config'
+import { direcciones_activas, normalizar_direccion } from '@/helpers/direcciones'
 axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
 
@@ -571,6 +572,73 @@ function payload_envio(state) {
 }
 
 /**
+ * Lo que viaja al servidor dentro del carrito como `direccion_envio` (misión
+ * formas-envio-direcciones-maps, 19/10/2026; CartController::sync_checkout_fields de tienda-api):
+ *
+ *   - `undefined` (la clave NO se manda): la tienda no tiene las direcciones nuevas
+ *     (`commerce.direcciones_de_envio` no es true). Una API vieja nunca la ve, y la nueva no toca
+ *     nada si no viene: el carrito viaja exactamente como antes.
+ *   - `null`: sin envío a domicilio, o todavía sin dirección elegida. El servidor limpia
+ *     `carts.buyer_address_id` y `carts.envio_direccion`.
+ *   - `{buyer_address_id}`: una dirección guardada en la cuenta del comprador. El servidor la
+ *     carga de SU base (y responde 422 `codigo: 'direccion'` si no es de este comprador): la
+ *     pantalla no puede mandarle otra cosa con el id de una suya.
+ *   - el objeto completo (invitado, vendedor cargando para un cliente, o comprador cuya lista no
+ *     se pudo cargar): el servidor lo normaliza con el mismo helper que las guardadas.
+ *
+ * @param {object} state Estado del módulo.
+ * @param {object} rootState Estado raíz (para el comercio).
+ * @returns {object|null|undefined}
+ */
+function payload_direccion_envio(state, rootState) {
+	if (!direcciones_activas(rootState.commerce ? rootState.commerce.commerce : null)) {
+		return undefined
+	}
+	if (Number(state.cart.deliver) !== 1 || !state.direccion_envio) {
+		return null
+	}
+	let direccion = normalizar_direccion(state.direccion_envio)
+	if (direccion.buyer_address_id) {
+		return { buyer_address_id: direccion.buyer_address_id }
+	}
+	return direccion
+}
+
+/**
+ * Copia la dirección elegida al destino del envío por correo (`envio.destino`), que es lo que el
+ * servidor usa para crear el envío en Zipnova. Con las direcciones nuevas el comprador ya no
+ * escribe calle, número, localidad ni provincia en DireccionEnvio.vue (ahí quedan solo los datos de
+ * contacto): salen de acá.
+ *
+ * El código postal se copia también, pero el que viaja es SIEMPRE el cotizado (`payload_envio`):
+ * el cotizador toma el de la dirección, así que son el mismo.
+ *
+ * Se escribe directo con Vue.set, sin pasar por `set_envio_destino_field`: esa mutación borra
+ * lat/lng cuando cambia la calle, y acá las coordenadas son justamente las de esta dirección.
+ *
+ * @param {object} state Estado del módulo.
+ * @param {object} direccion Ya normalizada.
+ */
+function copiar_direccion_al_destino(state, direccion) {
+	let destino = state.envio.destino
+	Vue.set(destino, 'calle', direccion.street)
+	Vue.set(destino, 'numero', direccion.street_number)
+	Vue.set(destino, 'piso_depto', direccion.apartment)
+	Vue.set(destino, 'localidad', direccion.city)
+	Vue.set(destino, 'provincia', normalizar_provincia(direccion.province) || direccion.province)
+	if (direccion.zip_code) {
+		Vue.set(destino, 'codigo_postal', direccion.zip_code)
+	}
+	Vue.set(destino, 'referencia', direccion.reference)
+	Vue.set(destino, 'lat', direccion.lat)
+	Vue.set(destino, 'lng', direccion.lng)
+	// Los campos de la dirección que el servidor había rechazado ya no son los de antes.
+	state.envio.errores_destino = state.envio.errores_destino.filter(clave => {
+		return ['calle', 'numero', 'piso_depto', 'localidad', 'provincia', 'codigo_postal', 'referencia'].indexOf(clave) === -1
+	})
+}
+
+/**
  * Cuotas de Mercado Pago que ofrece una forma de pago de la tienda (mision
  * tienda-cuotas-mercado-pago, 15/10/2026).
  *
@@ -743,6 +811,13 @@ export default {
 		 */
 		cuotas_bloqueadas: false,
 		delivery_zone: null,
+		/*
+		 * Dirección de entrega elegida en el checkout (misión formas-envio-direcciones-maps,
+		 * 19/10/2026): una guardada en la cuenta (con `buyer_address_id`) o la que cargó el
+		 * invitado. Forma del contrato (ver helpers/direcciones.js). Solo se usa con
+		 * `commerce.direcciones_de_envio`; viaja en el carrito con `payload_direccion_envio()`.
+		 */
+		direccion_envio: null,
 		loading_last_cart: false,
 		saving: false,
 
@@ -845,6 +920,26 @@ export default {
 				state.envio.opcion_key = null
 				state.envio.point_id = null
 			}
+		},
+
+		/**
+		 * Elige la dirección de entrega (o la suelta con null). Además la copia al destino del
+		 * envío por correo: ver `copiar_direccion_al_destino`.
+		 *
+		 * No toca el código postal del cotizador: eso lo hace el cotizador del checkout al ver la
+		 * dirección nueva (Cotizador.vue, prop `direccion_envio`), que además vuelve a cotizar.
+		 *
+		 * @param {object} state
+		 * @param {object|null} direccion
+		 */
+		set_direccion_envio(state, direccion) {
+			if (!direccion) {
+				state.direccion_envio = null
+				return
+			}
+			let normalizada = normalizar_direccion(direccion)
+			state.direccion_envio = normalizada
+			copiar_direccion_al_destino(state, normalizada)
 		},
 
 		// ── Envío por correo (Zipnova) ─────────────────────────────────────────────────────
@@ -1338,6 +1433,30 @@ export default {
 				state.delivery_zone = cart.delivery_zone
 				// Envío por correo guardado en el servidor (si lo hay): ver hidratar_envio_desde_cart.
 				hidratar_envio(state, cart)
+				/*
+				 * Dirección de entrega guardada en el carrito (direcciones de envío, 19/10/2026). Solo
+				 * si la respuesta trae la clave: una API vieja no la manda y ahí no hay que pisar lo
+				 * que el comprador eligió en pantalla. Con la clave en null (retiro por el local, o
+				 * todavía sin elegir) se suelta: lo que se ve es lo que el servidor tiene.
+				 *
+				 * Se copia también al destino del correo, aunque `hidratar_envio` ya lo haya cargado
+				 * desde `envio_destino`: ese solo se hidrata si el carrito trae una cotización, y un
+				 * carrito con una forma propia elegida no la trae. Si después el comprador se pasa a
+				 * un correo, el destino tiene que tener la dirección que ve elegida (los campos de
+				 * calle y localidad ya no están en pantalla para completarlos a mano).
+				 */
+				if (cart.envio_direccion !== undefined) {
+					if (cart.envio_direccion && typeof cart.envio_direccion === 'object') {
+						let guardada = Object.assign({}, cart.envio_direccion)
+						if (cart.buyer_address_id) {
+							guardada.buyer_address_id = cart.buyer_address_id
+						}
+						state.direccion_envio = normalizar_direccion(guardada)
+						copiar_direccion_al_destino(state, state.direccion_envio)
+					} else {
+						state.direccion_envio = null
+					}
+				}
 			} else {
 				state.cart = {
 					articles: [],
@@ -1355,6 +1474,8 @@ export default {
 				state.cuotas_elegidas = null
 				// Hasta el 14/9/2026 decia `delovery_zone`: la zona elegida sobrevivia al vaciado.
 				state.delivery_zone = null
+				// La dirección de entrega del pedido que se terminó tampoco queda colgada.
+				state.direccion_envio = null
 				resetear_envio(state)
 			}
 			console.log(state.cart)
@@ -1435,6 +1556,14 @@ export default {
 			}
 			// Envío por correo (Zipnova): la opción elegida y el destino, sin precio. Ver payload_envio().
 			state.cart.envio = payload_envio(state)
+			// Dirección de entrega (direcciones de envío, 19/10/2026). Sin la feature la clave no
+			// viaja: ver payload_direccion_envio().
+			let direccion_envio = payload_direccion_envio(state, rootState)
+			if (direccion_envio === undefined) {
+				delete state.cart.direccion_envio
+			} else {
+				state.cart.direccion_envio = direccion_envio
+			}
 			console.log('carrito antes de guardar:')
 			console.log(state.cart)
 			if (!state.cart.id) {

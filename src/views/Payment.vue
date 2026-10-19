@@ -37,7 +37,17 @@
 
 						<seller-select-client></seller-select-client>
 
-						<addresses></addresses>
+						<!--
+							Dirección de entrega. Con las direcciones de envío nuevas (19/10/2026,
+							`commerce.direcciones_de_envio`) es el bloque con el buscador de Google y la
+							lista de direcciones del comprador, ANTES de las formas de envío (con la
+							dirección se cotiza el correo). Sin eso, el input de texto libre de siempre.
+						-->
+						<direccion-de-entrega
+						v-if="direcciones_de_envio_activas"></direccion-de-entrega>
+
+						<addresses
+						v-else></addresses>
 
 						<!--
 							Formas de envio en una sola lista (zonas del negocio + correo por Zipnova)
@@ -78,7 +88,9 @@ import Addresses from '@/components/payment/components/Addresses'
 import FormasDeEnvio from '@/components/payment/components/FormasDeEnvio'
 import DireccionEnvio from '@/components/payment/components/DireccionEnvio'
 import Description from '@/components/payment/components/Description'
+import DireccionDeEntrega from '@/components/payment/components/DireccionDeEntrega'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
+import { direcciones_activas } from '@/helpers/direcciones'
 export default {
 	components: {
 		WhatsAppInfo: () => import('@/components/payment/components/WhatsAppInfo'),
@@ -92,6 +104,7 @@ export default {
 		FormasDeEnvio,
 		DireccionEnvio,
 		Description,
+		DireccionDeEntrega,
 	},
 	created() {
 		this.setTitle('Pedido')
@@ -112,6 +125,15 @@ export default {
 		},
 		cart_buyer() {
 			return this.$store.state.cart.buyer
+		},
+		/**
+		 * Si la tienda tiene las direcciones de envío nuevas. Ver `direcciones_activas` en
+		 * helpers/direcciones.js.
+		 *
+		 * @returns {boolean}
+		 */
+		direcciones_de_envio_activas() {
+			return direcciones_activas(this.commerce)
 		},
 	},
 }

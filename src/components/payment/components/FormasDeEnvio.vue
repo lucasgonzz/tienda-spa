@@ -64,13 +64,32 @@
 		<!--
 			Envío por correo (Zipnova). Si el comprador ya cotizó en el carrito con el mismo código
 			postal, el cotizador muestra esas opciones sin volver a pedirlas (todo vive en el store).
+
+			Con las direcciones de envío nuevas (19/10/2026) el código postal sale de la dirección
+			elegida en "¿A dónde te lo enviamos?": sin dirección todavía, en lugar del cotizador se
+			le dice que la elija primero.
 		-->
-		<cotizador-envio
-		v-if="commerce.envios_zipnova"
-		:class="{'formas-de-envio__cotizador--con-zonas': delivery_zones.length}"
-		titulo="Envío por correo a tu código postal"
-		usar_carrito
-		seleccionable></cotizador-envio>
+		<template v-if="commerce.envios_zipnova">
+			<p
+			v-if="direcciones_de_envio_activas && !cart_direccion_envio"
+			:class="{'formas-de-envio__cotizador--con-zonas': delivery_zones.length}"
+			class="formas-de-envio__falta-direccion">
+				<i class="bi bi-info-circle"></i>
+				<span>
+					Para ver los envíos por correo, primero
+					<a
+					href="#direccion-de-entrega"
+					@click.prevent="scroll_a_seccion('direccion-de-entrega')">elegí a dónde te lo enviamos</a>.
+				</span>
+			</p>
+			<cotizador-envio
+			v-else
+			:class="{'formas-de-envio__cotizador--con-zonas': delivery_zones.length}"
+			:titulo="direcciones_de_envio_activas ? 'Envío por correo a tu dirección' : 'Envío por correo a tu código postal'"
+			:direccion_envio="direcciones_de_envio_activas ? cart_direccion_envio : null"
+			usar_carrito
+			seleccionable></cotizador-envio>
+		</template>
 	</div>
 </template>
 <script>
@@ -104,6 +123,15 @@ export default {
 			return Number(this.deliver) === 1 && (this.delivery_zones.length > 0 || !!this.commerce.envios_zipnova)
 		},
 		hint() {
+			if (this.direcciones_de_envio_activas) {
+				if (this.delivery_zones.length && this.commerce.envios_zipnova) {
+					return 'Elegí el envío del negocio o uno de los correos que llegan a tu dirección.'
+				}
+				if (this.commerce.envios_zipnova) {
+					return 'Estos son los correos que llegan a tu dirección, con el costo y los días de entrega.'
+				}
+				return 'Elegí cómo te lo enviamos.'
+			}
 			if (this.delivery_zones.length && this.commerce.envios_zipnova) {
 				return 'Elegí el envío del negocio o cotizá el envío por correo con tu código postal.'
 			}
@@ -155,4 +183,22 @@ export default {
 	font-weight: 600
 	line-height: 1.3
 	color: rgba(0, 0, 0, .65)
+
+.formas-de-envio__falta-direccion
+	display: flex
+	align-items: flex-start
+	gap: .5rem
+	font-size: .88rem
+	color: rgba(0, 0, 0, .65)
+	text-align: left
+	margin-bottom: 0
+
+	i
+		color: var(--secondary-color, #0d6efd)
+		margin-top: 2px
+
+	a
+		font-weight: 600
+		color: var(--secondary-color, #0d6efd)
+		text-decoration: underline
 </style>

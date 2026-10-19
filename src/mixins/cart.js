@@ -1,9 +1,28 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
-import { zona_a_convenir } from '@/helpers/direcciones'
+import { direcciones_activas, zona_a_convenir, linea_de_direccion } from '@/helpers/direcciones'
 export default {
 	computed: {
+		/**
+		 * Si la tienda tiene las direcciones de envío nuevas (misión formas-envio-direcciones-maps,
+		 * 19/10/2026): el bloque "¿A dónde te lo enviamos?" con el buscador de Google y la lista de
+		 * direcciones del comprador. Sin esto el checkout es exactamente el de antes. Ver
+		 * `direcciones_activas` en helpers/direcciones.js.
+		 *
+		 * @returns {boolean}
+		 */
+		direcciones_de_envio_activas() {
+			return direcciones_activas(this.$store.state.commerce.commerce)
+		},
+		/**
+		 * La dirección de entrega elegida en el checkout (forma del contrato), o null.
+		 *
+		 * @returns {object|null}
+		 */
+		cart_direccion_envio() {
+			return this.$store.state.cart.direccion_envio
+		},
 		/**
 		 * Si la forma de envío propia elegida es "a convenir": no se cobra en la tienda, el costo lo
 		 * coordina el vendedor después.
@@ -364,7 +383,12 @@ export default {
 		 *
 		 * Orden de resolucion, siguiendo lo que cada flujo muestra en pantalla:
 		 *   0. Envio por correo (Zipnova) -> el destino del formulario de DireccionEnvio, en una
-		 *      linea (mismo texto que arma EnvioDestinoHelper::como_texto en la API).
+		 *      linea (mismo texto que arma EnvioDestinoHelper::como_texto en la API). Con las
+		 *      direcciones nuevas el destino sale de la direccion elegida.
+		 *   0b. Direcciones nuevas (`direcciones_de_envio_activas`) con envio a domicilio -> la
+		 *      direccion elegida en "¿A dónde te lo enviamos?", en la misma linea que arma la API
+		 *      con `envio_direccion` (ver `linea_de_direccion`). Los inputs de texto libre de abajo
+		 *      no se muestran en ese caso.
 		 *   1. Vendedor con cliente seleccionado -> el input de Addresses.vue, que edita
 		 *      selected_buyer.comercio_city_client.address.
 		 *   2. Comprador invitado -> el input "Direccion" de Buyer.vue (store cart.buyer.address).
@@ -380,6 +404,14 @@ export default {
 				let texto = this.envio_destino_texto()
 				if (texto) {
 					return texto
+				}
+			}
+
+			// 0b) Direcciones nuevas: la direccion elegida en el bloque del checkout.
+			if (this.direcciones_de_envio_activas && Number(this.cart.deliver) === 1 && this.cart_direccion_envio) {
+				let linea = linea_de_direccion(this.cart_direccion_envio)
+				if (linea) {
+					return linea
 				}
 			}
 
@@ -645,7 +677,16 @@ export default {
 				} else {
 					this.$toast.error(data.message || 'Revisá los datos del envío')
 				}
-				this.scroll_a_seccion('direccion-envio')
+				// Con las direcciones nuevas, la calle, la localidad y el código postal se corrigen en
+				// "¿A dónde te lo enviamos?" (DireccionEnvio solo tiene los datos de contacto).
+				let es_de_la_direccion = claves.some(clave => {
+					return ['calle', 'numero', 'piso_depto', 'localidad', 'provincia', 'codigo_postal'].indexOf(clave) !== -1
+				})
+				if (this.direcciones_de_envio_activas && es_de_la_direccion) {
+					this.scroll_a_seccion('direccion-de-entrega')
+				} else {
+					this.scroll_a_seccion('direccion-envio')
+				}
 				return true
 			}
 
@@ -665,6 +706,57 @@ export default {
 			}
 
 			return false
+		},
+		/**
+		 * Atiende los 422 de la dirección de entrega que pueden devolver el `PUT/POST /api/carts` y
+		 * el `POST /api/orders` con las direcciones nuevas (misión formas-envio-direcciones-maps,
+		 * 19/10/2026):
+		 *
+		 *   - `direccion`: la dirección guardada que se mandó (`buyer_address_id`) no es de este
+		 *     comprador o ya no existe (la borró desde otra pestaña) —se suelta la elección y el
+		 *     bloque vuelve a elegir la principal, o abre el buscador—, o a la cargada a mano le
+		 *     faltan datos (viene con `errors`: queda a la vista para que la cambie). En los dos
+		 *     casos se muestra el `message` del servidor y se lleva al comprador al bloque.
+		 *   - `sin_direcciones`: la base del cliente no tiene la tabla de direcciones. No debería
+		 *     llegar (sin la tabla `direcciones_de_envio` es false y el SPA no manda nada), pero si
+		 *     llega se le dice qué hacer en vez del genérico.
+		 *
+		 * Vive aparte de `manejar_error_de_envio` por el mismo motivo que
+		 * `manejar_articulos_no_disponibles`: aquél es del correo (Zipnova) y no tiene por qué
+		 * conocer esto. Contra una tienda-api vieja nunca llega ninguno de los dos códigos.
+		 *
+		 * @param {object} err Error de axios.
+		 * @returns {boolean} true si el error era éste y ya se le avisó al comprador.
+		 */
+		manejar_error_de_direccion(err) {
+			if (!err || !err.response || !err.response.data) {
+				return false
+			}
+			let data = err.response.data
+			if (err.response.status != 422 || (data.codigo != 'direccion' && data.codigo != 'sin_direcciones')) {
+				return false
+			}
+			if (data.codigo == 'direccion') {
+				/*
+				 * El `message` lo escribe tienda-api ("Esa dirección ya no está en tu cuenta...",
+				 * "Faltan datos de la dirección de entrega."). Se escapa igual: el toast lo dibuja con
+				 * `v-html`.
+				 */
+				this.$toast.error(data.message ? escapar_html(data.message) : 'Revisá la dirección de entrega. Elegí otra o cargala de nuevo.')
+				// Sin `errors` por campo es la guardada que ya no es de este comprador (la borró en otra
+				// pestaña): se suelta, y el bloque vuelve a elegir la principal con la lista nueva. Con
+				// `errors`, a la cargada le faltan datos: queda a la vista para que la cambie.
+				if (!data.errors) {
+					this.$store.commit('cart/set_direccion_envio', null)
+					if (this.authenticated && this.user && !this.user.seller_id) {
+						this.$store.dispatch('buyer_addresses/fetch').catch(() => {})
+					}
+				}
+			} else {
+				this.$toast.error('Por ahora no podemos guardar direcciones. Probá de nuevo en un rato o elegí retiro por el local.')
+			}
+			this.scroll_a_seccion('direccion-de-entrega')
+			return true
 		},
 		/**
 		 * Atiende el 422 `articulos_no_disponibles` de `POST /api/orders` (contrato C3 de la
@@ -810,6 +902,9 @@ export default {
 		 *     vacio no es un pedido. Se lleva al comprador al carrito (`llevar_al_carrito_vacio`).
 		 * En los tres casos el pedido NO se creo. El aviso de lo descartado, si lo hubo, ya lo dio
 		 * el store (o `cortar_si_el_guardado_descarto`).
+		 *
+		 * Desde el 19/10/2026 (direcciones de envio) tambien resuelve con `false` ante el 422
+		 * `direccion` / `sin_direcciones` de la direccion de entrega (ver `manejar_error_de_direccion`).
 		 *
 		 * No rechaza nunca: los llamadores viejos (Payway, el modal del carrito, el gateway) la
 		 * invocan sin `.catch`, y una promesa rechazada ahi solo ensuciaria la consola.
@@ -1002,6 +1097,10 @@ export default {
 				// 422 `articulos_no_disponibles` del POST /orders (`manejar_error_de_envio` no
 				// conoce este codigo y devolveria false). Mismo `false`, mismo motivo.
 				if (self.manejar_articulos_no_disponibles(err)) {
+					return false
+				}
+				// 422 de la direccion de entrega (direcciones nuevas): mismo `false`, mismo motivo.
+				if (self.manejar_error_de_direccion(err)) {
 					return false
 				}
 				// Un 422 del envio por correo tiene su propio aviso (y su propia salida: volver a

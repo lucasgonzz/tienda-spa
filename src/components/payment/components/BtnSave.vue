@@ -40,6 +40,7 @@
 </template>
 <script>
 import cart from '@/mixins/cart'
+import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo } from '@/helpers/direcciones'
 
 /**
  * El único botón que confirma el pedido.
@@ -174,7 +175,14 @@ export default {
 				// Con envio por correo (Zipnova) el input "Direccion" de una linea esta oculto: la
 				// direccion que se guarda en la ficha del comprador es el destino completo, en texto.
 				let datos_buyer = { ...buyer, commerce_id: this.commerce.id }
-				if (this.envio_zipnova_elegido) {
+				if (this.direcciones_de_envio_activas && this.cart.deliver == 1 && this.cart_direccion_envio) {
+					// Direcciones nuevas (19/10/2026): tampoco hay input de una linea; va la direccion
+					// elegida en "¿A dónde te lo enviamos?", sin los datos de contacto del correo.
+					datos_buyer.address = linea_de_direccion(this.cart_direccion_envio)
+					if (!datos_buyer.ciudad) {
+						datos_buyer.ciudad = this.cart_direccion_envio.city
+					}
+				} else if (this.envio_zipnova_elegido) {
 					datos_buyer.address = this.envio_destino_texto()
 					if (!datos_buyer.ciudad) {
 						datos_buyer.ciudad = this.envio_destino_valor('localidad')
@@ -217,6 +225,9 @@ export default {
 				.catch(function(err) {
 					console.log(err)
 					self.procesando = false
+					if (self.manejar_error_de_direccion(err)) {
+						return
+					}
 					if (self.manejar_error_de_envio(err)) {
 						return
 					}
@@ -391,6 +402,11 @@ export default {
 				if (self.es_corte_por_articulos_no_disponibles(err)) {
 					return
 				}
+				// El `cart/save` del principio puede rechazar la direccion de entrega (422 `direccion`):
+				// tampoco es un problema de Mercado Pago.
+				if (self.manejar_error_de_direccion(err)) {
+					return
+				}
 				// El `cart/save` del principio puede rechazar el envio por correo (422): ese aviso
 				// es especifico y no es un problema de Mercado Pago.
 				if (self.manejar_error_de_envio(err)) {
@@ -516,8 +532,9 @@ export default {
 			}
 			// La direccion solo es obligatoria si el comprador eligio envio a domicilio
 			// (deliver == 1). Con retiro por local (deliver == 0) no hace falta, y con envio por
-			// correo (Zipnova) la valida collect_envio_errors() campo por campo.
-			if (this.cart.deliver == 1 && !this.envio_zipnova_elegido && this.is_blank_field(buyer.address)) {
+			// correo (Zipnova) la valida collect_envio_errors() campo por campo. Con las direcciones
+			// nuevas tampoco se mira este input (no se muestra): la valida collect_envio_errors().
+			if (this.cart.deliver == 1 && !this.envio_zipnova_elegido && !this.direcciones_de_envio_activas && this.is_blank_field(buyer.address)) {
 				errors.push('Dirección')
 			}
 			if (this.cart.deliver == null) {
@@ -553,6 +570,18 @@ export default {
 			if (this.cart.deliver != 1) {
 				return errors
 			}
+			/*
+			 * Direcciones nuevas (19/10/2026): primero, que haya una direccion elegida y completa en
+			 * "¿A dónde te lo enviamos?". Con Zipnova sin direccion ni siquiera hay correos para
+			 * elegir (se cotiza con su codigo postal), asi que el resto se valida despues.
+			 */
+			if (this.direcciones_de_envio_activas) {
+				let error_de_direccion = this.error_de_direccion_de_entrega()
+				if (error_de_direccion) {
+					errors.push(error_de_direccion)
+					return errors
+				}
+			}
 			let hay_formas = this.delivery_zones.length > 0 || !!this.commerce.envios_zipnova
 			if (hay_formas && !this.cart_delivery_zone && !this.cart_envio_opcion) {
 				errors.push('¿Cómo te lo enviamos?')
@@ -567,10 +596,37 @@ export default {
 					})
 					this.$store.commit('cart/set_envio_errores_destino', faltantes)
 					let titulo = this.cart_envio_opcion.es_punto_de_retiro ? '¿Quién lo retira en la sucursal?' : '¿A dónde te lo enviamos?'
+					// Con las direcciones nuevas, DireccionEnvio solo tiene los datos de contacto.
+					if (this.direcciones_de_envio_activas && !this.cart_envio_opcion.es_punto_de_retiro) {
+						titulo = '¿Quién recibe el paquete?'
+					}
 					errors.push(titulo + ' (' + etiquetas.join(', ') + ')')
 				}
 			}
 			return errors
+		},
+		/**
+		 * Lo que le falta a la direccion de entrega (direcciones nuevas): que este elegida, y que
+		 * tenga calle, altura, localidad, provincia y —si el envio va por correo— codigo postal.
+		 * El buscador ya no deja confirmar una incompleta, pero una guardada de antes de que el
+		 * comercio conectara Zipnova puede no tener codigo postal.
+		 *
+		 * @returns {string} El texto para el aviso, o '' si esta todo.
+		 */
+		error_de_direccion_de_entrega() {
+			if (!this.cart_direccion_envio) {
+				return '¿A dónde te lo enviamos?'
+			}
+			// Sin opcion de correo elegida, el codigo postal no hace falta (forma propia o ninguna).
+			let faltantes = faltantes_de_direccion(this.cart_direccion_envio, this.envio_zipnova_elegido)
+			if (!faltantes.length) {
+				return ''
+			}
+			let etiquetas = []
+			faltantes.forEach(clave => {
+				etiquetas.push(etiqueta_de_campo(clave))
+			})
+			return '¿A dónde te lo enviamos? (' + etiquetas.join(', ') + ')'
 		},
 		/**
 		 * Arma la lista de datos faltantes del checkout autenticado.
@@ -586,6 +642,7 @@ export default {
 			if (
 				this.cart.deliver
 				&& !this.envio_zipnova_elegido
+				&& !this.direcciones_de_envio_activas
 				&& this.user
 				&& (
 					(this.user.comercio_city_client && this.user.comercio_city_client.address == '')
@@ -658,6 +715,12 @@ export default {
 		show_checkout_validation_errors(errors) {
 			if (!errors.length) {
 				return
+			}
+
+			// Direcciones nuevas: sin direccion de entrega, ademas del aviso se lleva al comprador
+			// al bloque, que es donde la elige o la carga.
+			if (this.direcciones_de_envio_activas && this.cart.deliver == 1 && this.error_de_direccion_de_entrega()) {
+				this.scroll_a_seccion('direccion-de-entrega')
 			}
 
 			if (errors.length === 1) {

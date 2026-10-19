@@ -63,7 +63,8 @@
 			no tenia forma de saber que era opcional.
 
 			Con envio por correo (opcion de Zipnova elegida) tampoco: la direccion completa la pide
-			DireccionEnvio.vue, con calle, numero, localidad y provincia por separado.
+			DireccionEnvio.vue, con calle, numero, localidad y provincia por separado. Y con las
+			direcciones de envio nuevas tampoco: la pide DireccionDeEntrega.vue (ver pide_direccion).
 		-->
 		<div
 		v-if="pide_direccion"
@@ -119,10 +120,13 @@ export default {
 		 * Si hay que pedirle la direccion: solo con envio a domicilio (deliver == 1) y si el envio
 		 * NO es por correo (ahi la pide DireccionEnvio.vue, con todos los campos).
 		 *
+		 * Con las direcciones de envio nuevas (19/10/2026) tampoco: la pide el bloque "¿A dónde te
+		 * lo enviamos?" (DireccionDeEntrega.vue), con el buscador de Google.
+		 *
 		 * @returns {boolean}
 		 */
 		pide_direccion() {
-			return this.$store.state.cart.cart.deliver == 1 && !this.envio_zipnova_elegido
+			return this.$store.state.cart.cart.deliver == 1 && !this.envio_zipnova_elegido && !this.direcciones_de_envio_activas
 		},
 	},
 	methods: {
