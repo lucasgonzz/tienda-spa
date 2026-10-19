@@ -355,6 +355,10 @@ export default {
 	margin: 0 auto
 	// La tienda centra todo el texto desde arriba (container de App.vue): una lista se lee a la izquierda.
 	text-align: left
+	// Aire arriba (el buscador no queda pegado al nav) y abajo (la lista no queda pegada al pie).
+	padding: 32px 0 56px
+	@media screen and (max-width: 576px)
+		padding: 20px 0 40px
 	&__cabecera
 		display: flex
 		align-items: center
