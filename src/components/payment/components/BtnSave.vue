@@ -312,7 +312,11 @@ export default {
 					// agrega el item "Envio" con que la zona no sea null, sin mirar `deliver`, asi
 					// que un comprador que elegia envio, elegia zona y despues se pasaba a retiro
 					// por el local pagaba un envio que la pantalla no le mostraba en ningun lado.
-					delivery_zone: self.cart.deliver ? self.cart_delivery_zone : null,
+					//
+					// Forma propia "a convenir" (19/10/2026): tampoco viaja. No se cobra nada online, y
+					// mandada con su precio la API (sin carrito resuelto) agregaria el item "Envio". Sin
+					// item, la preferencia no lleva un renglon de envio en $0 que Mercado Pago rechace.
+					delivery_zone: self.cart.deliver && !self.zona_elegida_a_convenir ? self.cart_delivery_zone : null,
 					articles: self.articles,
 					cart_id: self.cart ? self.cart.id : null,
 				}

@@ -1,8 +1,18 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
+import { zona_a_convenir } from '@/helpers/direcciones'
 export default {
 	computed: {
+		/**
+		 * Si la forma de envío propia elegida es "a convenir": no se cobra en la tienda, el costo lo
+		 * coordina el vendedor después.
+		 *
+		 * @returns {boolean}
+		 */
+		zona_elegida_a_convenir() {
+			return zona_a_convenir(this.cart_delivery_zone)
+		},
 		/**
 		 * Unidades totales del carrito: la suma de las cantidades, no la cantidad de lineas.
 		 *
@@ -305,6 +315,11 @@ export default {
 				return 0
 			}
 			if (this.cart_delivery_zone) {
+				// Forma propia "a convenir" (19/10/2026): no suma nada al total, su `price` no se mira.
+				// Es lo mismo que hace la API en OrderTotalsHelper y en la preferencia de Mercado Pago.
+				if (this.zona_elegida_a_convenir) {
+					return 0
+				}
 				let precio = Number(this.cart_delivery_zone.price)
 				return isFinite(precio) ? precio : 0
 			}

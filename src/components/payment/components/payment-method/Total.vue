@@ -19,11 +19,16 @@
 			<span>+ {{ price(total_with_payment_method_surchage - total) }}</span>
 		</p>
 
+		<!--
+			Forma propia. Si es "a convenir" (19/10/2026) no suma nada: el costo lo coordina el
+			vendedor después, y la línea lo dice en vez de mostrar un precio (nunca "Gratis").
+		-->
 		<p
 		v-if="cart.deliver && cart_delivery_zone"
 		class="checkout-summary__line">
 			Envío ({{ cart_delivery_zone.name }})
-			<span>+ {{ price(cart_delivery_zone.price) }}</span>
+			<span v-if="zona_elegida_a_convenir">A coordinar</span>
+			<span v-else>+ {{ price(cart_delivery_zone.price) }}</span>
 		</p>
 
 		<!--

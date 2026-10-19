@@ -44,7 +44,18 @@
 					</p>
 				</div>
 
-				<p class="checkout-option__price">
+				<!--
+					Forma "a convenir" (19/10/2026): no se cobra en la tienda, el vendedor coordina el
+					costo y la entrega después. Nunca "Gratis" ni "$0": no es gratis, es a coordinar.
+				-->
+				<p
+				v-if="es_a_convenir(delivery_zone)"
+				class="checkout-option__price formas-de-envio__a-convenir">
+					A coordinar con el vendedor
+				</p>
+				<p
+				v-else
+				class="checkout-option__price">
 					{{ price(delivery_zone.price) }}
 				</p>
 			</div>
@@ -65,6 +76,7 @@
 <script>
 import cart from '@/mixins/cart'
 import CotizadorEnvio from '@/components/common/envio/Cotizador'
+import { zona_a_convenir } from '@/helpers/direcciones'
 
 /**
  * Formas de envío del checkout, en UNA sola lista: las zonas propias del negocio (si las tiene)
@@ -72,6 +84,10 @@ import CotizadorEnvio from '@/components/common/envio/Cotizador'
  * opción de Zipnova nunca conviven: elegir una suelta la otra (mutaciones del store).
  *
  * Reemplaza a DeliveryZones.vue en el checkout desde el 14/9/2026 (ese archivo queda, sin montar).
+ *
+ * Formas propias "a convenir" (`delivery_zones.costo_a_convenir`, 19/10/2026): se muestran con
+ * "A coordinar con el vendedor" en lugar del precio y no suman nada al total (`envio_precio_elegido`
+ * del mixin). Ej.: "Acordar con el vendedor". Con una base sin la columna, todas cobran su precio.
  */
 export default {
 	name: 'FormasDeEnvio',
@@ -107,6 +123,15 @@ export default {
 		esta_elegida(delivery_zone) {
 			return !!(this.cart_delivery_zone && this.cart_delivery_zone.id == delivery_zone.id)
 		},
+		/**
+		 * Si la forma propia es "a convenir" (no se cobra en la tienda).
+		 *
+		 * @param {object} delivery_zone
+		 * @returns {boolean}
+		 */
+		es_a_convenir(delivery_zone) {
+			return zona_a_convenir(delivery_zone)
+		},
 	},
 }
 </script>
@@ -119,4 +144,15 @@ export default {
 	margin-top: 1.1rem
 	padding-top: 1rem
 	border-top: 1px solid rgba(0, 0, 0, .08)
+
+// "A coordinar con el vendedor" en lugar del precio: puede partirse en dos renglones (en el
+// teléfono un texto así sin cortar le saca todo el ancho al nombre de la forma).
+.checkout-option__price.formas-de-envio__a-convenir
+	white-space: normal
+	max-width: 8.5rem
+	text-align: right
+	font-size: .82rem
+	font-weight: 600
+	line-height: 1.3
+	color: rgba(0, 0, 0, .65)
 </style>
