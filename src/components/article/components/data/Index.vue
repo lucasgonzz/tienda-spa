@@ -27,6 +27,8 @@
 	class="ficha-datos"
 	v-if="article_to_show">
 		<condition></condition>
+		<brand
+		:article="article_to_show"></brand>
 
 		<name-heart></name-heart>
 
@@ -88,6 +90,7 @@ export default {
 		PaymentMethodsInfo,
 		Price,
 		Condition,
+		Brand: () => import('@/components/common/article-card/body/Brand'),
 		// Notes,
 		Compartir,
 		WhatsappLink,
