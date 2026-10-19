@@ -191,6 +191,11 @@
       El script de Maps se inserta desde JS porque la URL se arma en el navegador, y con async =
       true: mismo comportamiento que el <script async> fijo que habia antes. Es ES5 a proposito
       (no pasa por babel).
+
+      `libraries=places` (mision formas-envio-direcciones-maps, 19/10/2026): carga Places API (New)
+      para el buscador de direcciones del checkout (google.maps.places.AutocompleteSuggestion). Sin
+      facturacion en el proyecto de Google las busquedas fallan y el buscador pasa a la carga a mano
+      (src/helpers/google_places.js); el resto de la tienda no depende de esto.
     -->
     <script>
       (function () {
@@ -201,7 +206,7 @@
           key = <%= JSON.stringify(typeof VUE_APP_GOOGLE_MAPS_API_KEY !== 'undefined' ? VUE_APP_GOOGLE_MAPS_API_KEY : '') %>;
         }
         var script = document.createElement('script');
-        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&language=es';
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&language=es&libraries=places';
         script.async = true;
         document.body.appendChild(script);
       })();

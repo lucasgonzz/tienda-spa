@@ -24,6 +24,8 @@ import platelets from './platelets'
 import payment_methods from './payment_methods'
 import delivery_zones from './delivery_zones'
 import delivery_day from './delivery_day'
+// Direcciones guardadas del comprador (misión formas-envio-direcciones-maps, 19/10/2026).
+import buyer_addresses from './buyer_addresses'
 
 import client_offers from './client_offers'
 
@@ -70,5 +72,6 @@ export default new Vuex.Store({
 		delivery_day,
 		cepas,
 		current_acount,
+		buyer_addresses,
 	}
 })
