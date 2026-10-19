@@ -1,7 +1,7 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
-import { direcciones_activas, zona_a_convenir, linea_de_direccion } from '@/helpers/direcciones'
+import { direcciones_activas, zona_a_convenir, linea_de_direccion, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
 export default {
 	computed: {
 		/**
@@ -634,9 +634,27 @@ export default {
 			let self = this
 
 			if (data.codigo == 'opcion_envio') {
-				this.$toast.error(data.message || 'Esa forma de envío ya no está disponible, volvé a cotizar')
+				this.$toast.error(data.message ? escapar_html(data.message) : 'Esa forma de envío ya no está disponible, volvé a cotizar')
 				this.$store.commit('cart/set_envio_opcion_key', null)
-				if (Array.isArray(data.opciones)) {
+				/*
+				 * Direcciones nuevas (19/10/2026): tienda-api también responde `opcion_envio` cuando el
+				 * código postal de la dirección elegida no es el cotizado ("La dirección elegida es de
+				 * otro código postal..."). Ahí no sirve volver a cotizar al CP del store, que es el
+				 * viejo: se pone el de la dirección y se cotiza a ese.
+				 */
+				let cp_de_la_direccion = this.direcciones_de_envio_activas && this.cart_direccion_envio
+					? codigo_postal_para_cotizar(this.cart_direccion_envio.zip_code)
+					: ''
+				if (cp_de_la_direccion && !mismo_codigo_postal(cp_de_la_direccion, this.$store.state.cart.envio.zipcode)) {
+					this.$store.commit('cart/set_envio_zipcode', cp_de_la_direccion)
+					this.$store.dispatch('cart/cotizar_envio', {
+						articles: lineas_del_carrito(this.$store.state.cart.cart),
+						cart_id: this.cart && this.cart.id ? this.cart.id : null,
+					})
+					.catch(() => {
+						// El mensaje ya quedó en envio.error y el cotizador lo muestra.
+					})
+				} else if (Array.isArray(data.opciones)) {
 					// El servidor ya re-cotizó: son las opciones vigentes para este carrito y este
 					// CP, no hace falta pedirlas de nuevo (y sería otra consulta a Zipnova).
 					this.$store.commit('cart/set_envio_opciones', {

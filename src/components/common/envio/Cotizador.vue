@@ -212,6 +212,7 @@
 <script>
 import { PROVINCIAS, normalizar_provincia } from '@/constants/provincias'
 import { firma_de_lineas, lineas_del_carrito } from '@/store/cart'
+import { codigo_postal_para_cotizar } from '@/helpers/direcciones'
 import EnvioOpcionCard from '@/components/common/envio/EnvioOpcionCard'
 
 /**
@@ -376,19 +377,21 @@ export default {
 		},
 		/**
 		 * Código postal de la dirección elegida (prop `direccion_envio`), '' si no hay dirección o
-		 * no trae.
+		 * no trae uno que sirva (de 4 a 8 letras o números): en ese caso el cotizador muestra su
+		 * input de siempre, en vez de quedar sin input y sin opciones.
 		 *
-		 * 🔴 Se limpia IGUAL que `ZipnovaCotizadorService::zipcode_limpio` de tienda-api (solo
-		 * letras y números, en mayúsculas), porque el 200 de la cotización devuelve el código
-		 * postal limpio y `set_envio_opciones` lo escribe en el store: si acá quedara "c1043aaz" y
-		 * allá "C1043AAZ", cada respuesta parecería otro destino y se cotizaría para siempre.
+		 * 🔴 Se limpia IGUAL que `ZipnovaCotizadorService::zipcode_limpio` de tienda-api (ver
+		 * `codigo_postal_para_cotizar`: letras y números en mayúsculas, y "X5000" pasa a "5000"),
+		 * porque el 200 de la cotización devuelve el código postal así y `set_envio_opciones` lo
+		 * escribe en el store: si acá quedara de otra forma, cada respuesta parecería otro destino
+		 * y se cotizaría para siempre.
 		 * @returns {string}
 		 */
 		zipcode_de_la_direccion() {
-			if (!this.direccion_envio || !this.direccion_envio.zip_code) {
+			if (!this.direccion_envio) {
 				return ''
 			}
-			return String(this.direccion_envio.zip_code).replace(/[^A-Za-z0-9]/g, '').toUpperCase().substring(0, 8)
+			return codigo_postal_para_cotizar(this.direccion_envio.zip_code)
 		},
 		error() {
 			return this.envio.error
@@ -803,6 +806,14 @@ export default {
 		 */
 		zipcode() {
 			this.corrigiendo_localidad = false
+			/*
+			 * Con dirección elegida: si el código postal del store dejó de ser el de la dirección (lo
+			 * soltó el checkout porque la cotización era de otro destino), se vuelve a poner y se
+			 * cotiza; si es el mismo pero las opciones se soltaron, se cotiza de nuevo.
+			 */
+			if (this.zipcode_de_la_direccion && !this.tomar_codigo_postal_de_la_direccion()) {
+				this.cotizar_si_hace_falta()
+			}
 		},
 		/* El comprador eligió otra dirección en el checkout: se cotiza a su código postal. */
 		zipcode_de_la_direccion() {

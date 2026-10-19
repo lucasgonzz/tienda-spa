@@ -40,7 +40,7 @@
 </template>
 <script>
 import cart from '@/mixins/cart'
-import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo } from '@/helpers/direcciones'
+import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
 
 /**
  * El único botón que confirma el pedido.
@@ -155,6 +155,9 @@ export default {
 		},
 		ready() {
 			if (this.redirect_to_login_if_no_session()) {
+				return
+			}
+			if (this.avisar_direccion_sin_confirmar()) {
 				return
 			}
 
@@ -589,6 +592,22 @@ export default {
 				errors.push('¿Cómo te lo enviamos?')
 				return errors
 			}
+			/*
+			 * 🔴 Direcciones nuevas + correo: la cotizacion tiene que ser para el codigo postal de la
+			 * direccion elegida. Si quedo de otro (se cambio la direccion con una cotizacion en vuelo,
+			 * o una respuesta vieja piso el codigo postal), el paquete se cobraria a otro destino: se
+			 * suelta la opcion y el cotizador vuelve a cotizar al de la direccion (lo mira por el
+			 * cambio de codigo postal). tienda-api tambien lo rechaza (422 `opcion_envio`).
+			 */
+			if (this.direcciones_de_envio_activas && this.envio_zipnova_elegido && this.cart_direccion_envio) {
+				let cp_de_la_direccion = codigo_postal_para_cotizar(this.cart_direccion_envio.zip_code)
+				// Misma comparación que tienda-api (`mismo_codigo_postal`): "X5000ABC" y "5000" son el mismo lugar.
+				if (cp_de_la_direccion && !mismo_codigo_postal(cp_de_la_direccion, this.$store.state.cart.envio.zipcode)) {
+					this.$store.commit('cart/set_envio_zipcode', '')
+					errors.push('¿Cómo te lo enviamos? (el envío estaba calculado para otro código postal: elegilo de nuevo)')
+					return errors
+				}
+			}
 			if (this.envio_zipnova_elegido) {
 				let faltantes = this.envio_destino_faltantes()
 				if (faltantes.length) {
@@ -608,6 +627,21 @@ export default {
 			return errors
 		},
 		/**
+		 * Direcciones nuevas, comprador con cuenta: si en el buscador hay una direccion NUEVA
+		 * completa que todavia no guardo, el pedido no sale (iria a la direccion que sigue elegida,
+		 * que no es la que esta mirando): se le dice exactamente que tocar y se lo lleva ahi.
+		 *
+		 * @returns {boolean} true si aviso; el que llama corta ahi.
+		 */
+		avisar_direccion_sin_confirmar() {
+			if (!this.direcciones_de_envio_activas || this.cart.deliver != 1 || !this.$store.state.cart.direccion_sin_confirmar) {
+				return false
+			}
+			this.$toast.error('Tocá «Guardar y usar esta dirección» para confirmar la dirección nueva.')
+			this.scroll_a_seccion('direccion-de-entrega')
+			return true
+		},
+		/**
 		 * Lo que le falta a la direccion de entrega (direcciones nuevas): que este elegida, y que
 		 * tenga calle, altura, localidad y provincia. El buscador ya no deja confirmar una
 		 * incompleta; esto cubre una guardada vieja o una que vino del carrito del servidor.
@@ -623,7 +657,7 @@ export default {
 			if (!this.cart_direccion_envio) {
 				return '¿A dónde te lo enviamos?'
 			}
-			let faltantes = faltantes_de_direccion(this.cart_direccion_envio, false)
+			let faltantes = faltantes_de_direccion(this.cart_direccion_envio, false, false)
 			if (!faltantes.length) {
 				return ''
 			}
@@ -740,6 +774,9 @@ export default {
 			// tienda con registro obligatorio navegaba a /pagar y terminaba llamando a
 			// makeOrder() desde Payway.vue.
 			if (this.redirect_to_login_if_no_session()) {
+				return false
+			}
+			if (this.avisar_direccion_sin_confirmar()) {
 				return false
 			}
 			const checkout_errors = this.collect_authenticated_checkout_errors()
