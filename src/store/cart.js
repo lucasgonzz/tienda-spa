@@ -2,7 +2,7 @@
 import axios from 'axios'
 import { normalizar_provincia } from '@/constants/provincias'
 import { env } from '@/runtime_config'
-import { direcciones_activas, normalizar_direccion } from '@/helpers/direcciones'
+import { direcciones_activas, normalizar_direccion, codigo_postal_para_cotizar } from '@/helpers/direcciones'
 axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
 
@@ -533,6 +533,32 @@ function hidratar_envio(state, cart) {
 }
 
 /**
+ * Ver la mutación `set_envio_zipcode`. Vive afuera porque también la usa `set_direccion_envio`
+ * (la dirección elegida decide a qué código postal se cotiza).
+ *
+ * @param {object} state Estado del módulo.
+ * @param {string} value
+ */
+function cambiar_zipcode(state, value) {
+	let zipcode = String(value || '').replace(/\s+/g, '').substring(0, 8)
+	if (zipcode === state.envio.zipcode) {
+		return
+	}
+	state.envio.zipcode = zipcode
+	state.envio.city = ''
+	state.envio.state = ''
+	state.envio.opciones = []
+	state.envio.opcion_key = null
+	state.envio.point_id = null
+	state.envio.items_firma = null
+	state.envio.envio_gratis = false
+	state.envio.incremental = null
+	state.envio.error = null
+	state.envio.needs_location = false
+	guardar_zipcode(zipcode)
+}
+
+/**
  * Ver la mutación `reset_envio`.
  *
  * @param {object} state Estado del módulo.
@@ -610,8 +636,9 @@ function payload_direccion_envio(state, rootState) {
  * escribe calle, número, localidad ni provincia en DireccionEnvio.vue (ahí quedan solo los datos de
  * contacto): salen de acá.
  *
- * El código postal se copia también, pero el que viaja es SIEMPRE el cotizado (`payload_envio`):
- * el cotizador toma el de la dirección, así que son el mismo.
+ * El código postal se copia también (o se vacía, si la dirección no tiene uno válido: una guardada
+ * de antes de que el comercio conectara Zipnova), pero el que viaja es SIEMPRE el cotizado
+ * (`payload_envio`), y la cotización se arma con el de la dirección (`set_direccion_envio`).
  *
  * Se escribe directo con Vue.set, sin pasar por `set_envio_destino_field`: esa mutación borra
  * lat/lng cuando cambia la calle, y acá las coordenadas son justamente las de esta dirección.
@@ -626,9 +653,7 @@ function copiar_direccion_al_destino(state, direccion) {
 	Vue.set(destino, 'piso_depto', direccion.apartment)
 	Vue.set(destino, 'localidad', direccion.city)
 	Vue.set(destino, 'provincia', normalizar_provincia(direccion.province) || direccion.province)
-	if (direccion.zip_code) {
-		Vue.set(destino, 'codigo_postal', direccion.zip_code)
-	}
+	Vue.set(destino, 'codigo_postal', codigo_postal_para_cotizar(direccion.zip_code))
 	Vue.set(destino, 'referencia', direccion.reference)
 	Vue.set(destino, 'lat', direccion.lat)
 	Vue.set(destino, 'lng', direccion.lng)
@@ -818,6 +843,13 @@ export default {
 		 * `commerce.direcciones_de_envio`; viaja en el carrito con `payload_direccion_envio()`.
 		 */
 		direccion_envio: null,
+		/*
+		 * El comprador logueado tiene en el buscador una dirección NUEVA completa que todavía no
+		 * guardó con «Guardar y usar esta dirección» (lo avisa components/common/direcciones). Si
+		 * toca "Finalizar compra" así, BtnSave le dice que la confirme en vez de mandar el pedido
+		 * a la dirección que sigue elegida.
+		 */
+		direccion_sin_confirmar: false,
 		loading_last_cart: false,
 		saving: false,
 
@@ -874,6 +906,14 @@ export default {
 			state.buyer_id = value 
 		},
 		set_selected_buyer(state, value) {
+			// Vendedor que cambia de cliente: la dirección de entrega elegida era la del cliente
+			// anterior (direcciones de envío, 19/10/2026). Se suelta para que cargue la del nuevo.
+			let antes = state.selected_buyer ? state.selected_buyer.id : null
+			let ahora = value ? value.id : null
+			if (antes !== ahora) {
+				state.direccion_envio = null
+				state.direccion_sin_confirmar = false
+			}
 			state.selected_buyer = value 
 		},
 		setDeliver(state, value) {
@@ -940,6 +980,23 @@ export default {
 			let normalizada = normalizar_direccion(direccion)
 			state.direccion_envio = normalizada
 			copiar_direccion_al_destino(state, normalizada)
+			/*
+			 * 🔴 La cotización del correo tiene que ser para el código postal de ESTA dirección.
+			 * Con uno válido, se pone (y si es otro, se sueltan las opciones y la elegida: eran de
+			 * otro destino; el cotizador del checkout vuelve a cotizar). Sin código postal (una
+			 * guardada de antes de Zipnova), se suelta la cotización entera: si no, quedaba cotizado
+			 * al código postal de la dirección ANTERIOR y el paquete se cobraba a otro destino.
+			 */
+			cambiar_zipcode(state, codigo_postal_para_cotizar(normalizada.zip_code))
+		},
+		/**
+		 * Ver `direccion_sin_confirmar` en el estado.
+		 *
+		 * @param {object} state
+		 * @param {boolean} value
+		 */
+		set_direccion_sin_confirmar(state, value) {
+			state.direccion_sin_confirmar = !!value
 		},
 
 		// ── Envío por correo (Zipnova) ─────────────────────────────────────────────────────
@@ -957,22 +1014,7 @@ export default {
 		 * @param {string} value
 		 */
 		set_envio_zipcode(state, value) {
-			let zipcode = String(value || '').replace(/\s+/g, '').substring(0, 8)
-			if (zipcode === state.envio.zipcode) {
-				return
-			}
-			state.envio.zipcode = zipcode
-			state.envio.city = ''
-			state.envio.state = ''
-			state.envio.opciones = []
-			state.envio.opcion_key = null
-			state.envio.point_id = null
-			state.envio.items_firma = null
-			state.envio.envio_gratis = false
-			state.envio.incremental = null
-			state.envio.error = null
-			state.envio.needs_location = false
-			guardar_zipcode(zipcode)
+			cambiar_zipcode(state, value)
 		},
 		/**
 		 * Localidad y provincia del destino, cuando el código postal solo no alcanza
@@ -1476,6 +1518,7 @@ export default {
 				state.delivery_zone = null
 				// La dirección de entrega del pedido que se terminó tampoco queda colgada.
 				state.direccion_envio = null
+				state.direccion_sin_confirmar = false
 				resetear_envio(state)
 			}
 			console.log(state.cart)
