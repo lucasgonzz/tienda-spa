@@ -1,4 +1,5 @@
 import { env } from '@/runtime_config'
+import { envolver_echo } from '@/helpers/canales_en_vivo'
 /**
  * Conexión en vivo con Pusher (laravel-echo + pusher-js), PEREZOSA.
  *
@@ -80,12 +81,17 @@ export function conectar_echo() {
 		/* Por import() dinámico laravel-echo llega como módulo: la clase es el default. */
 		let Echo = modulos[0].default
 
-		echo = new Echo({
+		/*
+		 * Envuelta para que cada nombre de canal salga con el espacio de este sistema cuando
+		 * tienda-api lo pide (misión pusher-canales-por-sistema, 19/10/2026; ver
+		 * src/helpers/canales_en_vivo.js). Es la misma instancia: la config no cambia.
+		 */
+		echo = envolver_echo(new Echo({
 			broadcaster: 'pusher',
 			key: key,
 			cluster: env('VUE_APP_PUSHER_CLUSTER') || 'sa1',
 			forceTLS: false,
-		})
+		}))
 		return echo
 	})
 	.catch(err => {

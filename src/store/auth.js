@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import axios from 'axios'
 import { env } from '@/runtime_config'
+import { set_canales_en_vivo } from '@/helpers/canales_en_vivo'
 axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
 export default {
@@ -32,7 +33,22 @@ export default {
 		setUserDocument(state, value) {
 			state.user.document = value
 		},
+		/**
+		 * El comprador de la sesión (o null).
+		 *
+		 * Si trae `canales_en_vivo` (tienda-api desde la misión pusher-canales-por-sistema,
+		 * 19/10/2026), se guarda ANTES de asignar el estado: los watchers que reaccionan al
+		 * comprador nuevo pueden suscribir canales, y tienen que hacerlo ya con el espacio. Se
+		 * guarda en su propio módulo y no se borra con un comprador que no lo trae (ver
+		 * src/helpers/canales_en_vivo.js).
+		 *
+		 * @param {object} state
+		 * @param {object|null} user
+		 */
 		setUser(state, user) {
+			if (user && user.canales_en_vivo) {
+				set_canales_en_vivo(user.canales_en_vivo)
+			}
 			state.user = user
 		},
 		addAddress(state, value) {
