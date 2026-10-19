@@ -607,9 +607,13 @@ export default {
 		},
 		/**
 		 * Lo que le falta a la direccion de entrega (direcciones nuevas): que este elegida, y que
-		 * tenga calle, altura, localidad, provincia y —si el envio va por correo— codigo postal.
-		 * El buscador ya no deja confirmar una incompleta, pero una guardada de antes de que el
-		 * comercio conectara Zipnova puede no tener codigo postal.
+		 * tenga calle, altura, localidad y provincia. El buscador ya no deja confirmar una
+		 * incompleta; esto cubre una guardada vieja o una que vino del carrito del servidor.
+		 *
+		 * El codigo postal NO se le exige a la direccion: el que vale para el correo es el cotizado
+		 * (`envio.zipcode`), y una direccion guardada de antes de que el comercio conectara Zipnova
+		 * puede no tenerlo —ahi el cotizador muestra su input de siempre—. Si falta, lo marca
+		 * `envio_destino_faltantes()` como "Código postal" del destino.
 		 *
 		 * @returns {string} El texto para el aviso, o '' si esta todo.
 		 */
@@ -617,8 +621,7 @@ export default {
 			if (!this.cart_direccion_envio) {
 				return '¿A dónde te lo enviamos?'
 			}
-			// Sin opcion de correo elegida, el codigo postal no hace falta (forma propia o ninguna).
-			let faltantes = faltantes_de_direccion(this.cart_direccion_envio, this.envio_zipnova_elegido)
+			let faltantes = faltantes_de_direccion(this.cart_direccion_envio, false)
 			if (!faltantes.length) {
 				return ''
 			}
