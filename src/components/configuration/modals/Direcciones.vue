@@ -28,7 +28,8 @@ import { direcciones_activas } from '@/helpers/direcciones'
  * elegir la principal. Las mismas que ve en el checkout.
  *
  * Solo existe con `commerce.direcciones_de_envio` (la base del cliente tiene la tabla
- * `buyer_addresses`); si no, ni el modal ni su opción del menú se dibujan.
+ * `buyer_addresses`) y si el comercio ofrece envío a domicilio (`has_delivery`); si no, ni el
+ * modal ni su opción del menú se dibujan.
  *
  * El contenido se monta al abrir (`abierto`): la lista se pide recién ahí, y el buscador arranca
  * limpio cada vez.
@@ -44,8 +45,12 @@ export default {
 		}
 	},
 	computed: {
+		/* Mismo criterio que la opción del menú (Menu.vue): direcciones nuevas y envío a domicilio. */
 		direcciones_de_envio_activas() {
 			return direcciones_activas(this.commerce)
+				&& !!this.commerce.online_configuration
+				&& this.flag_activo(this.commerce.online_configuration.has_delivery)
+				&& !(this.user && this.$store.state.buyer_addresses.sin_cuenta_para === this.user.id)
 		},
 	},
 }
