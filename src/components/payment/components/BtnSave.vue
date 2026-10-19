@@ -179,9 +179,8 @@ export default {
 					// Direcciones nuevas (19/10/2026): tampoco hay input de una linea; va la direccion
 					// elegida en "¿A dónde te lo enviamos?", sin los datos de contacto del correo.
 					datos_buyer.address = linea_de_direccion(this.cart_direccion_envio)
-					if (!datos_buyer.ciudad) {
-						datos_buyer.ciudad = this.cart_direccion_envio.city
-					}
+					// La ciudad no se le pidio (Buyer.vue, `pide_ciudad`): es la de la direccion.
+					datos_buyer.ciudad = this.cart_direccion_envio.city || datos_buyer.ciudad
 				} else if (this.envio_zipnova_elegido) {
 					datos_buyer.address = this.envio_destino_texto()
 					if (!datos_buyer.ciudad) {
@@ -521,7 +520,10 @@ export default {
 			if (this.is_blank_field(buyer.email)) {
 				errors.push('Correo electrónico')
 			}
-			if (this.is_blank_field(buyer.ciudad)) {
+			// Con las direcciones nuevas y envio a domicilio la ciudad no se pide (Buyer.vue,
+			// `pide_ciudad`): es la localidad de la direccion elegida, que valida collect_envio_errors().
+			let ciudad_de_la_direccion = this.direcciones_de_envio_activas && this.cart.deliver == 1
+			if (!ciudad_de_la_direccion && this.is_blank_field(buyer.ciudad)) {
 				errors.push('Ciudad')
 			}
 			if (

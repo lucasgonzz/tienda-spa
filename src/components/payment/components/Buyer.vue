@@ -37,7 +37,13 @@
 			placeholder="tunombre@correo.com"></b-form-input>
 		</div>
 
-		<div class="checkout-field">
+		<!--
+			Con las direcciones de envio nuevas y envio a domicilio, la ciudad sale de la direccion que
+			elige en "¿A dónde te lo enviamos?" (ver pide_ciudad): no se la pide dos veces.
+		-->
+		<div
+		v-if="pide_ciudad"
+		class="checkout-field">
 			<label class="checkout-field__label">
 				Ciudad
 			</label>
@@ -127,6 +133,16 @@ export default {
 		 */
 		pide_direccion() {
 			return this.$store.state.cart.cart.deliver == 1 && !this.envio_zipnova_elegido && !this.direcciones_de_envio_activas
+		},
+		/**
+		 * Si hay que pedirle la ciudad: siempre, salvo con las direcciones de envio nuevas y envio a
+		 * domicilio, donde es la localidad de la direccion elegida (BtnSave la manda como `ciudad`
+		 * al identificar al comprador). Con retiro por el local se pide como siempre.
+		 *
+		 * @returns {boolean}
+		 */
+		pide_ciudad() {
+			return !(this.direcciones_de_envio_activas && this.$store.state.cart.cart.deliver == 1)
 		},
 	},
 	methods: {
