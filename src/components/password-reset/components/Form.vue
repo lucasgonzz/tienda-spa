@@ -24,7 +24,7 @@
 			<!-- El texto de instrucciones ya no es el label del b-form-group (uso raro,
 			se veia como etiqueta de campo): pasa a ser un parrafo propio arriba del campo. -->
 			<p class="login-form__step-instructions">
-				Ingresa tu correo para que te enviemos un código de recuperación.
+				Ingresá tu correo y te mandamos un código para que elijas una clave nueva.
 			</p>
 			<div class="login-form__field">
 				<label
@@ -65,7 +65,7 @@
 		<div
 		v-if="verification_code_send && !code_verified">
 			<p class="text-left">
-				Enviamos un código de verificación a {{ register_user.email }}, si no encuentras el correo revisa la lista de SPAM.
+				Te mandamos un código a {{ register_user.email }}. Si no lo ves, fijate en la carpeta de spam. El código vence en 30 minutos.
 			</p>
 			<div class="login-form__field">
 				<label
@@ -84,16 +84,22 @@
 					</span>
 					<!-- inputmode numeric + autocomplete one-time-code, texto centrado con
 					letter-spacing via la clase propia "verify-code__control": mismo tratamiento
-					que el codigo de verificacion del registro. -->
+					que el codigo de verificacion del registro. Es type="text" (y no "number") a
+					proposito: el codigo viaja como texto y el campo no se come los ceros ni deja
+					escribir una "e". El formatter deja solo digitos y corta en 6, que es lo que
+					puede mandar una API que todavia no genera codigos de 4. -->
 					<b-form-input
 					class="login-form__control verify-code__control"
 					v-model="register_user.verification_code"
-					type="number"
+					type="text"
+					:formatter="format_code"
+					maxlength="6"
 					@keyup.enter="checkVerificationCode"
 					id="password_reset_code"
 					inputmode="numeric"
+					pattern="[0-9]*"
 					autocomplete="one-time-code"
-					placeholder="Ingrese el código de verificacion"></b-form-input>
+					placeholder="Código de 4 dígitos"></b-form-input>
 				</div>
 			</div>
 			<b-button
@@ -106,13 +112,22 @@
 				text="Verificar"
 				:loader="loading_verification_code"></btn-loader>
 			</b-button>
+			<!-- Si el codigo murio (vencio, o se equivoco 5 veces) o nunca llego, se vuelve al paso 1
+			para pedir otro. -->
+			<div class="password-reset__new-code">
+				<b-button
+				@click="ask_for_new_code"
+				variant="link">
+					Pedir un código nuevo
+				</b-button>
+			</div>
 		</div>
 
 		<!-- Paso 3: escribir la clave nueva (con su confirmacion) -->
 		<div
 		v-if="verification_code_send && code_verified">
-			<p>
-				Ingrese su nueva contraseña.
+			<p class="text-left">
+				Elegí tu contraseña nueva. Tiene que tener al menos 6 caracteres.
 			</p>
 			<div class="login-form__field">
 				<label
@@ -192,7 +207,9 @@ export default {
 			return !this.register_user.terminos_y_condiciones
 		},
 		is_code_typed() {
-			if (this.register_user.verification_code.length < 6) {
+			// Desde el 20/10/2026 la API manda codigos de 4 digitos (los pide esta pantalla con
+			// `longitud_del_codigo`); una API que todavia no lo soporta manda 6. Se acepta desde 4.
+			if (this.register_user.verification_code.length < 4) {
 				return false
 			}
 			return true
@@ -236,15 +253,17 @@ export default {
 			if (this.checkForm()) {
 				this.loading = true
 				this.$axios.post('password-reset/send-verification-code', {
-					email       : this.register_user.email,
-					commerce_id : env('VUE_APP_COMMERCE_ID')
+					email       : this.register_user.email.trim(),
+					commerce_id : env('VUE_APP_COMMERCE_ID'),
+					// Pide el codigo de 4 digitos. La API que no conoce el campo lo ignora y manda uno de 6.
+					longitud_del_codigo : 4
 				})
 				.then(res => {
 					this.loading = false
 					if (res.data.email_send) {
 						this.verification_code_send = true
 					} else {
-						this.$toast.error('Revise su correo')
+						this.$toast.error('No encontramos una cuenta con ese correo en esta tienda. Revisalo e intentá de nuevo.')
 					}
 				})
 				.catch(err => {
@@ -273,12 +292,13 @@ export default {
 						this.code_verified = true
 					} else {
 						this.register_user.verification_code = ''
-						this.$toast.error('El codigo ingresado no es correcto')
+						this.$toast.error('El código no es correcto o ya venció. Revisalo; si te equivocás varias veces vas a tener que pedir uno nuevo.')
 					}
 				})
 				.catch(err => {
 					this.loading_verification_code = false
 					console.log(err)
+					this.$toast.error('No pudimos verificar el código. Probá de nuevo en unos minutos.')
 				})
 			}
 		},
@@ -297,6 +317,14 @@ export default {
 	        			this.recargar_articulos_con_la_sesion()
 	        			this.$router.push({name: 'Home'})
 					})
+					.catch(err => {
+						// La contraseña ya se cambio: si no se pudo leer la sesion, que entre con ella.
+						console.log(err)
+						this.$store.commit('auth/setLoading', false)
+						this.loading_update_password = false
+						this.$toast.success('Cambiamos tu contraseña. Ingresá con la nueva.')
+						this.$router.push({name: 'Login'})
+					})
 				})
 				.catch(err => {
 					this.loading_update_password = false
@@ -305,8 +333,31 @@ export default {
 					// venció, tienda-api responde 422 con `message` y hay que pedir uno nuevo.
 					let message = err && err.response && err.response.status == 422 && err.response.data && err.response.data.message
 					this.$toast.error(message || 'No pudimos cambiar la contraseña. Probá de nuevo en unos minutos.')
+					// El codigo ya no sirve (vencio o se agoto): hay que pedir uno nuevo desde el paso 1.
+					if (err && err.response && err.response.status == 422) {
+						this.ask_for_new_code()
+					}
 				})
 			}
+		},
+		/**
+		 * Deja solo digitos y corta en 6 (maximo que puede mandar una API sin codigos de 4).
+		 * Lo usa el b-form-input del codigo como formatter.
+		 */
+		format_code(value) {
+			return String(value).replace(/\D/g, '').slice(0, 6)
+		},
+		/**
+		 * Vuelve al paso 1 para pedir otro codigo: limpia el codigo y las contraseñas escritas,
+		 * y deja el correo para no tener que tipearlo de nuevo.
+		 */
+		ask_for_new_code() {
+			this.verification_code_send = false
+			this.code_verified = false
+			this.loading_update_password = false
+			this.register_user.verification_code = ''
+			this.register_user.password = ''
+			this.register_user.password_confirm = ''
 		},
 		checkForm() {
 			if (this.register_user.email == '') {
@@ -359,6 +410,15 @@ export default {
 	text-align: left
 	margin-bottom: 1rem
 
+// Link "Pedir un codigo nuevo" del paso 2: centrado debajo del boton de verificar.
+.password-reset__new-code
+	text-align: center
+	margin-top: 0.5rem
+	// Es un link de texto: sin la sombra ni el fondo que los botones de esta pantalla traen por defecto.
+	.btn-link
+		box-shadow: none !important
+		background: transparent !important
+
 // Codigo numerico corto: se lee mejor centrado y con un poco de separacion entre
 // caracteres que como texto libre alineado a la izquierda (mismo tratamiento que
 // src/components/register/components/VerifyCode.vue).
@@ -366,4 +426,8 @@ export default {
 	text-align: center !important
 	letter-spacing: 0.3em !important
 	font-weight: 600
+	// El texto de ayuda no lleva la separacion de los digitos: se leeria como letras sueltas.
+	&::placeholder
+		letter-spacing: normal
+		font-weight: 400
 </style>

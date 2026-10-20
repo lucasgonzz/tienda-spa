@@ -3,7 +3,7 @@
 	en vez de duplicar el markup viejo de b-row/b-col con el logo hardcodeado. -->
 	<auth-layout
 	title="Recuperar tu clave"
-	subtitle="Te enviamos un codigo para volver a entrar">
+	subtitle="Te mandamos un código por mail para que elijas una clave nueva">
 		<form-password-reset></form-password-reset>
 	</auth-layout>
 </template>
