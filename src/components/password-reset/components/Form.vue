@@ -269,11 +269,15 @@ export default {
 				.catch(err => {
 					console.log(err)
 					this.loading = false
+					// 429: demasiados intentos desde esta IP. Se avisa y se queda en el paso 1.
+					if (this.show_too_many_attempts(err)) {
+						return
+					}
 					// Desde el 14/10/2026 tienda-api responde 422 con `message` cuando el servidor de
 					// correo rechaza el envio del codigo (antes era un 500 y aca no se avisaba nada).
 					// Se muestra ese texto; ante cualquier otro error, uno generico.
-					// Solo el 422 trae un texto pensado para el comprador; cualquier otro `message` (un 500, un
-					// 419, un 429) es interno y no se muestra.
+					// Solo el 422 (y el 429 de arriba) trae un texto pensado para el comprador; cualquier otro
+					// `message` (un 500, un 419) es interno y no se muestra.
 					let message = err && err.response && err.response.status == 422 && err.response.data && err.response.data.message
 					this.$toast.error(message || 'No pudimos enviarte el código. Probá de nuevo en unos minutos.')
 				})
@@ -298,6 +302,10 @@ export default {
 				.catch(err => {
 					this.loading_verification_code = false
 					console.log(err)
+					// 429: demasiados intentos desde esta IP. Se avisa y se queda en el paso 2 con el codigo escrito.
+					if (this.show_too_many_attempts(err)) {
+						return
+					}
 					this.$toast.error('No pudimos verificar el código. Probá de nuevo en unos minutos.')
 				})
 			}
@@ -329,6 +337,11 @@ export default {
 				.catch(err => {
 					this.loading_update_password = false
 					console.log(err)
+					// 429: demasiados intentos desde esta IP. Se avisa y se queda en el paso 3: el codigo sigue
+					// vigente (no se gasto), asi que NO se manda a pedir uno nuevo.
+					if (this.show_too_many_attempts(err)) {
+						return
+					}
 					// Desde el 14/10/2026 la contraseña nueva se guarda solo con el código vigente: si
 					// venció, tienda-api responde 422 con `message` y hay que pedir uno nuevo.
 					let message = err && err.response && err.response.status == 422 && err.response.data && err.response.data.message
@@ -339,6 +352,24 @@ export default {
 					}
 				})
 			}
+		},
+		/**
+		 * Si el error es un 429 (el throttle por IP de tienda-api: demasiados pedidos seguidos desde
+		 * esta conexion), muestra el `message` de la API como toast de error (o un texto de respaldo
+		 * si no viniera) y devuelve true; con cualquier otro error no hace nada y devuelve false.
+		 * Quien llama apaga su loader y NO avanza de paso: la persona queda en la misma pantalla
+		 * y puede reintentar pasado el tiempo.
+		 *
+		 * @param  {Object} err  Error de axios del .catch.
+		 * @return {Boolean}     true si era un 429 y ya se aviso.
+		 */
+		show_too_many_attempts(err) {
+			if (!err || !err.response || err.response.status != 429) {
+				return false
+			}
+			let message = err.response.data && err.response.data.message
+			this.$toast.error(message || 'Hiciste demasiados intentos. Esperá unos minutos y volvé a probar.')
+			return true
 		},
 		/**
 		 * Deja solo digitos y corta en 6 (maximo que puede mandar una API sin codigos de 4).
