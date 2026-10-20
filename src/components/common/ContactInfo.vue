@@ -100,6 +100,9 @@ export default {
 		display: flex
 		flex-direction: column
 		align-items: center
+		.vue-horizontal-list
+			width: 100%
+			min-width: 0
 	.title 
 		font-size: 25px
 		margin: 25px 0 -15px
