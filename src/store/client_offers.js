@@ -1,5 +1,6 @@
 import axios from 'axios'
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+import { env } from '@/runtime_config'
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
 /**
  * Ofertas personalizadas del comprador logueado.
@@ -146,7 +147,7 @@ export default {
 				return Promise.resolve()
 			}
 			commit('setLoading', true)
-			return axios.get('/api/client-offers/' + process.env.VUE_APP_COMMERCE_ID)
+			return axios.get('/api/client-offers/' + env('VUE_APP_COMMERCE_ID'))
 			.then(res => {
 				if (state.buyer_id !== comprador) {
 					return

@@ -46,6 +46,12 @@ export default {
 			}
 		},
 		max() {
+			/* ignorar_stock: mismo criterio que hasStock() del mixin y que
+			   buy-box/Cantidad.vue (la UI que el comprador usa hoy; este control es
+			   legado y queda oculto detras de esa, pero se lo replica igual por las dudas). */
+			if (this.commerce.online_configuration.ignorar_stock) {
+				return null
+			}
 			if (
 				this.article.article_variants
 				&& this.article.article_variants.length 

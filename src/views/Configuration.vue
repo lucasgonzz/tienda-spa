@@ -4,6 +4,7 @@
 		<phone></phone>
 		<email></email>
 		<password></password>
+		<mis-direcciones></mis-direcciones>
 		<b-row
 		v-if="user">
 			<b-col
@@ -25,6 +26,7 @@ import Name from '@/components/configuration/modals/Name'
 import Phone from '@/components/configuration/modals/Phone'
 import Email from '@/components/configuration/modals/Email'
 import Password from '@/components/configuration/modals/Password'
+import MisDirecciones from '@/components/configuration/modals/Direcciones'
 export default {
 	components: {
 		UserData,
@@ -33,6 +35,7 @@ export default {
 		Phone,
 		Email,
 		Password,
+		MisDirecciones,
 	},
 	created() {
 		this.setTitle('Mi cuenta')

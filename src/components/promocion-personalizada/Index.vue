@@ -51,6 +51,7 @@
 import Tarjeta from '@/components/promocion-personalizada/Tarjeta'
 import Navegacion from '@/components/promocion-personalizada/Navegacion'
 import { firma_de_ofertas, esta_descartado, marcar_descartado } from '@/utils/promocion_personalizada'
+import { env } from '@/runtime_config'
 
 /*
  * Rutas donde el mensaje NO se abre solo: el carrito, el checkout y las pantallas de
@@ -423,7 +424,7 @@ export default {
 				name: 'Article',
 				params: {
 					slug: article.slug,
-					commerce_id: process.env.VUE_APP_COMMERCE_ID,
+					commerce_id: env('VUE_APP_COMMERCE_ID'),
 				},
 			})
 			if (navegacion && typeof navegacion.catch == 'function') {
@@ -452,7 +453,7 @@ export default {
 				return false
 			}
 			return String(this.$route.params.slug) == String(article.slug)
-				&& String(this.$route.params.commerce_id) == String(process.env.VUE_APP_COMMERCE_ID)
+				&& String(this.$route.params.commerce_id) == String(env('VUE_APP_COMMERCE_ID'))
 		},
 		/**
 		 * Cuantas unidades dejar precargadas en la ficha.
@@ -479,9 +480,14 @@ export default {
 				return null
 			}
 			let cantidad = Number(mejor_tramo.min)
-			let stock = Number(article.stock)
-			if (article.stock !== null && typeof article.stock != 'undefined' && !isNaN(stock) && stock < cantidad) {
-				cantidad = stock
+			/* ignorar_stock: sin tope que recortar -- mismo criterio que hasStock() del mixin,
+			   y consistente con que el chequeo de abajo YA saltea el recorte cuando
+			   article.stock es null (el criterio de "sin tope" de siempre). */
+			if (!this.commerce.online_configuration.ignorar_stock) {
+				let stock = Number(article.stock)
+				if (article.stock !== null && typeof article.stock != 'undefined' && !isNaN(stock) && stock < cantidad) {
+					cantidad = stock
+				}
 			}
 			if (cantidad < 1) {
 				return null

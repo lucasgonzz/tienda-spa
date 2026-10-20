@@ -39,6 +39,9 @@ export default {
 	img 
 		transition: width 0.25s ease-in
 		width: 80px
+		aspect-ratio: 1 / 1
+		object-fit: cover
+		border-radius: 50%
 		margin-left: 5px	
 	@media screen and (max-width: 992px) 
 		width: calc(100% - 2rem)

@@ -159,6 +159,7 @@
 </template>
 
 <script>
+import { env } from '@/runtime_config'
 export default {
 	components: {
 		BtnLoader: () => import('@/components/common/BtnLoader'),
@@ -215,7 +216,7 @@ export default {
 			this.loading = true
 			this.$api.post('mail-to-commerce', {
 				...this.form,
-				commerce_id: process.env.VUE_APP_COMMERCE_ID,
+				commerce_id: env('VUE_APP_COMMERCE_ID'),
 			})
 				.then(() => {
 					this.loading = false

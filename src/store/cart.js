@@ -1,13 +1,802 @@
  import Vue from 'vue'
 import axios from 'axios'
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+import { normalizar_provincia } from '@/constants/provincias'
+import { env } from '@/runtime_config'
+import { direcciones_activas, normalizar_direccion, codigo_postal_para_cotizar } from '@/helpers/direcciones'
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 axios.defaults.withCredentials = true
+
+/**
+ * Código postal con el que el comprador cotizó la última vez, guardado en el navegador para
+ * que no lo vuelva a escribir en cada visita. Lo único que se persiste del envío es esto:
+ * las opciones y el destino se piden de nuevo, porque cambian con el carrito.
+ *
+ * El try/catch no sobra: en modo privado o con el almacenamiento bloqueado `localStorage`
+ * tira, y un cotizador roto por eso sería un envío que nadie cotiza.
+ *
+ * @returns {string}
+ */
+function leer_zipcode_guardado() {
+	try {
+		return localStorage.getItem('envio_zipcode') || ''
+	} catch (e) {
+		return ''
+	}
+}
+
+/**
+ * Guarda el código postal en el navegador. Ver `leer_zipcode_guardado`.
+ *
+ * @param {string} zipcode
+ */
+function guardar_zipcode(zipcode) {
+	try {
+		if (zipcode) {
+			localStorage.setItem('envio_zipcode', zipcode)
+		} else {
+			localStorage.removeItem('envio_zipcode')
+		}
+	} catch (e) {
+		// Sin almacenamiento: el comprador lo escribe de nuevo la próxima vez, nada más.
+	}
+}
+
+/**
+ * Destinatario y dirección vacíos, con TODAS las claves que la API espera en
+ * `carts.envio_destino` (EnvioDestinoHelper::CLAVES). Se crea con una función y no con un
+ * objeto compartido para que resetear el envío no deje referencias viejas colgadas.
+ *
+ * @returns {object}
+ */
+function destino_vacio() {
+	return {
+		nombre: '',
+		apellido: '',
+		documento: '',
+		email: '',
+		telefono: '',
+		calle: '',
+		numero: '',
+		piso_depto: '',
+		localidad: '',
+		provincia: '',
+		codigo_postal: '',
+		referencia: '',
+		lat: null,
+		lng: null,
+	}
+}
+
+/**
+ * Estado inicial del envío por correo (Zipnova). Es UNO solo para toda la tienda: el
+ * cotizador de la página del artículo, el del carrito (que se monta dos veces) y el del
+ * checkout leen y escriben acá, nunca en su `data()`.
+ *
+ * @returns {object}
+ */
+function envio_inicial() {
+	return {
+		zipcode: leer_zipcode_guardado(),
+		/*
+		 * Localidad y provincia del destino. Desde el 17/9/2026 las devuelve SIEMPRE el servidor
+		 * en el 200 de `POST /api/envios/cotizar`, resueltas a partir del código postal (antes
+		 * quedaban vacías salvo que el comprador las hubiera escrito a mano después de un
+		 * `needs_location`). Son lo que se le muestra —"Envíos a Rosario, Santa Fe"—, lo que
+		 * precarga el destino del checkout y lo que se le guarda en el perfil.
+		 */
+		city: '',
+		state: '',
+		opciones: [],
+		opcion_key: null,
+		point_id: null,
+		/*
+		 * Firma de las líneas con las que se cotizaron `opciones` ("id|cantidad" ordenadas).
+		 * Cada cotizador la compara con la de lo que está mostrando: si difiere, las opciones
+		 * son de OTRO carrito (o de un artículo suelto) y hay que volver a cotizar. Es el
+		 * espejo del `items_hash` con el que el servidor decide si re-cotiza.
+		 */
+		items_firma: null,
+		envio_gratis: false,
+		/*
+		 * Bloque `incremental` de la última cotización, o null. Solo viene cuando se cotizó con
+		 * `articles_extra` (la ficha de un artículo con el carrito ya empezado): dice cuánto MÁS
+		 * cuesta el envío por sumar ese artículo, que es lo único que el comprador necesita saber
+		 * ahí —el envío es uno solo y ya lo está pagando—. Ver el docblock de `cotizar_envio`.
+		 */
+		incremental: null,
+		destino: destino_vacio(),
+		cotizando: false,
+		error: null,
+		needs_location: false,
+		/* Claves del destino que el servidor rechazó (422 `codigo: 'destino'`), para marcarlas. */
+		errores_destino: [],
+	}
+}
+
+/**
+ * Firma de un conjunto de líneas a cotizar: "id|cantidad" ordenadas y unidas con ";".
+ *
+ * @param {Array} lineas [{id, amount}, ...]
+ * @returns {string}
+ */
+export function firma_de_lineas(lineas) {
+	let partes = []
+	;(lineas || []).forEach(linea => {
+		partes.push(String(linea.id) + '|' + String(Number(linea.amount) || 0))
+	})
+	partes.sort()
+	return partes.join(';')
+}
+
+/**
+ * Líneas a cotizar a partir de los artículos del carrito, en la forma que pide
+ * `POST /api/envios/cotizar` (`articles: [{id, amount}]`). Las promociones de vinoteca quedan
+ * afuera: no son artículos y no tienen peso ni medidas propias.
+ *
+ * 🔴 Las líneas con cantidad 0 (o negativa, o no numérica) se DESCARTAN, y esto no es una
+ * prolijidad: el servidor exige `articles.*.amount >= 1` y una sola línea rara del carrito hacía
+ * fallar la cotización de CADA artículo que el comprador mirara, con un 422 que encima le echaba
+ * la culpa al código postal ("Revisá el código postal e intentá de nuevo").
+ *
+ * Y se descarta en vez de mandarse como 1 por dos motivos:
+ *
+ *   - una línea en 0 no es algo que el comprador esté comprando; contarla como un bulto infla el
+ *     envío de la base y deja la diferencia que se le muestra en la ficha MÁS BARATA que la real;
+ *   - es lo que el servidor ya hace con esa misma línea: `ZipnovaPaquetesHelper::items_desde_lineas`
+ *     castea a `(int)` y saltea la línea si queda por debajo de 1. Mandarla como 1 lo contradice.
+ *
+ * El truncado a entero es el mismo `(int)` del servidor, por la misma razón: que los dos lados
+ * cuenten los mismos bultos.
+ *
+ * ⚠️ Distinto es el 0 de la FICHA (el selector de cantidad arranca vacío): ese significa "todavía
+ * no eligió", no "cero unidades", y lo normaliza a 1 `lineas_normalizadas` en `Cotizador.vue`.
+ *
+ * @param {object} cart
+ * @returns {Array}
+ */
+export function lineas_del_carrito(cart) {
+	let lineas = []
+	if (!cart || !cart.articles) {
+		return lineas
+	}
+	cart.articles.forEach(article => {
+		let amount = article.amount
+		if ((amount === undefined || amount === null) && article.pivot) {
+			amount = article.pivot.amount
+		}
+		amount = Math.floor(Number(amount))
+		if (!isFinite(amount) || amount < 1) {
+			return
+		}
+		lineas.push({
+			id: article.id,
+			amount: amount,
+		})
+	})
+	return lineas
+}
+
+/**
+ * Cuánto dura en pantalla el aviso de artículos no disponibles. El default del plugin (3 s)
+ * no alcanza para leer una lista de nombres, y este aviso explica por qué cambió el carrito.
+ */
+const DURACION_DEL_AVISO_DE_NO_DISPONIBLES = 8000
+
+/**
+ * Artículos que el servidor declaró NO disponibles para este comprador, normalizados.
+ *
+ * Contrato C3 de la misión catalogo-por-lista-tienda (5/10/2026): cuando la lista de precios
+ * del comprador es restringida y en el carrito hay artículos que no están habilitados para
+ * esa lista, `POST/PUT /api/carts` los descarta y suma `articulos_no_disponibles: [{id, name}]`
+ * a la respuesta, y `POST /api/orders` responde 422 con `articulos: [{id, name}]`.
+ *
+ * 🔴 La clave es OPCIONAL y aditiva: una tienda-api vieja no la manda nunca, y la nueva solo
+ * cuando hubo descartes. Por eso cualquier cosa que no sea un array (undefined, null) vale
+ * como "no se descartó nada" y devuelve [], y todo lo que se arma encima no se ejecuta.
+ *
+ * @param {*} lista Lo que vino en la respuesta.
+ * @returns {Array} [{id, name}, ...], o [] si no vino nada.
+ */
+export function articulos_no_disponibles(lista) {
+	if (!Array.isArray(lista)) {
+		return []
+	}
+	return lista.filter(articulo => {
+		return !!articulo && typeof articulo === 'object'
+	})
+}
+
+/**
+ * Si un artículo está entre los que el servidor DESCARTÓ en un guardado del carrito, o sea, si
+ * ese guardado (`cart/save`, que resuelve con la lista de descartados) lo dejó afuera.
+ *
+ * Los ids se comparan como texto porque según el camino llegan como número o como string (mismo
+ * criterio que la mutación `quitar_articulos_no_disponibles`). Con `undefined`, `null` o una lista
+ * vacía —siempre, contra una tienda-api vieja— devuelve false.
+ *
+ * 🔴 Un combo o una promoción de vinoteca nunca está descartado: el catálogo por lista filtra solo
+ * ARTÍCULOS, y esas dos cosas tienen su propia secuencia de ids, así que el id de un combo puede
+ * coincidir con el de un artículo descartado y darle por perdido algo que sigue en el carrito.
+ *
+ * @param {Array|undefined} descartados Lo que resolvió `cart/save`.
+ * @param {object} articulo El artículo que se quiere saber si quedó afuera.
+ * @returns {boolean}
+ */
+export function articulo_fue_descartado(descartados, articulo) {
+	if (!articulo || articulo.id === undefined || articulo.id === null) {
+		return false
+	}
+	if (articulo.is_combo || articulo.is_promocion_vinoteca) {
+		return false
+	}
+	let id = String(articulo.id)
+	return articulos_no_disponibles(descartados).some(descartado => {
+		return String(descartado.id) === id
+	})
+}
+
+/**
+ * Si el carrito no tiene ninguna línea: ni artículos, ni promociones de vinoteca, ni combos.
+ * Acepta null: es lo que responde el PUT de `/api/carts` cuando descarta TODAS las líneas
+ * (borra el carrito y devuelve `cart: null`). El POST, en cambio, devuelve un carrito con los
+ * arrays vacíos; los dos casos cuentan como "sin líneas".
+ *
+ * Es la misma condición con la que `removeArticle` decide entre actualizar el carrito y
+ * borrarlo, y la que usa el aviso de artículos no disponibles para decir "tu carrito quedó
+ * vacío" en vez de pedirle al comprador que revise un total que ya no existe.
+ *
+ * @param {object|null} cart
+ * @returns {boolean}
+ */
+export function carrito_sin_lineas(cart) {
+	if (!cart) {
+		return true
+	}
+	return !(cart.articles && cart.articles.length)
+		&& !(cart.promociones_vinoteca && cart.promociones_vinoteca.length)
+		&& !(cart.combos && cart.combos.length)
+}
+
+/**
+ * Escapa un texto para meterlo en el mensaje de un toast.
+ *
+ * 🔴 No es prolijidad: vue-toast-notification dibuja el mensaje con `v-html`, y el nombre
+ * del artículo lo escribe el comerciante en el ERP. Un nombre con `<` o `&` se vería roto, y
+ * uno con una etiqueta se ejecutaría en la tienda.
+ *
+ * Se exporta para que mixins/cart.js escape también el `message` del 422 de
+ * `POST /api/orders` (puede traer nombres de artículos) sin duplicar la función.
+ *
+ * @param {*} texto
+ * @returns {string}
+ */
+export function escapar_html(texto) {
+	return String(texto)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;')
+}
+
+/**
+ * Cuántos nombres de artículo caben en el aviso. Con más, el resto se resume en "y N más":
+ * con 15 o 20 descartes la lista entera es un toast enorme en una pantalla de 360 px, y
+ * además queda 8 segundos a la vista (`DURACION_DEL_AVISO_DE_NO_DISPONIBLES`).
+ */
+const MAX_NOMBRES_EN_EL_AVISO = 3
+
+/**
+ * Cuántos caracteres de un nombre de artículo caben en el aviso. Uno más largo se recorta a sus
+ * primeros `MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO` caracteres y una "…". El tope de cantidad
+ * (`MAX_NOMBRES_EN_EL_AVISO`) no alcanza solo: un nombre de 130 caracteres entre los tres hacía un
+ * toast de 240 px de alto en un teléfono de 375 px de ancho (el 30 % de la pantalla), que tapaba el
+ * botón de login o la barra inferior durante 8 segundos.
+ */
+const MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO = 40
+
+/**
+ * Recorta el nombre de un artículo para el aviso: si tiene más de
+ * `MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO` caracteres, deja los primeros y agrega "…". Uno que mide
+ * justo ese largo, o menos, no se toca.
+ *
+ * 🔴 Se recorta el texto CRUDO, ANTES de escaparlo (`escapar_html` va después). Ya escapado, un `&`
+ * ocupa cinco caracteres, y cortar ahí podía dejar una entidad a la mitad ("&am…") que el toast
+ * dibuja como basura. Tampoco se corta un par sustituto (un emoji) por el medio: si el corte cae
+ * entre sus dos mitades, se descarta la que quedó sola. Y los espacios que quedan pegados a la "…"
+ * se sacan para que no diga "foo …".
+ *
+ * @param {*} nombre
+ * @returns {string} Sin escapar.
+ */
+function recortar_nombre(nombre) {
+	let texto = String(nombre)
+	if (texto.length <= MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO) {
+		return texto
+	}
+	let corte = texto.slice(0, MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO)
+	let ultimo = corte.charCodeAt(corte.length - 1)
+	if (ultimo >= 0xD800 && ultimo <= 0xDBFF) {
+		corte = corte.slice(0, -1)
+	}
+	return corte.replace(/\s+$/, '') + '…'
+}
+
+/**
+ * Arma la lista de nombres del aviso, en castellano: "A", "A y B", "A, B y C" o, si hay más
+ * de `MAX_NOMBRES_EN_EL_AVISO`, "A, B, C y 12 más".
+ *
+ * @param {Array} nombres Los nombres que vinieron, YA recortados y escapados (no todos los
+ *                        artículos traen nombre).
+ * @param {number} total Cuántos artículos se descartaron en total. Puede ser más que
+ *                       `nombres.length`: un artículo sin nombre igual entra en el "y N más".
+ * @returns {string} '' si ninguno trae nombre.
+ */
+function lista_de_nombres(nombres, total) {
+	let mostrados = nombres.slice(0, MAX_NOMBRES_EN_EL_AVISO)
+	if (!mostrados.length) {
+		return ''
+	}
+	let restantes = total - mostrados.length
+	if (restantes > 0) {
+		return mostrados.join(', ') + ' y ' + restantes + ' más'
+	}
+	if (mostrados.length == 1) {
+		return mostrados[0]
+	}
+	return mostrados.slice(0, -1).join(', ') + ' y ' + mostrados[mostrados.length - 1]
+}
+
+/**
+ * Texto del aviso de artículos no disponibles, con los nombres (hasta
+ * `MAX_NOMBRES_EN_EL_AVISO`, cada uno recortado a `MAX_LARGO_DE_UN_NOMBRE_EN_EL_AVISO`
+ * caracteres; si son más, "y N más").
+ *
+ * No dice "no está habilitado para tu lista" a propósito: el comprador no sabe (ni tiene por
+ * qué saber) qué lista de precios tiene, y para él la diferencia no cambia nada. Tampoco dice
+ * "para tu cuenta": el invitado no tiene cuenta. Es "ya no está disponible" a secas, en todos
+ * los textos (también en el del carrito que quedó vacío).
+ *
+ * @param {Array} articulos Ya normalizados con `articulos_no_disponibles()`.
+ * @param {boolean} antes_de_confirmar El aviso sale porque se frenó la confirmación del
+ *                                     pedido: se le aclara que el pedido NO se envió y que
+ *                                     tiene que volver a confirmarlo.
+ * @param {boolean} carrito_vacio Sacando esos artículos el carrito quedó sin ninguna línea
+ *                                (ver `carrito_sin_lineas()`). Cambia el texto: ya no hay un
+ *                                total que revisar ni nada que volver a confirmar.
+ * @returns {string}
+ */
+export function mensaje_de_articulos_no_disponibles(articulos, antes_de_confirmar, carrito_vacio) {
+	let nombres = []
+	articulos.forEach(articulo => {
+		if (articulo.name) {
+			// Primero se recorta el texto crudo y DESPUÉS se escapa: ver `recortar_nombre`.
+			nombres.push(escapar_html(recortar_nombre(articulo.name)))
+		}
+	})
+	let lista = lista_de_nombres(nombres, articulos.length)
+	let mensaje
+	if (carrito_vacio) {
+		/*
+		 * 🔴 Se descartó TODO lo que había. "Revisá el total y confirmalo de nuevo" sobre un
+		 * carrito vacío manda al comprador a confirmar algo que ya no existe. Según el guardado,
+		 * el servidor devuelve ese carrito como `cart: null` (lo hace el PUT, que lo borra, y
+		 * `setCart(null)` lo deja en blanco: se van también la forma de pago, la zona, el cupón y
+		 * el destino que había elegido) o como un carrito sin líneas (lo hace el POST). Se le dice
+		 * cómo quedó el carrito, sin pedirle que confirme nada.
+		 */
+		if (!lista) {
+			mensaje = 'Los productos de tu carrito ya no están disponibles y se quitaron. Tu carrito quedó vacío.'
+		} else if (articulos.length == 1) {
+			mensaje = lista + ' ya no está disponible y se quitó del carrito. Tu carrito quedó vacío.'
+		} else {
+			mensaje = lista + ' ya no están disponibles y se quitaron del carrito. Tu carrito quedó vacío.'
+		}
+	} else if (!lista) {
+		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles.'
+	} else if (articulos.length == 1) {
+		mensaje = 'Sacamos de tu carrito un producto que ya no está disponible: ' + lista + '.'
+	} else {
+		mensaje = 'Sacamos de tu carrito productos que ya no están disponibles: ' + lista + '.'
+	}
+	if (antes_de_confirmar) {
+		mensaje = 'Tu pedido todavía no se envió. ' + mensaje
+		if (!carrito_vacio) {
+			mensaje += ' Revisá el total y confirmalo de nuevo.'
+		}
+	}
+	return mensaje
+}
+
+/**
+ * Muestra el aviso de artículos no disponibles, si hay alguno. Es el único lugar que lo
+ * dibuja, así el texto y la duración son los mismos desde el store y desde el checkout.
+ *
+ * Usa `Vue.prototype.$toast` porque el store no es un componente: `Vue.use(VueToast)` de
+ * main.js lo deja ahí.
+ *
+ * @param {Array} articulos Ya normalizados con `articulos_no_disponibles()`.
+ * @param {boolean} antes_de_confirmar Ver `mensaje_de_articulos_no_disponibles`.
+ * @param {boolean} carrito_vacio Ver `mensaje_de_articulos_no_disponibles`.
+ * @returns {boolean} true si avisó.
+ */
+export function avisar_articulos_no_disponibles(articulos, antes_de_confirmar, carrito_vacio) {
+	if (!articulos.length) {
+		return false
+	}
+	Vue.prototype.$toast.error(mensaje_de_articulos_no_disponibles(articulos, antes_de_confirmar, carrito_vacio), {
+		duration: DURACION_DEL_AVISO_DE_NO_DISPONIBLES,
+	})
+	return true
+}
+
+/**
+ * Último aviso de descartes que mostró `descartados_del_guardado`: la firma de los artículos
+ * (ids ordenados, unidos por coma) y hasta cuándo sigue en pantalla (timestamp en ms).
+ *
+ * Existe por el login con carrito de invitado: el carrito se guarda DOS veces casi juntas
+ * (`checkCart` de mixins/auth.js y `getLastCart` de mixins/app.js, que corre desde el watcher
+ * de `authenticated`), y si las dos respuestas traen los mismos descartes saldrían dos avisos
+ * idénticos apilados. Ver `descartados_del_guardado`.
+ */
+let ultimo_aviso_de_descartes = { firma: '', hasta: 0 }
+
+/**
+ * Lee los descartes de la respuesta de un guardado del carrito (`POST/PUT /api/carts`) y,
+ * si corresponde, avisa. Va DESPUÉS del `setCart` de la respuesta: el aviso tiene que salir
+ * con el carrito ya corregido en pantalla, no con las líneas que dice que sacó.
+ *
+ * 🔴 El aviso se deduplica, los descartes NO. Si el mismo conjunto de artículos ya se avisó y
+ * ese aviso sigue en pantalla (la firma coincide y no pasó `hasta`), no se dibuja otro igual
+ * encima. Pero cada guardado devuelve SIEMPRE sus propios descartes: el checkout los usa para
+ * frenar la confirmación (`cortar_si_el_guardado_descarto` en mixins/cart.js), y ese freno no
+ * puede depender de si el aviso se mostró o no.
+ *
+ * `hasta` se actualiza solo cuando el aviso efectivamente se dibuja: así la ventana nunca se
+ * estira más allá del aviso que el comprador está viendo, y un descarte que se repite después
+ * de que el aviso se fue vuelve a avisarse.
+ *
+ * Todo esto corre solo si la respuesta trae la clave `articulos_no_disponibles`: con una
+ * tienda-api vieja (o sin descartes) no hay firma que calcular y no se toca nada.
+ *
+ * 🔴 Con descartes, además apaga el popup "Agregado al carrito" si el artículo que muestra es uno de
+ * ellos (`apagar_popup_del_agregado_descartado`), con `avisar` o sin él: el popup y el aviso no se
+ * pueden contradecir. Es independiente del aviso, así que no pasa por la deduplicación.
+ *
+ * @param {object} res Respuesta de axios.
+ * @param {boolean} avisar
+ * @param {Function} commit El `commit` del módulo, que le pasa la acción que guarda.
+ * @returns {Array} Los descartados (o []).
+ */
+function descartados_del_guardado(res, avisar, commit) {
+	let descartados = articulos_no_disponibles(res && res.data ? res.data.articulos_no_disponibles : null)
+	if (descartados.length) {
+		commit('apagar_popup_del_agregado_descartado', descartados)
+	}
+	if (avisar && descartados.length) {
+		let ids = []
+		descartados.forEach(articulo => {
+			ids.push(String(articulo.id))
+		})
+		ids.sort()
+		let firma = ids.join(',')
+		let ahora = Date.now()
+		if (firma !== ultimo_aviso_de_descartes.firma || ahora >= ultimo_aviso_de_descartes.hasta) {
+			// `cart` es el de la respuesta (`setCart` ya corrió): null (PUT) o sin líneas (POST) si se descartó todo.
+			avisar_articulos_no_disponibles(descartados, false, carrito_sin_lineas(res.data.cart))
+			ultimo_aviso_de_descartes = {
+				firma: firma,
+				hasta: ahora + DURACION_DEL_AVISO_DE_NO_DISPONIBLES,
+			}
+		}
+	}
+	return descartados
+}
+
+/**
+ * Ver la mutación `hidratar_envio_desde_cart`.
+ *
+ * @param {object} state Estado del módulo.
+ * @param {object} cart Carrito tal como lo devuelve la API.
+ */
+function hidratar_envio(state, cart) {
+	let cotizacion = cart ? cart.envio_cotizacion : null
+	if (!cotizacion || !Array.isArray(cotizacion.opciones)) {
+		return
+	}
+	state.envio.opciones = cotizacion.opciones
+	state.envio.items_firma = firma_de_lineas(lineas_del_carrito(cart))
+	// El snapshot guardado del carrito es el envío del carrito ENTERO: no hay diferencia contra
+	// nada. Si quedara colgada la de la última ficha, el carrito mostraría un cartel que no es suyo.
+	state.envio.incremental = null
+	// El snapshot trae `envio_gratis`; si es viejo y no lo trae, vale lo que diga la opción elegida.
+	state.envio.envio_gratis = cotizacion.envio_gratis !== undefined
+		? !!cotizacion.envio_gratis
+		: !!(cart.envio_opcion && cart.envio_opcion.envio_gratis)
+	if (cotizacion.zipcode) {
+		state.envio.zipcode = String(cotizacion.zipcode)
+		guardar_zipcode(state.envio.zipcode)
+	}
+	state.envio.city = cotizacion.city || ''
+	state.envio.state = cotizacion.state || ''
+	state.envio.opcion_key = cart.envio_opcion && cart.envio_opcion.key ? cart.envio_opcion.key : null
+	state.envio.point_id = cart.envio_opcion && cart.envio_opcion.point_id ? cart.envio_opcion.point_id : null
+	if (cart.envio_destino && typeof cart.envio_destino === 'object') {
+		// `point_id` vive en `envio.point_id`, no dentro del destino (se agrega al mandar).
+		let destino = Object.assign(destino_vacio(), cart.envio_destino)
+		delete destino.point_id
+		state.envio.destino = destino
+	}
+	state.envio.error = null
+	state.envio.needs_location = false
+	state.envio.errores_destino = []
+}
+
+/**
+ * Ver la mutación `set_envio_zipcode`. Vive afuera porque también la usa `set_direccion_envio`
+ * (la dirección elegida decide a qué código postal se cotiza).
+ *
+ * @param {object} state Estado del módulo.
+ * @param {string} value
+ */
+function cambiar_zipcode(state, value) {
+	let zipcode = String(value || '').replace(/\s+/g, '').substring(0, 8)
+	if (zipcode === state.envio.zipcode) {
+		return
+	}
+	state.envio.zipcode = zipcode
+	state.envio.city = ''
+	state.envio.state = ''
+	state.envio.opciones = []
+	state.envio.opcion_key = null
+	state.envio.point_id = null
+	state.envio.items_firma = null
+	state.envio.envio_gratis = false
+	state.envio.incremental = null
+	state.envio.error = null
+	state.envio.needs_location = false
+	guardar_zipcode(zipcode)
+}
+
+/**
+ * Ver la mutación `reset_envio`.
+ *
+ * @param {object} state Estado del módulo.
+ */
+function resetear_envio(state) {
+	let zipcode = state.envio.zipcode
+	state.envio = envio_inicial()
+	state.envio.zipcode = zipcode
+}
+
+/**
+ * Lo que viaja al servidor dentro del carrito como `envio` (EnvioCartHelper::sincronizar).
+ *
+ * 🔴 NUNCA lleva precio. El SPA manda la `opcion_key` que el comprador eligió y el destino; el
+ * precio que se cobra lo re-cotiza y guarda el servidor en `carts.envio_precio`. Sin envío a
+ * domicilio o sin opción elegida va `null`, y el servidor limpia las columnas.
+ *
+ * @param {object} state Estado del módulo.
+ * @returns {object|null}
+ */
+function payload_envio(state) {
+	if (Number(state.cart.deliver) !== 1 || !state.envio.opcion_key) {
+		return null
+	}
+	return {
+		zipcode: state.envio.zipcode,
+		city: state.envio.city || null,
+		state: state.envio.state || null,
+		opcion_key: state.envio.opcion_key,
+		point_id: state.envio.point_id,
+		destino: Object.assign({}, state.envio.destino, {
+			// El CP del destino es SIEMPRE el cotizado: es para ese código postal que vale el precio.
+			codigo_postal: state.envio.zipcode,
+			point_id: state.envio.point_id,
+		}),
+	}
+}
+
+/**
+ * Lo que viaja al servidor dentro del carrito como `direccion_envio` (misión
+ * formas-envio-direcciones-maps, 19/10/2026; CartController::sync_checkout_fields de tienda-api):
+ *
+ *   - `undefined` (la clave NO se manda): la tienda no tiene las direcciones nuevas
+ *     (`commerce.direcciones_de_envio` no es true). Una API vieja nunca la ve, y la nueva no toca
+ *     nada si no viene: el carrito viaja exactamente como antes.
+ *   - `null`: sin envío a domicilio, o todavía sin dirección elegida. El servidor limpia
+ *     `carts.buyer_address_id` y `carts.envio_direccion`.
+ *   - `{buyer_address_id}`: una dirección guardada en la cuenta del comprador. El servidor la
+ *     carga de SU base (y responde 422 `codigo: 'direccion'` si no es de este comprador): la
+ *     pantalla no puede mandarle otra cosa con el id de una suya.
+ *   - el objeto completo (invitado, vendedor cargando para un cliente, o comprador cuya lista no
+ *     se pudo cargar): el servidor lo normaliza con el mismo helper que las guardadas.
+ *
+ * @param {object} state Estado del módulo.
+ * @param {object} rootState Estado raíz (para el comercio).
+ * @returns {object|null|undefined}
+ */
+function payload_direccion_envio(state, rootState) {
+	if (!direcciones_activas(rootState.commerce ? rootState.commerce.commerce : null)) {
+		return undefined
+	}
+	if (Number(state.cart.deliver) !== 1 || !state.direccion_envio) {
+		return null
+	}
+	let direccion = normalizar_direccion(state.direccion_envio)
+	if (direccion.buyer_address_id) {
+		return { buyer_address_id: direccion.buyer_address_id }
+	}
+	return direccion
+}
+
+/**
+ * Copia la dirección elegida al destino del envío por correo (`envio.destino`), que es lo que el
+ * servidor usa para crear el envío en Zipnova. Con las direcciones nuevas el comprador ya no
+ * escribe calle, número, localidad ni provincia en DireccionEnvio.vue (ahí quedan solo los datos de
+ * contacto): salen de acá.
+ *
+ * El código postal se copia también (o se vacía, si la dirección no tiene uno válido: una guardada
+ * de antes de que el comercio conectara Zipnova), pero el que viaja es SIEMPRE el cotizado
+ * (`payload_envio`), y la cotización se arma con el de la dirección (`set_direccion_envio`).
+ *
+ * Se escribe directo con Vue.set, sin pasar por `set_envio_destino_field`: esa mutación borra
+ * lat/lng cuando cambia la calle, y acá las coordenadas son justamente las de esta dirección.
+ *
+ * @param {object} state Estado del módulo.
+ * @param {object} direccion Ya normalizada.
+ */
+function copiar_direccion_al_destino(state, direccion) {
+	let destino = state.envio.destino
+	Vue.set(destino, 'calle', direccion.street)
+	Vue.set(destino, 'numero', direccion.street_number)
+	Vue.set(destino, 'piso_depto', direccion.apartment)
+	Vue.set(destino, 'localidad', direccion.city)
+	Vue.set(destino, 'provincia', normalizar_provincia(direccion.province) || direccion.province)
+	Vue.set(destino, 'codigo_postal', codigo_postal_para_cotizar(direccion.zip_code))
+	Vue.set(destino, 'referencia', direccion.reference)
+	Vue.set(destino, 'lat', direccion.lat)
+	Vue.set(destino, 'lng', direccion.lng)
+	// Los campos de la dirección que el servidor había rechazado ya no son los de antes.
+	state.envio.errores_destino = state.envio.errores_destino.filter(clave => {
+		return ['calle', 'numero', 'piso_depto', 'localidad', 'provincia', 'codigo_postal', 'referencia'].indexOf(clave) === -1
+	})
+}
+
+/**
+ * Cuotas de Mercado Pago que ofrece una forma de pago de la tienda (mision
+ * tienda-cuotas-mercado-pago, 15/10/2026).
+ *
+ * Las manda `GET payment-methods/{commerce_id}` en `cuotas_disponibles`:
+ * `[{cantidad_cuotas: 3, recargo: "10.00"}, ...]`, donde `recargo` es el porcentaje NETO que ya
+ * resolvio el servidor (el recargo de la fila de cuotas del ERP menos su descuento), como string
+ * decimal. Viene ordenado por cantidad, pero aca no se confia en eso.
+ *
+ * 🔴 ES LO UNICO QUE DECIDE SI EXISTE EL SELECTOR DE CUOTAS. Una tienda-api vieja no manda el
+ * campo, una forma de pago que no es de Mercado Pago tampoco, y una de Mercado Pago sin vinculo o
+ * sin cuotas cargadas en el ERP lo manda `[]`: en los tres casos esto devuelve `[]` y el checkout
+ * es EXACTAMENTE el de antes — sin selector, sin `contado` ni `cuotas` en la preferencia, sin
+ * `cuotas` en el carrito.
+ *
+ * Una fila sin sentido (cantidad menor a 1 o no entera, recargo ausente, no numerico o negativo, o
+ * una cantidad repetida) se descarta en vez de dibujarse: la API valida igual contra su propia
+ * lista, asi que lo peor que puede pasar por descartar de mas es no mostrar una opcion.
+ *
+ * @param {object|null} metodo Forma de pago, tal como la lista el endpoint.
+ * @returns {Array} [{cantidad_cuotas: number, recargo: number}] ordenado por cantidad.
+ */
+export function cuotas_ofrecidas(metodo) {
+	if (!metodo || !metodo.type || metodo.type.name != 'MercadoPago') {
+		return []
+	}
+	if (!Array.isArray(metodo.cuotas_disponibles)) {
+		return []
+	}
+	let ofrecidas = []
+	let vistas = {}
+	metodo.cuotas_disponibles.forEach(fila => {
+		let cantidad = Number(fila ? fila.cantidad_cuotas : null)
+		let recargo = parseFloat(fila ? fila.recargo : null)
+		if (!Number.isInteger(cantidad) || cantidad < 1 || !isFinite(recargo) || recargo < 0 || vistas[cantidad]) {
+			return
+		}
+		vistas[cantidad] = true
+		ofrecidas.push({ cantidad_cuotas: cantidad, recargo: recargo })
+	})
+	ofrecidas.sort((a, b) => a.cantidad_cuotas - b.cantidad_cuotas)
+	return ofrecidas
+}
+
+/**
+ * La forma de pago elegida, pero con los datos que trae la LISTA del endpoint.
+ *
+ * 🔴 No alcanza con `state.payment_method`: cada guardado del carrito (`setCart`) lo reemplaza por
+ * el que devuelve el servidor dentro del carrito, y ese NO trae `cuotas_disponibles` (solo lo agrega
+ * `GET payment-methods`). Leer las cuotas del metodo "elegido" hacía desaparecer el selector, y
+ * antes de armar la preferencia: `pagar_con_mercado_pago()` guarda el carrito primero.
+ *
+ * @param {object|null} metodo La forma de pago elegida (la del store).
+ * @param {Array} lista Las formas de pago de la tienda (`state.payment_methods.models`).
+ * @returns {object|null}
+ */
+export function metodo_de_la_lista(metodo, lista) {
+	if (!metodo) {
+		return null
+	}
+	let de_la_lista = (lista || []).find(item => item.id == metodo.id)
+	return de_la_lista || metodo
+}
+
+/**
+ * Lo que el comprador tiene elegido en el selector de cuotas, validado contra lo que el metodo
+ * ofrece de verdad: `null` si no hay selector, `'contado'`, o la cantidad de cuotas (number).
+ *
+ * Sin eleccion previa, o con una cantidad que el metodo ya no ofrece (la lista se recargo), cae a
+ * 'contado': es lo que el comprador ve preseleccionado y lo que paga hoy.
+ *
+ * @param {string|number|null} elegida Lo guardado en `state.cuotas_elegidas`.
+ * @param {Array} ofrecidas Resultado de `cuotas_ofrecidas()`.
+ * @returns {string|number|null}
+ */
+export function cuota_elegida_efectiva(elegida, ofrecidas) {
+	if (!ofrecidas.length) {
+		return null
+	}
+	if (elegida !== 'contado' && ofrecidas.some(fila => fila.cantidad_cuotas === elegida)) {
+		return elegida
+	}
+	return 'contado'
+}
+
+/**
+ * Redondea a centavos como lo hace `round($x, 2)` de PHP: limpia primero el ruido del punto
+ * flotante (1.005 * 100 da 100.49999999999999 y se redondearia mal para abajo).
+ *
+ * @param {number|string} importe
+ * @returns {number}
+ */
+export function redondear_a_centavos(importe) {
+	return Math.round(Number((Number(importe) * 100).toPrecision(15))) / 100
+}
+
+/**
+ * Cuanto se paga con una fila de cuotas sobre lo que se cobraria hoy. Es la MISMA cuenta que hace la
+ * API (CuotasMercadoPagoHelper), pero acá es solo para MOSTRAR: lo que se cobra lo resuelve el
+ * servidor con el porcentaje de su base, y la SPA nunca lo manda.
+ *
+ *   recargo_monto = round(base * recargo / 100, 2)
+ *   total_cobrado = base + recargo_monto
+ *   valor_cuota   = round(total_cobrado / cantidad, 2)
+ *
+ * @param {number} base Total con el ajuste propio del metodo, los descuentos y el envio.
+ * @param {object} fila Una fila de `cuotas_ofrecidas()`.
+ * @returns {object} {cantidad_cuotas, recargo, recargo_monto, total_cobrado, valor_cuota}
+ */
+export function calcular_cuota(base, fila) {
+	let base_redondeada = redondear_a_centavos(base)
+	let recargo_monto = redondear_a_centavos(base_redondeada * fila.recargo / 100)
+	let total_cobrado = redondear_a_centavos(base_redondeada + recargo_monto)
+	return {
+		cantidad_cuotas: fila.cantidad_cuotas,
+		recargo: fila.recargo,
+		recargo_monto: recargo_monto,
+		total_cobrado: total_cobrado,
+		valor_cuota: redondear_a_centavos(total_cobrado / fila.cantidad_cuotas),
+	}
+}
+
 export default {
 	namespaced: true,
 	state: {
 		cart: {
 			articles: [],
 			promociones_vinoteca: [],
+			/*
+			 * Tercera colección del carrito, hermana de `promociones_vinoteca`. Un combo NO es
+			 * un artículo: tiene su propia secuencia de ids y su propio pivote (`cart_combo`),
+			 * así que mezclarlo con `articles` haría que un id repetido pise la línea de otro.
+			 */
+			combos: [],
 			deliver: 0,
 			description: '',
 			payment_id: '',
@@ -15,7 +804,10 @@ export default {
 			address_id: '',
 			payment_card_info_id: null,
 			fecha_entrega: 0,
+			envio: null,
 		},
+		/* Envío por correo (Zipnova): cotización, opción elegida y destino. Ver envio_inicial(). */
+		envio: envio_inicial(),
 		buyer: {
 			name: '',
 			email: '',
@@ -27,8 +819,37 @@ export default {
 		buyer_id: null,
 		selected_buyer: null,
 		payment_method: null,
+		/*
+		 * Lo que el comprador eligió en el selector de cuotas de Mercado Pago: null (no eligió
+		 * forma de pago, o la que eligió no ofrece cuotas), 'contado' o la cantidad de cuotas
+		 * (number). Para leerlo se pasa por cuota_elegida_efectiva(): el valor crudo puede estar
+		 * viejo (la lista de formas de pago se recargó y esa cantidad ya no se ofrece).
+		 */
+		cuotas_elegidas: null,
+		/*
+		 * El selector de cuotas no se puede tocar mientras el botón de confirmar trabaja (lo prende
+		 * BtnSave.vue con su `procesando`). Va en el store y no en el componente porque lo que hay
+		 * que proteger es `cuotas_elegidas`, que el flujo de confirmación lee DOS veces: en el
+		 * guardado del carrito que precede a la preferencia y en el que hace `makeOrder` antes de
+		 * crear el pedido. Si cambiara en el medio, Mercado Pago cobraría una cantidad de cuotas y el
+		 * pedido nacería con otra.
+		 */
+		cuotas_bloqueadas: false,
 		delivery_zone: null,
-		cupon: null,
+		/*
+		 * Dirección de entrega elegida en el checkout (misión formas-envio-direcciones-maps,
+		 * 19/10/2026): una guardada en la cuenta (con `buyer_address_id`) o la que cargó el
+		 * invitado. Forma del contrato (ver helpers/direcciones.js). Solo se usa con
+		 * `commerce.direcciones_de_envio`; viaja en el carrito con `payload_direccion_envio()`.
+		 */
+		direccion_envio: null,
+		/*
+		 * El comprador logueado tiene en el buscador una dirección NUEVA completa que todavía no
+		 * guardó con «Guardar y usar esta dirección» (lo avisa components/common/direcciones). Si
+		 * toca "Finalizar compra" así, BtnSave le dice que la confirme en vez de mandar el pedido
+		 * a la dirección que sigue elegida.
+		 */
+		direccion_sin_confirmar: false,
 		loading_last_cart: false,
 		saving: false,
 
@@ -48,6 +869,25 @@ export default {
 		set_added_item_popup_visible(state, value) {
 			state.added_item_popup_visible = value
 		},
+		/**
+		 * Apaga el popup "Agregado al carrito" si el artículo que muestra (`added_item`) es uno de los
+		 * que el servidor acaba de DESCARTAR por no estar disponible para este comprador
+		 * (catalogo-por-lista-tienda). Lo llama `descartados_del_guardado`, o sea cualquier guardado
+		 * del carrito que traiga descartes: el del login con carrito de invitado (`checkCart` de
+		 * mixins/auth.js, `getLastCart` de mixins/app.js), el del checkout o el de `removeArticle`.
+		 *
+		 * Sin esto el popup decía "Agregado al carrito — X" a la vez que el aviso decía que X se había
+		 * quitado. No se limpia `added_item`: ningún camino lo hace, y el popup no se dibuja sin
+		 * `added_item_popup_visible`; el próximo agregado lo pisa con `set_added_item`.
+		 *
+		 * @param {object} state
+		 * @param {Array} descartados [{id, name}, ...] lo que resolvió el guardado
+		 */
+		apagar_popup_del_agregado_descartado(state, descartados) {
+			if (state.added_item_popup_visible && articulo_fue_descartado(descartados, state.added_item)) {
+				state.added_item_popup_visible = false
+			}
+		},
 		setBuyer(state, value) {
 			state.buyer = value 
 		},
@@ -66,6 +906,14 @@ export default {
 			state.buyer_id = value 
 		},
 		set_selected_buyer(state, value) {
+			// Vendedor que cambia de cliente: la dirección de entrega elegida era la del cliente
+			// anterior (direcciones de envío, 19/10/2026). Se suelta para que cargue la del nuevo.
+			let antes = state.selected_buyer ? state.selected_buyer.id : null
+			let ahora = value ? value.id : null
+			if (antes !== ahora) {
+				state.direccion_envio = null
+				state.direccion_sin_confirmar = false
+			}
 			state.selected_buyer = value 
 		},
 		setDeliver(state, value) {
@@ -82,9 +930,253 @@ export default {
 		},
 		setPaymentMethod(state, value) {
 			state.payment_method = value
+			// Cambiar de forma de pago limpia lo que se había elegido de cuotas. Si la nueva ofrece
+			// cuotas queda "Contado" preseleccionado (lo que el comprador paga hoy); si no, null.
+			state.cuotas_elegidas = cuotas_ofrecidas(value).length ? 'contado' : null
+		},
+		/**
+		 * Elige entre "Contado" y una cantidad de cuotas en el selector de Mercado Pago.
+		 *
+		 * @param {object} state
+		 * @param {string|number|null} value 'contado' o la cantidad de cuotas.
+		 */
+		set_cuotas_elegidas(state, value) {
+			state.cuotas_elegidas = value
+		},
+		/**
+		 * Congela o libera el selector de cuotas. Ver `cuotas_bloqueadas` en el estado.
+		 *
+		 * @param {object} state
+		 * @param {boolean} value
+		 */
+		set_cuotas_bloqueadas(state, value) {
+			state.cuotas_bloqueadas = !!value
 		},
 		setDeliveryZone(state, value) {
 			state.delivery_zone = value
+			// Zona propia del negocio y opción de Zipnova nunca conviven (decisión §0.6 del plan):
+			// elegir una zona suelta la opción de correo que hubiera elegida.
+			if (value) {
+				state.envio.opcion_key = null
+				state.envio.point_id = null
+			}
+		},
+
+		/**
+		 * Elige la dirección de entrega (o la suelta con null). Además la copia al destino del
+		 * envío por correo: ver `copiar_direccion_al_destino`.
+		 *
+		 * No toca el código postal del cotizador: eso lo hace el cotizador del checkout al ver la
+		 * dirección nueva (Cotizador.vue, prop `direccion_envio`), que además vuelve a cotizar.
+		 *
+		 * @param {object} state
+		 * @param {object|null} direccion
+		 */
+		set_direccion_envio(state, direccion) {
+			if (!direccion) {
+				state.direccion_envio = null
+				return
+			}
+			let normalizada = normalizar_direccion(direccion)
+			state.direccion_envio = normalizada
+			copiar_direccion_al_destino(state, normalizada)
+			/*
+			 * 🔴 La cotización del correo tiene que ser para el código postal de ESTA dirección.
+			 * Con uno válido, se pone (y si es otro, se sueltan las opciones y la elegida: eran de
+			 * otro destino; el cotizador del checkout vuelve a cotizar). Sin código postal (una
+			 * guardada de antes de Zipnova), se suelta la cotización entera: si no, quedaba cotizado
+			 * al código postal de la dirección ANTERIOR y el paquete se cobraba a otro destino.
+			 */
+			cambiar_zipcode(state, codigo_postal_para_cotizar(normalizada.zip_code))
+		},
+		/**
+		 * Ver `direccion_sin_confirmar` en el estado.
+		 *
+		 * @param {object} state
+		 * @param {boolean} value
+		 */
+		set_direccion_sin_confirmar(state, value) {
+			state.direccion_sin_confirmar = !!value
+		},
+
+		// ── Envío por correo (Zipnova) ─────────────────────────────────────────────────────
+
+		/**
+		 * Código postal a cotizar. Cambiarlo invalida lo cotizado: las opciones eran para OTRO
+		 * destino, así que se vacían junto con la localidad resuelta y la opción elegida.
+		 *
+		 * 🔴 Vaciar `city` y `state` es obligatorio y no una prolijidad: la localidad la resolvió
+		 * el servidor para el código postal ANTERIOR, y si quedara colgada viajaría como pista en
+		 * la próxima cotización. Zipnova le da prioridad a la pareja localidad+provincia cuando
+		 * matchea su padrón, así que el comprador escribiría 5000 y se le cotizaría a Rosario.
+		 *
+		 * @param {object} state
+		 * @param {string} value
+		 */
+		set_envio_zipcode(state, value) {
+			cambiar_zipcode(state, value)
+		},
+		/**
+		 * Localidad y provincia del destino, cuando el código postal solo no alcanza
+		 * (`needs_location`) o cuando Zipnova las devuelve resueltas.
+		 *
+		 * @param {object} state
+		 * @param {object} payload { city, state }
+		 */
+		set_envio_localidad(state, payload) {
+			if (payload.city !== undefined) {
+				state.envio.city = payload.city || ''
+			}
+			if (payload.state !== undefined) {
+				state.envio.state = payload.state || ''
+			}
+		},
+		/**
+		 * Resultado de una cotización. Además de las opciones guarda para QUÉ líneas se cotizó
+		 * (`items_firma`) y precarga en el destino lo que ya se sabe (CP, localidad, provincia)
+		 * sin pisar lo que el comprador haya escrito.
+		 *
+		 * `city` y `state` del payload son los que resolvió Zipnova, y desde el 17/9/2026 vienen
+		 * llenos también cuando el comprador mandó solo el código postal: el servidor los resuelve
+		 * con el centinela de `ZipnovaCotizadorService` (tienda-api). Que pisen lo que el comprador
+		 * haya escrito es lo correcto —Zipnova sabe a dónde cotizó de verdad—, y si se equivocó de
+		 * localidad, el cotizador le deja corregirla con "No es mi localidad".
+		 *
+		 * Si la opción que estaba elegida sigue existiendo se conserva (re-cotización por cambio
+		 * de cantidades); si desapareció, se suelta para que la vuelva a elegir.
+		 *
+		 * @param {object} state
+		 * @param {object} payload { opciones, zipcode, city, state, envio_gratis, items_firma, incremental }
+		 */
+		set_envio_opciones(state, payload) {
+			state.envio.opciones = payload.opciones || []
+			state.envio.items_firma = payload.items_firma || null
+			state.envio.envio_gratis = !!payload.envio_gratis
+			// Sin `incremental` en el payload queda en null: es lo que corresponde para el
+			// carrito y el checkout, que cotizan el envío entero y no una diferencia.
+			state.envio.incremental = payload.incremental || null
+			if (payload.zipcode) {
+				state.envio.zipcode = String(payload.zipcode)
+				guardar_zipcode(state.envio.zipcode)
+			}
+			if (payload.city) {
+				state.envio.city = payload.city
+			}
+			if (payload.state) {
+				state.envio.state = payload.state
+			}
+			state.envio.error = null
+			state.envio.needs_location = false
+
+			let sigue = state.envio.opciones.find(opcion => {
+				return opcion.key == state.envio.opcion_key
+			})
+			if (!sigue) {
+				state.envio.opcion_key = null
+				state.envio.point_id = null
+			}
+
+			let destino = state.envio.destino
+			if (state.envio.zipcode) {
+				destino.codigo_postal = state.envio.zipcode
+			}
+			if (!destino.localidad && state.envio.city) {
+				destino.localidad = state.envio.city
+			}
+			if (!destino.provincia && state.envio.state) {
+				destino.provincia = normalizar_provincia(state.envio.state)
+			}
+		},
+		/**
+		 * Opción de Zipnova elegida por su `key`. Suelta la zona propia (§0.6) y la sucursal,
+		 * salvo que la opción nueva tenga UNA sola sucursal, que se elige sola.
+		 *
+		 * Volver a elegir la que YA está elegida no hace nada: la tarjeta entera es clickeable y
+		 * el comprador la toca de nuevo al elegir la sucursal o al corregir un campo, y eso no
+		 * puede borrarle la sucursal ni las marcas de error.
+		 *
+		 * @param {object} state
+		 * @param {string|null} key
+		 */
+		set_envio_opcion_key(state, key) {
+			if (key && key === state.envio.opcion_key) {
+				return
+			}
+			state.envio.opcion_key = key || null
+			state.envio.point_id = null
+			state.envio.errores_destino = []
+			if (!key) {
+				return
+			}
+			state.delivery_zone = null
+			let opcion = state.envio.opciones.find(opcion => {
+				return opcion.key == key
+			})
+			if (opcion && opcion.es_punto_de_retiro && opcion.puntos_de_retiro && opcion.puntos_de_retiro.length === 1) {
+				state.envio.point_id = opcion.puntos_de_retiro[0].point_id
+			}
+		},
+		set_envio_point_id(state, value) {
+			state.envio.point_id = value || null
+		},
+		/**
+		 * Un campo del destinatario/dirección. Vue.set por si el campo no existía (destinos
+		 * hidratados desde un carrito guardado con menos claves).
+		 *
+		 * @param {object} state
+		 * @param {object} payload { field, value }
+		 */
+		set_envio_destino_field(state, payload) {
+			Vue.set(state.envio.destino, payload.field, payload.value)
+			// El comprador está corrigiendo: el campo deja de estar marcado como rechazado.
+			let index = state.envio.errores_destino.indexOf(payload.field)
+			if (index !== -1) {
+				state.envio.errores_destino.splice(index, 1)
+			}
+			// La ubicación geocodificada era de OTRA dirección: si cambia la calle, el número, la
+			// localidad o la provincia, lat/lng dejan de valer hasta que se vuelva a geocodificar.
+			if (['calle', 'numero', 'localidad', 'provincia'].indexOf(payload.field) !== -1) {
+				Vue.set(state.envio.destino, 'lat', null)
+				Vue.set(state.envio.destino, 'lng', null)
+			}
+		},
+		set_envio_cotizando(state, value) {
+			state.envio.cotizando = !!value
+		},
+		set_envio_error(state, value) {
+			state.envio.error = value || null
+		},
+		set_envio_needs_location(state, value) {
+			state.envio.needs_location = !!value
+		},
+		set_envio_errores_destino(state, value) {
+			state.envio.errores_destino = Array.isArray(value) ? value : []
+		},
+		/**
+		 * Vuelve el envío a cero. Conserva SOLO el código postal (es lo que se guarda en el
+		 * navegador): el destino con nombre, DNI y teléfono no queda en memoria después de
+		 * un pedido, que en un comercio puede ser una computadora compartida.
+		 *
+		 * @param {object} state
+		 */
+		reset_envio(state) {
+			resetear_envio(state)
+		},
+		/**
+		 * Carga el envío desde un carrito que vino del servidor (`envio_cotizacion`,
+		 * `envio_opcion`, `envio_destino`): al volver a la tienda o después de cada guardado, lo
+		 * que muestra la pantalla es lo que el servidor tiene, con SU precio.
+		 *
+		 * Solo se hidrata si el carrito trae una cotización. Un carrito sin `envio_cotizacion`
+		 * puede venir de una API que todavía no conoce el envío (los dos lados no se despliegan
+		 * juntos) o de un carrito con retiro por el local: en ninguno de los dos hay que pisar lo
+		 * que el comprador tiene en pantalla.
+		 *
+		 * @param {object} state
+		 * @param {object} cart
+		 */
+		hidratar_envio_desde_cart(state, cart) {
+			hidratar_envio(state, cart)
 		},
 		setCardId(state, value) {
 			state.cart.card_id = value
@@ -98,15 +1190,24 @@ export default {
 		setPaymentStatus(state, value) {
 			state.cart.payment_status = value
 		},
-		setCupon(state, value) {
-			state.cupon = value
-		},
 		addItem(state, item) {
 
 			let is_promocion_vinoteca = item.is_promocion_vinoteca
+			let is_combo = item.is_combo
 			let index
 
-			if (is_promocion_vinoteca) {
+			/* Un carrito que vino de una API sin combos no trae la clave. Ver setCart(). */
+			if (!Array.isArray(state.cart.combos)) {
+				Vue.set(state.cart, 'combos', [])
+			}
+
+			if (is_combo) {
+
+				index = state.cart.combos.findIndex(combo => {
+					return combo.id == item.id
+				})
+
+			} else if (is_promocion_vinoteca) {
 
 				index = state.cart.promociones_vinoteca.findIndex(promo => {
 					return promo.id == item.id
@@ -121,18 +1222,122 @@ export default {
 			}
 
 			if (index != -1) {
-				if (is_promocion_vinoteca) {
+				if (is_combo) {
+					state.cart.combos.splice(index, 1)
+				} else if (is_promocion_vinoteca) {
 					state.cart.promociones_vinoteca.splice(index, 1)
 				} else {
 					state.cart.articles.splice(index, 1)
 				}
 			} else {
-				if (is_promocion_vinoteca) {
+				if (is_combo) {
+					state.cart.combos.push(item)
+				} else if (is_promocion_vinoteca) {
 					state.cart.promociones_vinoteca.push(item)
 				} else {
 					state.cart.articles.push(item)
 				}
 			}
+		},
+		/*
+		 * Cambia la cantidad de una linea que YA esta en el carrito, sin sacarla.
+		 *
+		 * 🔴 No se puede usar addItem para esto: addItem es un TOGGLE —si el articulo ya estaba,
+		 * lo saca—, asi que actualizar con el terminaria vaciando la linea. Existe para el
+		 * comprador invitado, cuyo carrito no se persiste hasta el checkout y por lo tanto no
+		 * tiene `id` contra el que pegarle a la API.
+		 *
+		 * El precio viaja desde el llamador porque el unitario sigue a la cantidad
+		 * (`article_price_ranges`): quien llama ya lo resolvio con `precio_por_cantidad()`, el
+		 * mismo helper que usa el alta. Para el comprador logueado esto no corre: ahi el precio
+		 * lo fija el servidor y vuelve en el setCart de la respuesta.
+		 */
+		update_item_amount(state, { item, amount, price, notes }) {
+
+			let coleccion
+
+			if (item.is_combo) {
+				coleccion = Array.isArray(state.cart.combos) ? state.cart.combos : []
+			} else if (item.is_promocion_vinoteca) {
+				coleccion = state.cart.promociones_vinoteca
+			} else {
+				coleccion = state.cart.articles
+			}
+
+			let index = coleccion.findIndex(linea => {
+				if (item.is_combo || item.is_promocion_vinoteca) {
+					return linea.id == item.id
+				}
+				/* Misma comparacion de variante que addItem: dos variantes del mismo articulo son
+				   dos lineas distintas. */
+				return linea.id == item.id && (!linea.pivot.variant_id || linea.pivot.variant_id == item.variant_id)
+			})
+
+			if (index == -1) {
+				return
+			}
+
+			/*
+			 * 🔴 LA LINEA SE REEMPLAZA ENTERA, no se le escriben los campos encima. Y no es
+			 * cuestion de estilo: sin esto el dato queda bien y la PANTALLA no se entera.
+			 *
+			 * El carrito del invitado lo arma `saveCart()` con asignaciones planas sobre un objeto
+			 * que Vue YA venia observando (`article.amount = ...`, `article.pivot = {...}`). En Vue 2
+			 * eso deja esas claves SIN getter reactivo, y `Vue.set` tampoco lo arregla: cuando la
+			 * clave ya existe se degrada a una asignacion comun. Medido en la tienda corriendo el
+			 * 17/9/2026, sobre la linea del carrito de un invitado:
+			 *
+			 *   linea.amount -> plana     linea.notes -> plana     linea.pivot -> plana, sin __ob__
+			 *   linea.price  -> REACTIVA (esa si vino de la API)
+			 *
+			 * O sea que escribir `pivot.amount` y `linea.amount` encima dejaba el numerito del icono
+			 * del carrito clavado en 1 despues de actualizar a 4.
+			 *
+			 * `Vue.set` sobre el INDICE del array si notifica —usa el splice parcheado, que dispara
+			 * el dep DEL ARRAY, que es justo del que dependen `cant_cart_items()` y `total()` de
+			 * mixins/cart.js porque los dos lo recorren— y ademas observa entero el objeto nuevo.
+			 * Los dos numeros se rehacen juntos.
+			 *
+			 * La identidad no importa: `get_item_cart()` y las tres busquedas de este archivo
+			 * matchean por `id`, nunca por referencia.
+			 */
+			let linea = coleccion[index]
+
+			/*
+			 * 🔴 LA CANTIDAD VIAJA DOS VECES, en el pivote y en la copia plana, y las DOS se
+			 * escriben. Es el invariante que `setCart()` sostiene unas mutaciones mas abajo
+			 * (`article.amount = article.pivot.amount`, idem `price` y `notes`) y que el alta del
+			 * invitado ya sostenia a mano en `saveCart()`. Media tienda lee la copia PLANA:
+			 *
+			 *   - `mixins/cart.js :: cant_cart_items()`  -> el numerito del icono del carrito
+			 *   - `article-card/body/Cantidad.vue`       -> el "Cantidad: N" de la linea
+			 *   - `article-card/body/CartInfo.vue`       -> el subtotal de la linea
+			 *   - `mixins/articles.js :: checkCartArticleAmount()` -> con que cantidad vuelve a
+			 *     abrir la ficha
+			 *
+			 * mientras que `mixins/cart.js :: total()` suma por el PIVOTE. Escribir uno solo deja los
+			 * dos numeros peleados, y el que queda mal es el que el comprador ve: medido el 17/9/2026
+			 * con un articulo de $27.999 agregado en 1 y actualizado a 4, la linea decia
+			 * "Cantidad: 1" y el resumen "1 producto / 1 unidad" con el TOTAL en $111.996,00 —las 4.
+			 * La pantalla mostraba una unidad y el total cobraba cuatro.
+			 */
+			let pivot_nuevo = Object.assign({}, linea.pivot, { amount: amount })
+			let linea_nueva = Object.assign({}, linea, { amount: amount })
+
+			/* `price` y `notes` solo pisan si el llamador los mando, y van a los dos lugares. */
+			if (price !== null && typeof price != 'undefined') {
+				pivot_nuevo.price = price
+				linea_nueva.price = price
+			}
+
+			if (typeof notes != 'undefined') {
+				pivot_nuevo.notes = notes
+				linea_nueva.notes = notes
+			}
+
+			linea_nueva.pivot = pivot_nuevo
+
+			Vue.set(coleccion, index, linea_nueva)
 		},
 		removeArticle(state, {item, remove_only_one_amount }) {
 			if (remove_only_one_amount == undefined) {
@@ -140,9 +1345,19 @@ export default {
 			}
 
 			let is_promocion_vinoteca = item.is_promocion_vinoteca
+			let is_combo = item.is_combo
 
-			let index 
-			if (is_promocion_vinoteca) {
+			if (!Array.isArray(state.cart.combos)) {
+				Vue.set(state.cart, 'combos', [])
+			}
+
+			let index
+			if (is_combo) {
+				console.log('eliminado combo')
+				index = state.cart.combos.findIndex(combo => {
+					return combo.id == item.id
+				})
+			} else if (is_promocion_vinoteca) {
 				console.log('eliminado promocion vinoteca')
 				index = state.cart.promociones_vinoteca.findIndex(promo => {
 					return promo.id == item.id
@@ -153,19 +1368,39 @@ export default {
 					return article.id == item.id
 				})
 			}
-			
+
+			/*
+				🔴 findIndex devuelve -1 cuando no encontro nada, y abajo ese -1 no seria inocuo:
+				`splice(-1, 1)` cuenta desde el final y borra la ULTIMA linea del carrito -- una
+				que el comprador no pidio sacar --, y `Vue.set(coleccion[-1], ...)` escribe sobre
+				undefined. O sea que el sintoma de "no lo encontre" seria borrar el item
+				equivocado, sin un solo error en consola.
+
+				Es el mismo defecto que esta misma rama tapo del otro lado, en el store de VENDER
+				de empresa-spa (removeItem / updateItem matcheaban por id pelado). Aca la guarda va
+				una sola vez y arriba, asi cubre las tres colecciones.
+			*/
+			if (index === -1) {
+				return
+			}
+
 			if (item.amount > 1 && remove_only_one_amount) {
 				let new_amount = item.amount
 				new_amount--
 				delete item.amount
 
-				if (is_promocion_vinoteca) {
+				if (is_combo) {
+					Vue.set(state.cart.combos[index], 'amount', new_amount)
+				} else if (is_promocion_vinoteca) {
 					Vue.set(state.cart.promociones_vinoteca[index], 'amount', new_amount)
 				} else {
 					Vue.set(state.cart.articles[index], 'amount', new_amount)
 				}
 			} else {
-				if (is_promocion_vinoteca) {
+				if (is_combo) {
+					console.log('se elimino el combo')
+					state.cart.combos.splice(index, 1)
+				} else if (is_promocion_vinoteca) {
 					console.log('se lo eliminio promo')
 					state.cart.promociones_vinoteca.splice(index, 1)
 				} else {
@@ -173,9 +1408,53 @@ export default {
 					state.cart.articles.splice(index, 1)
 				}
 			}
-		},	
+		},
+		/**
+		 * Saca del carrito LOCAL todas las líneas de los artículos que el servidor rechazó por
+		 * no estar disponibles para este comprador (422 `articulos_no_disponibles` de
+		 * `POST /api/orders`, ver `manejar_articulos_no_disponibles` en mixins/cart.js).
+		 *
+		 * 🔴 Sin esto el reintento pega el MISMO 422: el checkout vuelve a guardar el carrito
+		 * del store con esas líneas adentro. Sacándolas acá, el próximo `cart/save` manda el
+		 * carrito sin ellas.
+		 *
+		 * Se filtra por id y se sacan TODAS las líneas del artículo, no la primera: dos
+		 * variantes del mismo artículo son dos líneas con el mismo `id` (ver addItem), y la
+		 * mutación `removeArticle` solo saca la primera que encuentra. Los ids se comparan como
+		 * texto porque según el camino llegan como número o como string.
+		 *
+		 * Solo toca `articles`: los combos y las promociones de vinoteca no son artículos y el
+		 * catálogo por lista no los filtra.
+		 *
+		 * @param {object} state
+		 * @param {Array} articulos [{id, name}, ...]
+		 */
+		quitar_articulos_no_disponibles(state, articulos) {
+			let ids = []
+			;(articulos || []).forEach(articulo => {
+				if (articulo && articulo.id !== undefined && articulo.id !== null) {
+					ids.push(String(articulo.id))
+				}
+			})
+			if (!ids.length || !state.cart || !Array.isArray(state.cart.articles)) {
+				return
+			}
+			state.cart.articles = state.cart.articles.filter(article => {
+				return ids.indexOf(String(article.id)) === -1
+			})
+		},
 		setCart(state, cart = null) {
 			if (cart) {
+				/*
+				 * 🔴 Una API que todavía no conoce los combos —o un cliente al que todavía no
+				 * le llegó la migración de `cart_combo`— NO manda esta clave. Sin normalizarla
+				 * acá, `state.cart.combos` queda undefined y revienta el primer `.forEach` o
+				 * `.length` que la toque. Se normaliza ANTES de asignar el carrito para que Vue
+				 * la haga reactiva al recorrer el objeto.
+				 */
+				if (!Array.isArray(cart.combos)) {
+					cart.combos = []
+				}
 				state.cart = cart
 				cart.articles.forEach(article => {
 					article.amount = article.pivot.amount
@@ -187,23 +1466,60 @@ export default {
 					promo.price = promo.pivot.price
 					promo.notes = promo.pivot.notes
 				})
-				state.payment_method = cart.payment_method 
-				state.delivery_zone = cart.delivery_zone 
-				state.cupon = cart.cupon 
+				cart.combos.forEach(combo => {
+					combo.amount = combo.pivot.amount
+					combo.price = combo.pivot.price
+					combo.notes = combo.pivot.notes
+				})
+				state.payment_method = cart.payment_method
+				state.delivery_zone = cart.delivery_zone
+				// Envío por correo guardado en el servidor (si lo hay): ver hidratar_envio_desde_cart.
+				hidratar_envio(state, cart)
+				/*
+				 * Dirección de entrega guardada en el carrito (direcciones de envío, 19/10/2026). Solo
+				 * si la respuesta trae la clave: una API vieja no la manda y ahí no hay que pisar lo
+				 * que el comprador eligió en pantalla. Con la clave en null (retiro por el local, o
+				 * todavía sin elegir) se suelta: lo que se ve es lo que el servidor tiene.
+				 *
+				 * Se copia también al destino del correo, aunque `hidratar_envio` ya lo haya cargado
+				 * desde `envio_destino`: ese solo se hidrata si el carrito trae una cotización, y un
+				 * carrito con una forma propia elegida no la trae. Si después el comprador se pasa a
+				 * un correo, el destino tiene que tener la dirección que ve elegida (los campos de
+				 * calle y localidad ya no están en pantalla para completarlos a mano).
+				 */
+				if (cart.envio_direccion !== undefined) {
+					if (cart.envio_direccion && typeof cart.envio_direccion === 'object') {
+						let guardada = Object.assign({}, cart.envio_direccion)
+						if (cart.buyer_address_id) {
+							guardada.buyer_address_id = cart.buyer_address_id
+						}
+						state.direccion_envio = normalizar_direccion(guardada)
+						copiar_direccion_al_destino(state, state.direccion_envio)
+					} else {
+						state.direccion_envio = null
+					}
+				}
 			} else {
 				state.cart = {
 					articles: [],
 					promociones_vinoteca: [],
+					combos: [],
 					deliver: 0,
 					description: '',
 					payment_id: '',
 					address_id: '',
 					payment_card_info_id: null,
 					fecha_entrega: 0,
+					envio: null,
 				}
 				state.payment_method = null
-				state.delovery_zone = null
-				state.cupon = null
+				state.cuotas_elegidas = null
+				// Hasta el 14/9/2026 decia `delovery_zone`: la zona elegida sobrevivia al vaciado.
+				state.delivery_zone = null
+				// La dirección de entrega del pedido que se terminó tampoco queda colgada.
+				state.direccion_envio = null
+				state.direccion_sin_confirmar = false
+				resetear_envio(state)
 			}
 			console.log(state.cart)
 		},
@@ -215,21 +1531,81 @@ export default {
 		},
 	},
 	actions: {
-		save({ state, commit }) {
+		/**
+		 * Guarda el carrito: `POST /api/carts` si todavía no tiene `id`, `PUT` si ya lo tiene, y
+		 * reemplaza el del store con el que devuelve el servidor.
+		 *
+		 * Resuelve con la lista de artículos que el servidor DESCARTÓ por no estar disponibles
+		 * para este comprador (`[{id, name}]`, ver `articulos_no_disponibles()`), o con [] si no
+		 * descartó nada —que es SIEMPRE el caso contra una tienda-api vieja—. Hasta el 5/10/2026
+		 * resolvía con undefined y ningún llamador miraba el valor, así que sumarlo no cambia a
+		 * nadie; el checkout lo usa para no confirmar un pedido distinto del que el comprador vio.
+		 *
+		 * Si hubo descartes, avisa con un toast con los nombres, salvo que el llamador pida
+		 * `{avisar_no_disponibles: false}` porque va a dar él un aviso más preciso (el checkout).
+		 * Si el mismo aviso ya está en pantalla no se repite (login con carrito de invitado, que
+		 * guarda dos veces casi juntas): ver `descartados_del_guardado`. El valor que resuelve no
+		 * se deduplica nunca: cada guardado devuelve los descartes de SU respuesta.
+		 *
+		 * Cada llamada sale por su lado, igual que antes de esta misión: no espera a otro
+		 * guardado en vuelo. (Que el login con carrito de invitado pueda crear dos carritos si el
+		 * segundo guardado sale antes de que vuelva el primero es anterior a esto y no se toca.)
+		 *
+		 * @param {object} context
+		 * @param {object|undefined} opciones { avisar_no_disponibles?: boolean }
+		 * @returns {Promise<Array>}
+		 */
+		save({ state, commit, rootState }, opciones) {
+			let avisar = !(opciones && opciones.avisar_no_disponibles === false)
 			if (state.payment_method) {
 				state.cart.payment_method_id = state.payment_method.id
 			} else {
 				state.cart.payment_method_id = null
 			}
-			if (state.cupon) {
-				state.cart.cupon_id = state.cupon.id
-			} else {
-				state.cart.cupon_id = null
+			/*
+			 * Cuotas de Mercado Pago (15/10/2026): `carts.cuotas` es la cantidad que el comprador
+			 * eligió, o null si eligió "Contado" o la forma de pago no ofrece cuotas. Se lee de la
+			 * lista de formas de pago y no de `state.payment_method` (ver metodo_de_la_lista).
+			 *
+			 * 🔴 La clave SOLO se escribe si la forma de pago ofrece cuotas, o si el carrito ya la
+			 * trae (la API nueva la devuelve en null): contra una API vieja, o con una forma de pago
+			 * sin cuotas, el carrito viaja EXACTAMENTE como antes. Y cuando ya la trae, se pone en
+			 * null: cambiar de Mercado Pago con cuotas a otra forma de pago no puede dejar guardada
+			 * la cantidad vieja.
+			 */
+			let cuotas_ofrecidas_del_metodo = cuotas_ofrecidas(metodo_de_la_lista(
+				state.payment_method,
+				rootState.payment_methods ? rootState.payment_methods.models : []
+			))
+			let cuota_elegida = cuota_elegida_efectiva(state.cuotas_elegidas, cuotas_ofrecidas_del_metodo)
+			if (typeof cuota_elegida === 'number') {
+				state.cart.cuotas = cuota_elegida
+			} else if (state.cart.cuotas !== undefined || cuota_elegida === 'contado') {
+				state.cart.cuotas = null
 			}
+			/*
+			 * Cupones: la tienda ya no los tiene (14/10/2026, mision tiendas-demo-y-limpieza-tienda).
+			 * `cupon_id` se sigue mandando, pero SIEMPRE en null, y no es un resto: un carrito
+			 * guardado por una tienda vieja puede volver de la API con su `cupon_id` puesto, y
+			 * reenviado tal cual la API seguiria descontando un cupon que la pantalla ya no muestra
+			 * (MercadoPagoController usa `$cart->cupon` y OrderController copia `cart.cupon_id` al
+			 * pedido). Con null, CartController lo deja en null: la API vieja y la nueva lo aceptan.
+			 */
+			state.cart.cupon_id = null
 			if (state.delivery_zone) {
 				state.cart.delivery_zone_id = state.delivery_zone.id
 			} else {
 				state.cart.delivery_zone_id = null
+			}
+			// Envío por correo (Zipnova): la opción elegida y el destino, sin precio. Ver payload_envio().
+			state.cart.envio = payload_envio(state)
+			// Dirección de entrega (direcciones de envío, 19/10/2026). Sin la feature la clave no
+			// viaja: ver payload_direccion_envio().
+			let direccion_envio = payload_direccion_envio(state, rootState)
+			if (direccion_envio === undefined) {
+				delete state.cart.direccion_envio
+			} else {
+				state.cart.direccion_envio = direccion_envio
 			}
 			console.log('carrito antes de guardar:')
 			console.log(state.cart)
@@ -237,12 +1613,13 @@ export default {
 				commit('setSaving', true)
 				return axios.post('/api/carts', {
 					cart	    : state.cart,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID 
+					commerce_id : env('VUE_APP_COMMERCE_ID') 
 				})
 				.then(res => {
 					commit('setSaving', false)
 					console.log('Carrito creado')
 					commit('setCart', res.data.cart)
+					return descartados_del_guardado(res, avisar, commit)
 				})
 				.catch(err => {
 					commit('setSaving', false)
@@ -256,6 +1633,7 @@ export default {
 					commit('setSaving', false)
 					console.log('Carrito actualizado')
 					commit('setCart', res.data.cart)
+					return descartados_del_guardado(res, avisar, commit)
 				})
 				.catch(err => {
 					commit('setSaving', false)
@@ -266,7 +1644,7 @@ export default {
 		},
 		getLastCart({ commit, state }) {
 			commit('setLoadingLastCart', true)
-			return axios.get(`/api/carts/last-cart/${process.env.VUE_APP_COMMERCE_ID}`)
+			return axios.get(`/api/carts/last-cart/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
 				console.log('getLastCart')
 				commit('setLoadingLastCart', false)
@@ -285,11 +1663,18 @@ export default {
 			if (
 				state.cart.articles.length
 				|| state.cart.promociones_vinoteca.length
+				|| (state.cart.combos && state.cart.combos.length)
 			) {
+				// Sin esto el servidor leería un carrito SIN `envio` y limpiaría la forma de envío
+				// elegida: sacar un artículo cambia el costo, pero no tiene por qué borrar la elección.
+				// El servidor re-cotiza solo (cambió el hash de líneas) y conserva la opción si sigue.
+				state.cart.envio = payload_envio(state)
 				axios.put('/api/carts', state.cart)
 				.then(res => {
 					console.log('Carrito actualizado')
 					commit('setCart', res.data.cart)
+					// Mismo PUT que `save`: si el servidor descartó algo de lo que quedó, se avisa.
+					descartados_del_guardado(res, true, commit)
 				})
 				.catch(err => {
 					console.log(err)
@@ -305,5 +1690,95 @@ export default {
 				})
 			}
 		},	
+		/**
+		 * Cotiza el envío por correo contra `POST /api/envios/cotizar` con el código postal (y la
+		 * localidad/provincia si ya se resolvieron) del store.
+		 *
+		 * Se cotiza `articles` (líneas `{id, amount}`) y, si el carrito ya está guardado, también
+		 * `cart_id`: el servidor puede leer las líneas y el subtotal de cualquiera de los dos. Lo
+		 * que vuelve son las opciones YA normalizadas y con el precio que cobra el servidor: acá
+		 * no se calcula nada. Vuelven también `city` y `state`: la localidad y la provincia que
+		 * Zipnova resolvió para ese código postal, aunque el comprador no haya escrito ninguna.
+		 *
+		 * `city`/`state` se mandan solo si el comprador ya los tiene: son una PISTA para Zipnova,
+		 * que le gana al código postal cuando la pareja matchea su padrón. Sin ellos, el servidor
+		 * resuelve por el código postal solo, que es el caso normal.
+		 *
+		 * `articles_extra` son las líneas que el comprador está por AGREGAR (la ficha del
+		 * artículo, con la cantidad que eligió) sobre lo que ya tiene. Con eso el servidor cotiza
+		 * dos veces —el carrito solo y el carrito con el artículo—, devuelve las opciones del
+		 * conjunto (es lo que va a pagar si agrega) y suma un bloque `incremental` con la
+		 * diferencia. Sin `articles_extra` la respuesta es la de siempre.
+		 *
+		 * 🔴 La firma (`items_firma`) se arma con las DOS listas juntas: si se armara solo con
+		 * `articles`, dos fichas distintas sobre el mismo carrito tendrían la misma firma y la
+		 * segunda mostraría la diferencia de la primera.
+		 *
+		 * Resuelve con la respuesta. Rechaza con el error de axios para que el cotizador decida
+		 * qué hacer (por ejemplo, intentar resolver la localidad con Google Maps ante
+		 * `needs_location`); el mensaje legible ya queda en `envio.error`.
+		 *
+		 * @param {object} context
+		 * @param {object} payload { articles: [{id, amount}], articles_extra?: [{id, amount}], cart_id?: number }
+		 * @returns {Promise}
+		 */
+		cotizar_envio({ state, commit }, payload) {
+			let articles = payload && payload.articles ? payload.articles : []
+			let articles_extra = payload && payload.articles_extra ? payload.articles_extra : []
+			let body = {
+				commerce_id: env('VUE_APP_COMMERCE_ID'),
+				zipcode: state.envio.zipcode,
+				articles: articles,
+			}
+			if (articles_extra.length) {
+				body.articles_extra = articles_extra
+			}
+			if (state.envio.city) {
+				body.city = state.envio.city
+			}
+			if (state.envio.state) {
+				body.state = state.envio.state
+			}
+			if (payload && payload.cart_id) {
+				body.cart_id = payload.cart_id
+			}
+
+			commit('set_envio_cotizando', true)
+			commit('set_envio_error', null)
+
+			return axios.post('/api/envios/cotizar', body)
+			.then(res => {
+				commit('set_envio_cotizando', false)
+				commit('set_envio_opciones', {
+					opciones: res.data.opciones || [],
+					zipcode: res.data.zipcode,
+					city: res.data.city,
+					state: res.data.state,
+					envio_gratis: res.data.envio_gratis,
+					incremental: res.data.incremental,
+					items_firma: firma_de_lineas(articles.concat(articles_extra)),
+				})
+				if (!res.data.opciones || !res.data.opciones.length) {
+					commit('set_envio_error', 'Ningún correo llega a ese código postal. Probá con otro o elegí retiro por el local.')
+				}
+				return res.data
+			})
+			.catch(err => {
+				commit('set_envio_cotizando', false)
+				let data = err.response && err.response.data ? err.response.data : {}
+				let mensaje = data.message || 'No pudimos cotizar el envío en este momento. Probá de nuevo en un rato.'
+				// Las opciones que hubiera eran de otra cotización: no se muestran con un error abajo.
+				// (set_envio_opciones también apaga error y needs_location, por eso van después.)
+				commit('set_envio_opciones', {
+					opciones: [],
+					items_firma: null,
+				})
+				commit('set_envio_error', mensaje)
+				if (err.response && err.response.status == 422 && data.needs_location) {
+					commit('set_envio_needs_location', true)
+				}
+				throw err
+			})
+		},
 	}
 }

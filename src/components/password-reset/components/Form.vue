@@ -178,6 +178,7 @@
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
 import auth from '@/mixins/auth'
+import { env } from '@/runtime_config'
 export default {
 	mixins: [auth],
 	components: {
@@ -185,7 +186,7 @@ export default {
 	},
 	computed: {
 		link() {
-			return process.env.VUE_APP_APP_URL+'/terminos-y-condiciones'
+			return env('VUE_APP_APP_URL')+'/terminos-y-condiciones'
 		},
 		check() {
 			return !this.register_user.terminos_y_condiciones
@@ -236,7 +237,7 @@ export default {
 				this.loading = true
 				this.$axios.post('password-reset/send-verification-code', {
 					email       : this.register_user.email,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID
+					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(res => {
 					this.loading = false
@@ -249,6 +250,13 @@ export default {
 				.catch(err => {
 					console.log(err)
 					this.loading = false
+					// Desde el 14/10/2026 tienda-api responde 422 con `message` cuando el servidor de
+					// correo rechaza el envio del codigo (antes era un 500 y aca no se avisaba nada).
+					// Se muestra ese texto; ante cualquier otro error, uno generico.
+					// Solo el 422 trae un texto pensado para el comprador; cualquier otro `message` (un 500, un
+					// 419, un 429) es interno y no se muestra.
+					let message = err && err.response && err.response.status == 422 && err.response.data && err.response.data.message
+					this.$toast.error(message || 'No pudimos enviarte el código. Probá de nuevo en unos minutos.')
 				})
 			}
 		},
@@ -257,7 +265,7 @@ export default {
 				this.loading_verification_code = true
 				this.$axios.post('/password-reset/check-verification-code', {
 					...this.register_user,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID
+					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(res => {
 					this.loading_verification_code = false
@@ -279,19 +287,24 @@ export default {
 				this.loading_update_password = true
 				this.$axios.post('password-reset/update-password', {
 					...this.register_user,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID
+					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(() => {
 	        		this.$store.commit('auth/setLoading', true)
 					this.$store.dispatch('auth/me')
 					.then(() => {
 	        			this.$store.commit('auth/setLoading', false)
+	        			this.recargar_articulos_con_la_sesion()
 	        			this.$router.push({name: 'Home'})
 					})
 				})
 				.catch(err => {
 					this.loading_update_password = false
 					console.log(err)
+					// Desde el 14/10/2026 la contraseña nueva se guarda solo con el código vigente: si
+					// venció, tienda-api responde 422 con `message` y hay que pedir uno nuevo.
+					let message = err && err.response && err.response.status == 422 && err.response.data && err.response.data.message
+					this.$toast.error(message || 'No pudimos cambiar la contraseña. Probá de nuevo en unos minutos.')
 				})
 			}
 		},

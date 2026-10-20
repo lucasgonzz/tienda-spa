@@ -1,119 +1,153 @@
 <template>
-	<div 
-	@click="setSelected"
-	:class="is_selected"
-	class="payment-method shadow-1 b-r-1 m-b-15 c-p">
-		<p class="name">
-			{{ payment_method.name }}
-		</p>
-		<p 
-		v-if="payment_method.discount"
-		class="discount">
-			<i class="bi bi-chevron-right"></i>
-			Descuento del 
-			{{ payment_method.discount }}%
-		</p>
-		<p 
-		v-if="payment_method.surchage"
-		class="discount">
-			<i class="bi bi-chevron-right"></i>
-			Recargo del 
-			{{ payment_method.surchage }}%
-		</p>
-		<p 
-		v-if="payment_method.description"
-		class="description">
-			<i class="bi bi-chevron-right"></i>
-			{{ payment_method.description }}
-		</p>
+	<!--
+		La opción elegible y, debajo, el selector de cuotas de Mercado Pago (solo si esta forma de pago
+		es de Mercado Pago, está elegida y la API le ofrece cuotas: si no, no se dibuja nada). El
+		selector es HERMANO de la opción y no hijo: dentro de un role="radio" no puede haber otros
+		radios, y un click en ellos burbujearía al setSelected de la opción.
+	-->
+	<div class="checkout-method">
+		<div
+		@click="setSelected"
+		@keyup.enter="setSelected"
+		@keyup.space.prevent="setSelected"
+		:class="{'checkout-option--selected': esta_elegido}"
+		class="checkout-option"
+		role="radio"
+		tabindex="0"
+		:aria-checked="esta_elegido ? 'true' : 'false'">
+
+			<span class="checkout-option__radio"></span>
+
+			<div class="checkout-option__body">
+				<p class="checkout-option__name">
+					{{ payment_method.name }}
+					<span
+					v-if="mostrar_chip_de_marca"
+					class="checkout-option__brand">
+						<i class="bi bi-wallet2"></i>
+						Mercado Pago
+					</span>
+				</p>
+
+				<p
+				v-if="payment_method.description"
+				class="checkout-option__description">
+					{{ payment_method.description }}
+				</p>
+
+				<p
+				v-else-if="es_mercado_pago"
+				class="checkout-option__description">
+					Tarjeta de crédito o débito, o dinero en tu cuenta de Mercado Pago
+				</p>
+
+				<div
+				v-if="payment_method.discount || payment_method.surchage"
+				class="checkout-option__tags">
+					<span
+					v-if="payment_method.discount"
+					class="checkout-tag checkout-tag--good">
+						{{ porcentaje(payment_method.discount) }}% de descuento
+					</span>
+					<span
+					v-if="payment_method.surchage"
+					class="checkout-tag checkout-tag--warn">
+						{{ porcentaje(payment_method.surchage) }}% de recargo
+					</span>
+				</div>
+			</div>
+		</div>
+
+		<cuotas-mercado-pago
+		v-if="es_mercado_pago && esta_elegido"></cuotas-mercado-pago>
 	</div>
 </template>
 <script>
 import cart from '@/mixins/cart'
+import CuotasMercadoPago from '@/components/payment/components/payment-method/CuotasMercadoPago'
+
+/**
+ * Una forma de pago de la lista del checkout.
+ *
+ * 🔴 ES SOLO UNA OPCION ELEGIBLE, y esto cambió el 7/9/2026. Hasta esa fecha, elegir Mercado Pago
+ * acá disparaba TODO el checkout: guardaba el carrito, CREABA EL PEDIDO (`makeOrder(true)`) detrás
+ * de un cartel de carga a pantalla completa, y pedía la preferencia para que el SDK dibujara su
+ * propio botón más abajo. O sea: dos botones distintos y una espera en el medio para hacer una
+ * sola cosa, y un pedido creado aunque el comprador después cambiara de forma de pago — al
+ * confirmar con otra, se creaba un SEGUNDO pedido.
+ *
+ * Ahora todo eso vive en el único botón del final del checkout (`BtnSave.vue`), que es donde el
+ * comprador confirma. Elegir una forma de pago no manda ningún request.
+ *
+ * Cuotas de Mercado Pago (15/10/2026): si esta forma de pago es de Mercado Pago y está elegida, monta
+ * debajo el selector «Contado / N cuotas» (CuotasMercadoPago.vue). La raíz es un contenedor y no la
+ * opción misma porque el selector va DEBAJO de ella y como hermano; el margen entre formas de pago
+ * lo pone `.checkout-method` (ver _checkout.sass).
+ */
 export default {
 	props: ['payment_method'],
 	mixins: [cart],
-	data() {
-		return {
-			cart_saved: false,
-		}
+	components: {
+		CuotasMercadoPago,
 	},
 	computed: {
-		is_selected() {
-			if (this.cart_payment_method && this.cart_payment_method.id == this.payment_method.id) {
-				return 'selected'
+		/**
+		 * Si esta forma de pago es la que el comprador tiene elegida.
+		 * @returns {boolean}
+		 */
+		esta_elegido() {
+			return !!(this.cart_payment_method && this.cart_payment_method.id == this.payment_method.id)
+		},
+		/**
+		 * Si esta forma de pago cobra por Mercado Pago (el tipo lo define el ERP).
+		 * @returns {boolean}
+		 */
+		es_mercado_pago() {
+			return !!(this.payment_method.type && this.payment_method.type.name == 'MercadoPago')
+		},
+		/**
+		 * El chip de la marca solo si el nombre que le puso el comercio no lo dice ya. El nombre de
+		 * la forma de pago lo escribe cada comercio en el ERP, asi que "MercadoPago" con el chip al
+		 * lado se leia dos veces.
+		 *
+		 * @returns {boolean}
+		 */
+		mostrar_chip_de_marca() {
+			if (!this.es_mercado_pago) {
+				return false
 			}
-			return ''
-		}
+			return String(this.payment_method.name || '').toLowerCase().replace(/\s+/g, '').indexOf('mercadopago') === -1
+		},
 	},
 	methods: {
 		setSelected() {
-			if (!this.cart_payment_method || (this.cart_payment_method.id != this.payment_method.id)) {
-				this.$store.commit('cart/setPaymentMethod', this.payment_method)
-				this.$store.dispatch('cart/save')
-				.then(() => {
-					if (this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago') {
-						this.makeOrder(true)
-						this.initMp()
-					} else {
-						this.setBtnMpVisible(false)
-					}
-				})
+			if (this.esta_elegido) {
+				return
 			}
+			// Mientras el botón de confirmar trabaja no se cambia de forma de pago: el segundo guardado
+			// del carrito (el de makeOrder) relee `payment_method_id` y, al cambiar de forma de pago,
+			// `cuotas_elegidas` se limpia — el pedido nacería con otra forma de pago y sin las cuotas
+			// que ya viajaron a Mercado Pago. La bandera es la misma que congela el selector de cuotas
+			// y BtnSave la baja cuando el flujo termina o falla (`procesando` vuelve a false).
+			if (this.$store.state.cart.cuotas_bloqueadas) {
+				return
+			}
+			this.$store.commit('cart/setPaymentMethod', this.payment_method)
 		},
-		initMp() {
-			console.log('initMp')
-			const mp = new MercadoPago(this.cart_payment_method.public_key, {
-				locale: "es-AR",
-			});
-			this.$api.post('mercado-pago/preference', {
-				payment_method: this.cart_payment_method,
-				cupon: this.cupon,
-				delivery_zone: this.cart_delivery_zone,
-				articles: this.articles
-			})
-			.then(res => {
-				// Inicializa el checkout
-				console.log(res.data)
-				mp.checkout({
-					preference: {
-						id: res.data.preference_id,
-					},
-					render: {
-						container: ".mp-btn", // Indica el nombre de la clase donde se mostrará el botón de pago
-						label: "Pagar a través de Mercado Pago"
-					},
-				});
-				this.setBtnMpVisible(true)
-			})
-			.catch(err => {
-				console.log(err)
-				this.$store.commit('auth/setMessage', '')
-				this.$store.commit('auth/setLoading', false)
-			})
-
+		/**
+		 * Porcentaje legible: la columna es decimal(12,2) y llega como "10.00", que en pantalla se
+		 * lee como un dato de sistema y no como "10%".
+		 *
+		 * @param {string|number} valor
+		 * @returns {string}
+		 */
+		porcentaje(valor) {
+			const numero = Number(valor)
+			if (!isFinite(numero)) {
+				return String(valor)
+			}
+			return String(Number(numero.toFixed(2)))
 		},
 	}
 }
 </script>
-<style lang="sass">
-@import '@/sass/_custom'
-.payment-method
-	transition: all .2s
-	background: #FFF
-	padding: 1em
-	width: 90%
-	margin: auto
-	@if ($theme == dark) 
-		background: #000
-	p 
-		text-align: left
-	.name 
-		font-weight: bold
-	&.selected
-		width: 100%
-		border-left: 5px solid $green
-		box-shadow: 0px 5px 10px -1px $green !important
-		-webkit-box-shadow: 0px 5px 10px -1px $green !important
-		-moz-box-shadow: 0px 5px 10px -1px $green !important
-</style>

@@ -60,9 +60,14 @@ export default {
 				this.$store.commit('notifications/setLoading', true)
 			}
 		},
+		/**
+		 * Manda '/' y '/inicio' a la home con su categoria por defecto. Conserva la query
+		 * (p. ej. ?q=<termino> de una busqueda compartida): sin eso el redirect se la comia y el
+		 * link de una busqueda abria la home sin resultados.
+		 */
 		checkHomeRoute() {
 			if (this.$route.path == '/' || this.$route.path == '/inicio') {
-				this.$router.replace({name: 'Home', params: {category: 'ultimos-ingresados'}})
+				this.$router.replace({name: 'Home', params: {category: 'ultimos-ingresados'}, query: this.$route.query})
 			}
 		},
 		checkAddress() {

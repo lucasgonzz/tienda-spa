@@ -100,9 +100,20 @@ export default {
 		display: flex
 		flex-direction: column
 		align-items: center
+		// Con `align-items: center` el carrusel mide lo que mide su contenido y no lo que mide la
+		// columna: cuatro contactos son 608px, y en un teléfono (375px) quedaba de x=-116 a x=492, con
+		// 125px de scroll horizontal en la página (medido el 15/10/2026 en Masquito y en el slot). Con
+		// el tope, el carrusel nunca es más ancho que la columna: la librería lo mide al montar y
+		// reparte los casilleros dentro, y lo que no entra se desliza (autoplay o dedo).
+		// El tope va SOLO por debajo de 768px, donde la columna ocupa todo el ancho menos 30px. Desde
+		// 768px la columna es una fracción del ancho (en xl, la mitad): topear contra ella achica el
+		// carrusel a 576px o menos entre los 1200 y los 1212px, la librería pasa de 4 a 3 casilleros y en
+		// escritorio le aparecen una flecha y un autoplay que hoy no tiene. Por la misma razón no se
+		// achica `.contact-item`: la librería elige 3 o 4 casilleros según el ancho del CARRUSEL
+		// (probado el 15/10/2026: 608px -> 470px y aparece la flecha).
 		.vue-horizontal-list
-			width: 100%
-			min-width: 0
+			@media screen and (max-width: 767.98px)
+				max-width: 100%
 	.title 
 		font-size: 25px
 		margin: 25px 0 -15px

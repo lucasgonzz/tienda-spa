@@ -165,8 +165,9 @@ export default {
 			return 'Imprimir'
 		},
 		/**
-		 * Abre el PDF del movimiento: pagos y notas de crédito directo; ventas con token seguro.
-		 * Para ventas abre la pestaña de inmediato (gesto del usuario) y redirige al recibir el token.
+		 * Abre el PDF del movimiento: pagos y notas de crédito con el token de `pdf_links`
+		 * (abrirPdfDeMovimiento); ventas con el token de un solo uso de la venta.
+		 * En los dos casos abre la pestaña de inmediato (gesto del usuario) y redirige al recibir el token.
 		 *
 		 * @param {Object} item Movimiento de cuenta corriente
 		 */
@@ -175,7 +176,7 @@ export default {
 			if (!base) return
 
 			if (item.status == 'pago_from_client' || item.status == 'nota_credito') {
-				window.open(`${base}/current-acount/pdf/${item.id}`)
+				this.abrirPdfDeMovimiento(base, item)
 				return
 			}
 
@@ -199,6 +200,52 @@ export default {
 					if (win) win.close()
 					this.$toast.error('No se pudo generar el PDF')
 				}
+			}
+		},
+		/**
+		 * Abre el comprobante de un pago o de una nota de crédito (`current-acount/pdf/{id}` en
+		 * empresa-api) con el token de `pdf_links` (misión pdf-de-venta-publico, 10/10/2026).
+		 *
+		 * empresa-api deja de servir ese PDF sin sesión ni token, y el comprador no tiene sesión de
+		 * empresa: el link lleva `?t=<token>`, que tienda-api emite solo si el movimiento es suyo.
+		 *
+		 * Si el token viene null (la base del cliente todavía no tiene `pdf_links`: empresa sin
+		 * actualizar, la ruta sigue pública) o el pedido falla, se abre el link de siempre, sin
+		 * token: mientras dure la ventana de transición de empresa sigue andando, y es lo mismo que
+		 * se abría antes de este cambio.
+		 *
+		 * Mismo manejo de popup que el PDF de la venta: la pestaña en blanco se abre SÍNCRONA, en el
+		 * gesto del click, porque el navegador bloquea un window.open() que llega después de una
+		 * respuesta asíncrona. Al llegar el token se le cambia la dirección.
+		 *
+		 * @param {string} base URL de empresa-api del comercio
+		 * @param {Object} item Movimiento de cuenta corriente (pago o nota de crédito)
+		 */
+		abrirPdfDeMovimiento(base, item) {
+			let self = this
+			let url = `${base}/current-acount/pdf/${item.id}`
+			let win = window.open('', '_blank')
+
+			this.$store.dispatch('current_acount/getPdfLinkToken', { tipo: 'current_acount', id: item.id })
+			.then(function (token) {
+				self.llevarPestanaAlPdf(win, token ? `${url}?t=${encodeURIComponent(token)}` : url)
+			})
+			.catch(function () {
+				self.llevarPestanaAlPdf(win, url)
+			})
+		},
+		/**
+		 * Lleva la pestaña abierta en el click a la URL del PDF. Si el navegador no dejó abrirla
+		 * (window.open devolvió null), la abre ahora, como hace el flujo de la venta.
+		 *
+		 * @param {Window|null} win Pestaña abierta en el gesto del usuario
+		 * @param {string} url URL final del PDF
+		 */
+		llevarPestanaAlPdf(win, url) {
+			if (win) {
+				win.location = url
+			} else {
+				window.open(url)
 			}
 		},
 	}

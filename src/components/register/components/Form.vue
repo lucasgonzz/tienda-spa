@@ -227,6 +227,7 @@
 import BtnLoader from '@/components/common/BtnLoader'
 import auth from '@/mixins/auth'
 import nav from '@/mixins/nav'
+import { env } from '@/runtime_config'
 export default {
 	mixins: [auth, nav],
 	components: {
@@ -234,7 +235,7 @@ export default {
 	},
 	computed: {
 		link() {
-			return process.env.VUE_APP_APP_URL+'/terminos-y-condiciones'
+			return env('VUE_APP_APP_URL')+'/terminos-y-condiciones'
 		},
 	},
 	data() {
@@ -261,7 +262,7 @@ export default {
 				this.loading = true
 				this.$axios.post('/register', {
 					...this.register_user,
-					commerce_id : process.env.VUE_APP_COMMERCE_ID
+					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(res => {
 					this.loading = false
@@ -282,7 +283,7 @@ export default {
 				.catch(err => {
 					console.log(err)
 					this.loading = false
-					this.$toast.error('Error al registrarse, probá ingresando con tu cuenta de google')
+					this.$toast.error('No pudimos registrarte. Revisá los datos y probá de nuevo.')
 				})
 			}
 		},
@@ -293,7 +294,9 @@ export default {
 
 			this.$store.commit('auth/setAuthenticated', true)
 			this.$store.commit('auth/setUser', res.data.buyer)
-			
+
+			this.recargar_articulos_con_la_sesion()
+
 			this.redirectAfterLogin()
 		},
 		checkForm() {

@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { apply_online_configuration_theme } from '@/helpers/online_configuration_theme'
+import { env } from '@/runtime_config'
 axios.defaults.withCredentials = true
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 export default {
 	namespaced: true,
 	state: {
@@ -23,7 +24,7 @@ export default {
 	},
 	actions: {
 		getCommerce({ commit }) {
-			return axios.get('/api/commerce/'+process.env.VUE_APP_COMMERCE_ID)
+			return axios.get('/api/commerce/'+env('VUE_APP_COMMERCE_ID'))
 			.then(res => {
 				commit('setCommerce', res.data.commerce)
 			})
@@ -32,7 +33,7 @@ export default {
 			})
 		},
 		getWorkdays({commit}) {
-			return axios.get('api/commerce/workdays/'+process.env.VUE_APP_COMMERCE_ID)
+			return axios.get('api/commerce/workdays/'+env('VUE_APP_COMMERCE_ID'))
 			.then(res => {
 				commit('setWorkdays', res.data.workdays)
 			})

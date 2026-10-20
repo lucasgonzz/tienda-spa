@@ -14,11 +14,9 @@ import titles from './titles'
 import payment_gateway from './payment_gateway'
 import messages from './messages'
 import address from './address'
-import help from './help'
 import coins from './coins'
 import political from './political'
 import conditions from './conditions'
-import cupons from './cupons'
 import commerce from './commerce'
 import install_btn from './install_btn'
 import ws from './ws'
@@ -26,6 +24,8 @@ import platelets from './platelets'
 import payment_methods from './payment_methods'
 import delivery_zones from './delivery_zones'
 import delivery_day from './delivery_day'
+// Direcciones guardadas del comprador (misión formas-envio-direcciones-maps, 19/10/2026).
+import buyer_addresses, { limpiar_al_cambiar_de_comprador } from './buyer_addresses'
 
 import client_offers from './client_offers'
 
@@ -57,11 +57,9 @@ export default new Vuex.Store({
 		payment_gateway,
 		messages,
 		address,
-		help,
 		coins,
 		political,
 		conditions,
-		cupons,
 		commerce,
 		install_btn,
 		ws,
@@ -74,5 +72,10 @@ export default new Vuex.Store({
 		delivery_day,
 		cepas,
 		current_acount,
-	}
+		buyer_addresses,
+	},
+	plugins: [
+		// Logout o cambio de comprador: limpia sus direcciones guardadas y la elegida en el carrito.
+		limpiar_al_cambiar_de_comprador,
+	],
 })

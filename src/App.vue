@@ -34,7 +34,6 @@
 <script>
 import PausarTiendaOnline from '@/components/common/PausarTiendaOnline'
 import NavComponent from '@/components/nav/Index'
-import UpdateButton from '@/components/common/UpdateButton'
 import BtnWhatsApp from '@/components/common/BtnWhatsApp'
 import LogoLoading from '@/components/common/LogoLoading'
 import FooterComponent from '@/components/common/footer/Index'
@@ -46,11 +45,11 @@ import articles from '@/mixins/articles'
 import app from '@/mixins/app'
 import update_app from '@/mixins/update_app'
 import VueScreenSize from 'vue-screen-size'
+import { env } from '@/runtime_config'
 export default {
     components: {
         PausarTiendaOnline,
         NavComponent,
-        UpdateButton,
         BtnWhatsApp,
         // NotificationsPermissions,
         LogoLoading,
@@ -61,6 +60,59 @@ export default {
         PromocionPersonalizada: () => import('@/components/promocion-personalizada/Index'),
     },
     mixins: [WebSockets, transitions, update_app, app, firebase, articles, VueScreenSize.VueScreenSizeMixin],
+    /**
+     * Head por defecto de toda la tienda (mision seo-tiendas). Las vistas lo pisan por `vmid`
+     * (Home.vue y Article.vue ponen su descripcion, su canonica y su Open Graph).
+     *
+     * - titleTemplate: "<titulo de la vista> | <comercio>", y solo el comercio en la home. Es la
+     *   misma regla que usa tienda-api para el HTML del servidor.
+     * - robots "noindex,follow" en las rutas con `meta.noindex` (router/index.js) y en NotFound.
+     * - canonica = la misma ruta, salvo en las privadas (no llevan) y donde la vista la pise.
+     *
+     * Las etiquetas que venian en el HTML del servidor (data-seo) las saca main.js antes de
+     * montar: vue-meta no toca lo que no creo el.
+     */
+    metaInfo() {
+        let comercio = this.commerce && this.commerce.company_name ? this.commerce.company_name : ''
+        let nombre_sitio = env('VUE_APP_SITE_NAME') || comercio
+        let descripcion = env('VUE_APP_SITE_DESCRIPTION')
+            || (nombre_sitio + ' - Tienda online. ' + this.seo_sufijo_compra())
+        let noindex = !!(this.$route.meta && this.$route.meta.noindex)
+        let url = this.seo_origen() + this.$route.path
+        let imagen = env('VUE_APP_SITE_IMAGE') || (this.commerce && this.commerce.image_url) || null
+
+        let meta = [
+            { vmid: 'description', name: 'description', content: descripcion },
+            { vmid: 'og:type', property: 'og:type', content: 'website' },
+            { vmid: 'og:title', property: 'og:title', content: nombre_sitio },
+            { vmid: 'og:description', property: 'og:description', content: descripcion },
+            { vmid: 'og:url', property: 'og:url', content: url },
+            { vmid: 'twitter:card', name: 'twitter:card', content: imagen ? 'summary_large_image' : 'summary' },
+        ]
+        if (imagen) {
+            meta.push({ vmid: 'og:image', property: 'og:image', content: imagen })
+        }
+        if (noindex) {
+            meta.push({ vmid: 'robots', name: 'robots', content: 'noindex,follow' })
+        }
+
+        let link = []
+        if (!noindex) {
+            link.push({ vmid: 'canonical', rel: 'canonical', href: url })
+        }
+
+        return {
+            title: comercio,
+            titleTemplate: titulo => {
+                if (!titulo || titulo == comercio) {
+                    return comercio
+                }
+                return comercio ? titulo + ' | ' + comercio : titulo
+            },
+            meta,
+            link,
+        }
+    },
     computed: {
         authenticated() {
             return this.$store.state.auth.authenticated
@@ -131,7 +183,9 @@ export default {
             if (this.authenticated) {
                 this.callAuthMethods()
 
-                this.escuchar_mensajes()
+                /* Sin polling: las respuestas del comercio llegan en vivo por
+                   tienda-respuestas.{comercio}.{comprador} (mixins/WebSockets.js), se vuelven a
+                   pedir cuando Pusher reconecta y la pantalla de Mensajes las pide al entrar. */
             }
         },
         /* El comercio llega asincrónico, así que la clase no se puede poner una sola vez en
@@ -154,7 +208,7 @@ export default {
     created() {
         if (location.href.indexOf("www.") > -1) {
             console.log('tiene www')
-            location.replace(process.env.VUE_APP_APP_URL);
+            location.replace(env('VUE_APP_APP_URL'));
         }
 
         this.checkHomeRoute()
@@ -193,14 +247,6 @@ export default {
             if (clase_nueva) {
                 document.body.classList.add(clase_nueva)
             }
-        },
-        escuchar_mensajes() {
-            setInterval(() => {
-                if (this.$route.name != 'Messages') {
-                    
-                    this.$store.dispatch('messages/getMessages')
-                }
-            }, 20000)
         },
         get_commerce() {
             /* Si main.js ya cargó el comercio, solo continúa el flujo inicial. */
@@ -267,6 +313,7 @@ export default {
                 ])
                 .then(() => {
                     this.getCategory()
+                    this.getSearchFromUrl()
                 })
                 .catch(err => {
                     console.log(err)
@@ -351,6 +398,19 @@ export default {
 
                     if (typeof this.$route.params.sub_category != 'undefined') {
                         // Hay una sub_categoria como parametro
+                        /*
+                         | 🔴 La categoría de la URL puede no estar en la lista: un link a
+                         | /inicio/<cat>/<sub> de una categoría que no existe, o que este
+                         | comprador no ve porque su lista de precios es restringida y no tiene
+                         | ningún artículo habilitado ahí (catalogo-por-lista-tienda, 5/10/2026).
+                         | Sin esta guarda, `category.sub_categories` tiraba TypeError adentro
+                         | del .then del arranque (callMethods) y cortaba lo que venía después.
+                         | Se hace lo mismo que ya hace la rama sin subcategoría con una
+                         | categoría inexistente: nada.
+                         */
+                        if (typeof category == 'undefined') {
+                            return null
+                        }
                         let sub_category = category.sub_categories.find(model => {
                             return this.routeString(model.name).toLowerCase() == this.$route.params.sub_category.toLowerCase()
                         })
@@ -371,6 +431,32 @@ export default {
             }
             return null
         },
+        /**
+         * Reproduce una busqueda que llego por URL (?q=<termino>), mismo estilo que
+         * getCategory(): lee la ruta al arrancar y dispara la accion que ya usa el
+         * buscador del navbar, sin volver a tocar la URL (ya la trae puesta).
+         *
+         * Caso borde, decidido para que no rompa (no es lo que pidio Lucas): si la URL
+         * trae a la vez `q` Y una categoria/marca (`/inicio/marca/nike?q=...`), gana la
+         * categoria/marca -- getCategory() corre primero arriba y ya disparo su propia
+         * carga -- y esta busqueda no se dispara encima.
+         *
+         * @returns {Promise<void>|null}
+         */
+        getSearchFromUrl() {
+            if (this.$route.name != 'Home') {
+                return null
+            }
+            if (this.$route.params.category && this.$route.params.category != 'ultimos-ingresados') {
+                return null
+            }
+            let termino = this.$route.query.q
+            if (!termino) {
+                return null
+            }
+            this.$store.commit('categories/setSearchQuery', termino)
+            return this.$store.dispatch('categories/searchArticles')
+        },
         async callAuthMethods() {
             console.log('callAuthMethods')
             if (this.authenticated) {
@@ -379,8 +465,6 @@ export default {
                 // await this.$store.dispatch('last_searchs/getLastSearchs')
                 await this.$store.dispatch('orders/getCurrentOrder')
                 await this.$store.dispatch('messages/getMessages')
-                // await this.$store.dispatch('help/setWaitingCall')
-                // await this.$store.dispatch('cupons/getActiveCupons')
                 await this.listenChannels()
                 await this.getLastCart()
 

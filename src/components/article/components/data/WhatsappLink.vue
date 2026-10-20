@@ -5,7 +5,7 @@
 	rel="noopener noreferrer"
 	:href="'https://api.whatsapp.com/send?phone=' + commerce.phone">
 		<i class="bi bi-whatsapp" aria-hidden="true"></i>
-		<span>Cualquier duda consulta al instante</span>
+		<span>Consultar</span>
 	</a>
 </template>
 <script>

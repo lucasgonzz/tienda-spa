@@ -1,7 +1,20 @@
 <template>
 	<div 
 	class="cont-name m-b-15">
-		<p class="product-name">
+		<!--
+			En la ficha el nombre es el h1 de la pagina (mision seo-tiendas). En el modal de agregar
+			al carrito sigue siendo un <p>: el modal se abre encima de otra pagina que ya tiene su
+			h1. Mismo aspecto en los dos casos: todo el estilo cuelga de .product-name, y los
+			margenes de un h1 (reboot de Bootstrap) coinciden con los que .product-name ya fija.
+		-->
+		<h1
+		v-if="es_ficha"
+		class="product-name">
+			{{ article_to_show.name }}
+		</h1>
+		<p
+		v-else
+		class="product-name">
 			{{ article_to_show.name }}
 		</p>
 		<p
@@ -19,6 +32,28 @@
 <script>
 export default {
 	name: 'NameHeart',
+	computed: {
+		/**
+		 * Si esta instancia es la de la ficha (y no la del modal de agregar al carrito, que usa
+		 * el mismo componente y tambien se abre desde la ficha). Mismo criterio que es_ficha de
+		 * article-view/Index.vue: la ruta y que no haya un BModal entre los padres.
+		 *
+		 * @returns {boolean}
+		 */
+		es_ficha() {
+			if (this.$route.name != 'Article') {
+				return false
+			}
+			let padre = this.$parent
+			while (padre) {
+				if (padre.$options && padre.$options.name == 'BModal') {
+					return false
+				}
+				padre = padre.$parent
+			}
+			return true
+		},
+	},
 	methods: {
 		classHeart() {
 			if (this.article_to_show.is_favorite) {

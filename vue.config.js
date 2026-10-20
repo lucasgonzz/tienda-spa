@@ -1,6 +1,34 @@
 let webpack = require('webpack')
 
 /**
+ * Build de RELEASE (misión versiones-tienda, 1/10/2026): lo prende GitHub Actions
+ * (.github/workflows/release.yml) para compilar el bundle UNO por versión, el mismo para todos los
+ * clientes. En ese modo, lo que hasta acá se cocinaba por cliente en el HTML y en el manifest
+ * (nombre, descripción, URL, imagen y color del comercio) sale con tokens literales `__CC_*__` que
+ * admin-api reemplaza al desplegar la versión en cada tienda. El resto de los valores por cliente
+ * (URL de la API, id del comercio, Pusher...) los lee la tienda en runtime de config.js (ver
+ * src/runtime_config.js).
+ *
+ * Sin la variable (desarrollo, y la vía vieja que compila por cliente en el VPS de builds con un
+ * .env) este archivo se comporta EXACTAMENTE como antes.
+ *
+ * NO se llama VUE_APP_* a propósito: vue-cli mete en el bundle toda variable VUE_APP_*, y esta solo
+ * le sirve a este archivo al compilar.
+ *
+ * Contrato con admin-api (los tokens y dónde aparecen):
+ *   __CC_SITE_NAME__        title, og:site_name, og:title, twitter:title, noscript,
+ *                           apple-mobile-web-app-title y manifest.json (name, short_name)
+ *   __CC_SITE_DESCRIPTION__ description, og:description, twitter:description
+ *   __CC_SITE_URL__         og:url
+ *   __CC_SITE_IMAGE__       og:image, twitter:image
+ *   __CC_THEME_COLOR__      meta theme-color, color del mask-icon y manifest.json (theme_color)
+ * No cambiarles el texto sin cambiar también el admin: si queda alguno sin reemplazar, el admin
+ * frena el despliegue.
+ * @type {boolean}
+ */
+const releaseBuild = process.env.TIENDA_RELEASE_BUILD === '1'
+
+/**
  * Escapa un valor para que sea seguro dentro de un atributo HTML del template de index.html.
  * html-webpack-plugin usa templates de lodash, donde `<%= %>` interpola crudo (sin escapar),
  * asi que un nombre de comercio con comillas, `<`, `>` o `&` podria romper el HTML o cortar
@@ -15,6 +43,18 @@ function escapeHtmlAttribute(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;')
+}
+
+/**
+ * Escapa un valor para meterlo dentro de un string PHP entre comillas simples (public/seo.php).
+ * Adentro de '...' PHP solo interpreta la barra invertida y la comilla simple.
+ * @param {*} value URL de la API o id del comercio.
+ * @returns {string}
+ */
+function escapePhpSingleQuoted(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
 }
 
 module.exports = {
@@ -70,6 +110,26 @@ module.exports = {
                 }
             })
 
+            // Capa SEO (mision seo-tiendas, 23/9/2026): public/seo.php es PHP que corre en el
+            // docroot de la tienda y le pide a tienda-api el head y el cuerpo de cada pagina.
+            // Mismo mecanismo que el service worker de arriba: se excluye del copiado generico y
+            // se copia aparte reemplazando la URL de la API y el id del comercio del build. Los
+            // valores quedan dentro de un string PHP entre comillas simples, por eso se escapan.
+            copyArgs[0][0].ignore = copyArgs[0][0].ignore.concat({
+                glob: 'seo.php',
+                matchBase: false
+            })
+
+            copyArgs[0].push({
+                from: 'public/seo.php',
+                to: 'seo.php',
+                transform(content) {
+                    return content.toString()
+                        .replace(/__VUE_APP_API_URL__/g, () => escapePhpSingleQuoted(process.env.VUE_APP_API_URL || ''))
+                        .replace(/__VUE_APP_COMMERCE_ID__/g, () => escapePhpSingleQuoted(process.env.VUE_APP_COMMERCE_ID || ''))
+                }
+            })
+
             return copyArgs
         })
 
@@ -80,16 +140,58 @@ module.exports = {
         // HTML. Los cuatro valores se escapan con escapeHtmlAttribute antes de inyectarse porque
         // html-webpack-plugin interpola sin escapar (ver comentario del helper mas arriba).
         config.plugin('html').tap(args => {
-            // Nombre del comercio: variable local (no propiedad "name:") para no matchear el sed
-            // que admin-api corre sobre este archivo para patchear el bloque "pwa" (ver seccion
-            // "Que NO tocar" del prompt 270-03).
-            const siteName = process.env.VUE_APP_SITE_NAME || 'Tienda'
+            if (releaseBuild) {
+                // Build de release: tokens literales que admin-api reemplaza por los valores de
+                // cada tienda al desplegar (ver releaseBuild arriba). El default de la descripción
+                // ("<nombre> - Tienda online...") también lo resuelve el admin en ese momento.
+                // escapeHtmlAttribute no les cambia nada (no tienen caracteres especiales); se
+                // pasa igual para que los dos caminos inyecten exactamente lo mismo.
+                args[0].title           = escapeHtmlAttribute('__CC_SITE_NAME__')
+                args[0].siteName        = escapeHtmlAttribute('__CC_SITE_NAME__')
+                args[0].siteDescription = escapeHtmlAttribute('__CC_SITE_DESCRIPTION__')
+                args[0].siteImage       = escapeHtmlAttribute('__CC_SITE_IMAGE__')
+                args[0].siteUrl         = escapeHtmlAttribute('__CC_SITE_URL__')
+            } else {
+                // Nombre del comercio: variable local (no propiedad "name:") para no matchear el sed
+                // que admin-api corre sobre este archivo para patchear el bloque "pwa" (ver seccion
+                // "Que NO tocar" del prompt 270-03).
+                const siteName = process.env.VUE_APP_SITE_NAME || 'Tienda'
 
-            args[0].title           = escapeHtmlAttribute(siteName)
-            args[0].siteName        = escapeHtmlAttribute(siteName)
-            args[0].siteDescription = escapeHtmlAttribute(process.env.VUE_APP_SITE_DESCRIPTION || '')
-            args[0].siteImage       = escapeHtmlAttribute(process.env.VUE_APP_SITE_IMAGE || '')
-            args[0].siteUrl         = escapeHtmlAttribute(process.env.VUE_APP_SITE_URL || '')
+                // Descripcion por defecto si el comercio no cargo meta_description en el admin: hasta
+                // el 23/9/2026 salia content="" y Google armaba el snippet con el <noscript>.
+                const siteDescription = process.env.VUE_APP_SITE_DESCRIPTION
+                    || (siteName + ' - Tienda online. Comprá online con envío o retiro en el local.')
+
+                args[0].title           = escapeHtmlAttribute(siteName)
+                args[0].siteName        = escapeHtmlAttribute(siteName)
+                args[0].siteDescription = escapeHtmlAttribute(siteDescription)
+                args[0].siteImage       = escapeHtmlAttribute(process.env.VUE_APP_SITE_IMAGE || '')
+                args[0].siteUrl         = escapeHtmlAttribute(process.env.VUE_APP_SITE_URL || '')
+            }
+
+            // Los marcadores <!--seo:head--> / <!--/seo:head--> de public/index.html tienen que
+            // llegar al dist: public/seo.php reemplaza lo que hay entre los dos. En produccion
+            // Vue CLI minifica con removeComments y se los comeria; ignoreCustomComments los
+            // preserva. Se agrega a las opciones que ya arma @vue/cli-service (no se reemplazan)
+            // y se conserva el /^!/ que html-minifier trae por defecto. En `serve` no hay
+            // minificacion (minify no es un objeto) y no se toca nada.
+            if (args[0].minify && typeof args[0].minify === 'object') {
+                args[0].minify = Object.assign({}, args[0].minify, {
+                    ignoreCustomComments: [/^!/, /^\/?seo:/],
+                })
+
+                // Build de release: los atributos conservan sus comillas. Vue CLI minifica con
+                // removeAttributeQuotes, y como un token (__CC_SITE_NAME__) no tiene espacios, el
+                // minificador lo dejaba como content=__CC_SITE_NAME__, sin comillas. Cuando el admin
+                // lo reemplaza por "Mi Tienda", el atributo se corta en el espacio (content=Mi y un
+                // atributo suelto Tienda) y la vista previa al compartir sale rota. Con comillas, el
+                // reemplazo (escapado con htmlspecialchars ENT_QUOTES) siempre cae adentro de "...".
+                // Fuera del release no se toca: ahí el valor real ya está al minificar y el
+                // minificador deja las comillas cuando hacen falta.
+                if (releaseBuild) {
+                    args[0].minify.removeAttributeQuotes = false
+                }
+            }
 
             return args
         })
@@ -100,13 +202,255 @@ module.exports = {
     },
     pwa: {
         workboxOptions: {
-            skipWaiting: true
+            skipWaiting: true,
+
+            // El service worker nuevo toma el control de la pestaña que ya estaba abierta sin
+            // recargarla. Con skipWaiting solo, esa pestaña quedaba sin service worker hasta recargar
+            // (misión quitar-animacion-de-actualizacion, 16/10/2026).
+            clientsClaim: true,
+
+            // Los cuatro primeros son los que excluye @vue/cli-plugin-pwa por defecto (este array
+            // los reemplaza, no se suma). seo.php y .htaccess son archivos de servidor: si entran al
+            // precache, el service worker baja /seo.php al instalarse y lo guarda como si fuera un
+            // asset (misión seo-tiendas).
+            //
+            // config.js (window.__CC_CONFIG__) lo escribe admin-api por tienda en cada despliegue: no
+            // se precachea, para que el service worker nunca sirva la configuración de antes (otra
+            // API, otro comercio) ni el default vacío que viene en el bundle (misión versiones-tienda).
+            //
+            // 🔴 NO sacar /index.html ni /manifest.json del precache (y no tocar este exclude para
+            // eso): EcommerceDistCustomizer de admin-api falla cerrado si el precache no los trae con
+            // `revision`, porque recalcula esa revision al personalizar cada tienda. Para que el
+            // index.html deje de servirse caché-primero se usa directoryIndex (abajo), no el exclude.
+            exclude: [/\.map$/, /img\/icons\//, /favicon\.ico$/, /^manifest.*\.js?$/, /seo\.php$/, /\.htaccess$/, /config\.js$/],
+
+            // Por defecto Workbox atiende "/" desde el precache buscándolo como "/index.html" (ese es
+            // el directoryIndex de precacheAndRoute), o sea caché primero: al entrar se mostraba la
+            // versión ANTERIOR de la tienda y recién después, cuando el service worker bajaba la nueva,
+            // aparecía la barra de "Descargando actualización" y se recargaba todo. Con un nombre de
+            // directoryIndex que no existe, "/" deja de coincidir con una entrada del precache y la
+            // navegación cae a la ruta de runtimeCaching de abajo (red primero). /index.html SIGUE
+            // dentro del precache a propósito: es lo que exige el admin (ver el exclude) y además es
+            // el respaldo (el único) para abrir la tienda sin conexión.
+            directoryIndex: 'cc-sin-directory-index.html',
+
+            // Las navegaciones (el documento HTML) van a la red primero, con el index.html del precache
+            // como respaldo. Con internet, se entra directo a lo último: sin animación y sin recarga. La
+            // actualización del resto de los archivos precacheados se hace en segundo plano y en
+            // silencio. En la tienda esto importa más que en otros sitios: la navegación a "/" la
+            // sirve public/seo.php (inyecta el SEO en el index.html), así que también tiene que
+            // pedirse siempre a la red y no quedar fija en una copia vieja.
+            //
+            // 🔴 NO se guarda ninguna copia del HTML de cada visita (ni en cc-navegacion ni en otro lado):
+            // el único respaldo es el /index.html del PRECACHE ACTIVO, que siempre es coherente con los
+            // bundles (js/app.<hash>.js...) que ese mismo precache tiene guardados. Si se guardara el
+            // HTML de cada visita online y el service worker nuevo no llegara a terminar de instalarse
+            // (se corta la señal, se cierra el celular), quedaría el worker viejo con su precache viejo
+            // y, sin conexión, el respaldo entregaría el HTML NUEVO, que pide un js/app.<hash nuevo>.js
+            // que ese precache no tiene: pantalla en blanco. Además se estarían guardando URLs con
+            // parámetros de un solo uso. Por eso cacheWillUpdate devuelve null y el respaldo (abajo)
+            // sale siempre del precache. Quien "optimice" esto guardando copias vuelve al problema.
+            //
+            // ⚠️ Estas funciones se serializan con toString() DENTRO de service-worker.js (workbox-build
+            // las copia como texto) y ese archivo NO pasa por babel: tienen que ser autocontenidas
+            // (nada de este vue.config.js) y en ES5 (function y var; sin flechas, ?. ni async/await).
+            // Ninguna línea de acá puede empezar con "name:" ni "themeColor:": el sed de admin-api
+            // (patch_spa_vue_config, vía vieja) pisa esas líneas enteras; por eso es cacheName.
+            //
+            // ⚠️ Las funciones de `plugins` tienen DOS reglas más, propias de workbox-build 4.3.1, y
+            // romperlas tira el build entero ("Unable to generate service worker from template"):
+            //   1. Van NOMBRADAS (function requestWillFetch (args) {...}), no anónimas: workbox-build
+            //      les saca los comentarios parseando el texto como un programa, y un
+            //      "function (args) {...}" suelto no es un programa válido ("Unexpected token (1:9)").
+            //   2. Cada sentencia termina en punto y coma: workbox-build junta el código de los plugins
+            //      en UNA sola línea (oneLine), y sin ";" dos sentencias quedan pegadas y el service
+            //      worker generado no compila (no hay salto de línea que active el ASI).
+            // El urlPattern de abajo no pasa por ese camino: se copia tal cual, con sus saltos de línea.
+            runtimeCaching: [{
+                // Solo navegaciones del documento, de la propia app y sin extensión de archivo. Un pedido
+                // de imagen, script o API no es una navegación y no entra acá. Un "/index.html" escrito
+                // literal NO es una entrada normal (el start_url del manifest es "/"): lo atiende el
+                // listener del precache, que se registra primero y responde caché-primero.
+                urlPattern: function (args) {
+                    if (!args.request || args.request.mode !== 'navigate') return false
+                    var ruta = args.url.pathname
+                    return !/\.[A-Za-z0-9]+$/.test(ruta)
+                },
+                handler: 'NetworkFirst',
+                options: {
+                    cacheName: 'cc-navegacion',
+                    // Si la red no contesta en 5 s se usa el index.html del precache (conexión mala o
+                    // caída). Son 5 y no 3 a propósito: public/seo.php espera hasta 3 s a tienda-api para
+                    // armar el SEO de la página. Con 3 s en el service worker los dos plazos coincidirían
+                    // y, con la API lenta, se entregaría el index.html del precache (la versión vieja)
+                    // aunque el servidor estuviera por contestar. Los 5 s le dejan margen.
+                    networkTimeoutSeconds: 5,
+                    plugins: [{
+                        // Workbox IGNORA fetchOptions en las navegaciones (fetchWrapper de workbox-core),
+                        // así que la revalidación contra el servidor se fuerza reescribiendo el pedido.
+                        // Sin esto, un servidor que mande "Cache-Control: max-age" (o la caché heurística
+                        // de LiteSpeed/nginx) entregaría un index.html viejo y volvería el problema.
+                        requestWillFetch: function requestWillFetch (args) {
+                            return new Request(args.request, { cache: 'no-cache' });
+                        },
+                        // Un 5xx del servidor (503 en un deploy, por ejemplo) no se le muestra a la persona:
+                        // se trata como "sin red" y cae al index.html del precache.
+                        fetchDidSucceed: function fetchDidSucceed (args) {
+                            if (args.response && args.response.status >= 500) {
+                                throw new Error('El servidor contestó ' + args.response.status);
+                            }
+                            return args.response;
+                        },
+                        // Nada se guarda en cc-navegacion: devolver null le dice a Workbox que la respuesta
+                        // no es cacheable. Ver el 🔴 de arriba (coherencia con el precache activo).
+                        cacheWillUpdate: function cacheWillUpdate () {
+                            return null;
+                        },
+                        // Respaldo (sin red, 5xx o demora): SIEMPRE el /index.html del precache activo, que
+                        // es coherente con los bundles que ese precache tiene guardados. No mira la caché
+                        // de navegación (está vacía a propósito) ni la URL pedida: un link directo que
+                        // nunca se visitó también abre la app, y el router de Vue resuelve la ruta.
+                        cachedResponseWillBeUsed: function cachedResponseWillBeUsed () {
+                            // `workbox` es una global que existe solo adentro de service-worker.js.
+                            // eslint-disable-next-line no-undef
+                            var clave = workbox.precaching.getCacheKeyForURL('/index.html');
+                            return clave ? caches.match(clave) : null;
+                        }
+                    }]
+                }
+            }, {
+                // config.js (window.__CC_CONFIG__: URL de la API, id del comercio, Pusher...) TAMBIÉN va red
+                // primero, y esta ruta existe para que la tienda ABRA SIN CONEXIÓN en un build de release.
+                //
+                // Por qué hace falta: el release se compila sin .env, así que NO hay ninguna VUE_APP_*
+                // horneada en el bundle y todo sale de config.js, que admin-api escribe por tienda en cada
+                // despliegue. config.js está fuera del precache a propósito (arriba, en `exclude`: el
+                // precache responde caché primero y entregaría una configuración vieja, de otra API o de
+                // otro comercio). Sin esta ruta, sin red config.js no cargaba y la pantalla quedaba en
+                // blanco (misión config-js-sin-conexion, 17/10/2026).
+                //
+                // Cómo evita servir una configuración vieja:
+                //   - ONLINE siempre se pide a la red (el pedido se reescribe con cache: 'no-cache', además
+                //     del Cache-Control: no-cache que le pone el .htaccess) y la respuesta vuelve a la página
+                //     con Cache-Control: no-cache (Chromium no la reusa desde su caché aunque otro servidor
+                //     mande un max-age largo); la respuesta buena refresca la copia. La copia SOLO se usa si no hay red, si la red pasa del tope (3 s) o si el
+                //     servidor contesta 5xx.
+                //   - La caché de un service worker es por origen: cada tienda guarda su propio config.js.
+                //   - Solo se guarda una copia BUENA (ver cacheWillUpdate). Si el servidor contesta algo que
+                //     no es una configuración (el config.js vacío por defecto que trae el release, el
+                //     index.html que sirve seo.php cuando el archivo falta, un 404), no se guarda Y SE BORRA
+                //     la copia anterior.
+                //   - El calentamiento (src/registerServiceWorker.js) guarda la primera copia apenas el
+                //     service worker toma el control, sin esperar a la segunda visita.
+                // NO sumar config.js al precache ni "simplificar" esta ruta a caché primero.
+                urlPattern: function (args) {
+                    return args.url.origin === self.location.origin && /\/config\.js$/.test(args.url.pathname);
+                },
+                handler: 'NetworkFirst',
+                options: {
+                    cacheName: 'cc-config',
+                    // 3 s y no los 5 de las navegaciones: config.js es un archivo estático, no pasa por seo.php.
+                    networkTimeoutSeconds: 3,
+                    // ⚠️ Mismas reglas de workbox-build 4.3.1 que arriba: funciones NOMBRADAS, autocontenidas,
+                    // en ES5 y con ";" en cada sentencia. Y una más: el texto de la función pasa por
+                    // strip-comments, que lee la secuencia de barra-asterisco o de dos barras como un
+                    // comentario aunque esté dentro de un regex o de un string: por eso acá esas
+                    // secuencias se arman por partes ('/' + '*').
+                    plugins: [{
+                        requestWillFetch: function requestWillFetch (args) {
+                            return new Request(args.request, { cache: 'no-cache' });
+                        },
+                        // Un 5xx (503 en un despliegue) cuenta como "sin red": se usa la copia si hay.
+                        fetchDidSucceed: function fetchDidSucceed (args) {
+                            if (args.response && args.response.status >= 500) {
+                                throw new Error('El servidor contestó ' + args.response.status);
+                            }
+                            if (!args.response || args.response.status !== 200) {
+                                return args.response;
+                            }
+                            // La respuesta que recibe la página (y la copia que se guarda, que sale de esta misma
+                            // respuesta) lleva Cache-Control: no-cache. Sin esto, un servidor que mande un max-age
+                            // largo (el nginx de los clientes del VPS manda 10 años para config.js) hace que
+                            // Chromium reuse la configuración desde su caché de memoria en las recargas
+                            // siguientes de la misma pestaña, SIN pasar por el service worker, y la
+                            // configuración vieja sigue sirviéndose aunque el servidor ya tenga otra.
+                            var cabeceras = new Headers(args.response.headers);
+                            cabeceras.set('Cache-Control', 'no-cache');
+                            cabeceras.delete('Expires');
+                            return args.response.blob().then(function (cuerpo) {
+                                return new Response(cuerpo, { status: 200, statusText: args.response.statusText, headers: cabeceras });
+                            });
+                        },
+                        // Decide si lo que contestó el servidor se guarda: solo una configuración de verdad.
+                        // Devolver null = no guardar. Con un 404/410 o un 200 que no es configuración
+                        // (el servidor contestó y dijo que la configuración ya no es esa) se borra además la
+                        // copia anterior; otro 4xx (puede ser transitorio) no la toca.
+                        cacheWillUpdate: function cacheWillUpdate (args) {
+                            var respuesta = args.response;
+                            var direccion = args.request.url;
+                            var borrar_copia = function () {
+                                return caches.open('cc-config').then(function (cache) {
+                                    return cache.delete(direccion);
+                                }).then(function () {
+                                    return null;
+                                });
+                            };
+                            // Una respuesta opaca (status 0) cae en el `!== 200` de más abajo.
+                            if (!respuesta) {
+                                return null;
+                            }
+                            if (respuesta.status === 404 || respuesta.status === 410) {
+                                return borrar_copia();
+                            }
+                            if (respuesta.status !== 200) {
+                                return null;
+                            }
+                            return respuesta.clone().text().then(function (texto) {
+                                var inicio_bloque = '/' + '*';
+                                var fin_bloque = '*' + '/';
+                                var inicio_linea = '/' + '/';
+                                var limpio = String(texto);
+                                var desde = -1;
+                                var hasta = -1;
+                                // Se sacan los comentarios: el config.js vacío por defecto del release trae
+                                // VUE_APP_API_URL escrita DENTRO de un comentario de ejemplo. Primero los de línea
+                                // (que pueden nombrar un comienzo de bloque) y después los de bloque; un bloque sin
+                                // cierre no se toca, para no borrar la configuración que viene después.
+                                limpio = limpio.split(String.fromCharCode(10)).filter(function (linea) {
+                                    return linea.replace(/^\s+/, '').indexOf(inicio_linea) !== 0;
+                                }).join(String.fromCharCode(10));
+                                desde = limpio.indexOf(inicio_bloque);
+                                while (desde !== -1) {
+                                    hasta = limpio.indexOf(fin_bloque, desde + 2);
+                                    if (hasta === -1) {
+                                        break;
+                                    }
+                                    limpio = limpio.slice(0, desde) + limpio.slice(hasta + 2);
+                                    desde = limpio.indexOf(inicio_bloque);
+                                }
+                                // Una configuración buena empieza una sentencia asignando un objeto a
+                                // window.__CC_CONFIG__ y trae la URL de la API con valor ANTES de que ese objeto cierre.
+                                // "window.__CC_CONFIG__ = window.__CC_CONFIG__ || {}" (el vacío del release) no cumple:
+                                // después del "=" no viene una llave. Un HTML con un script en el medio tampoco: la
+                                // asignación no está al comienzo de una sentencia.
+                                var es_buena = limpio.length < 200000
+                                    && /(^|[\n\r;])\s*window\.__CC_CONFIG__\s*=\s*\{[^}]*?VUE_APP_API_URL["']?\s*:\s*["'][^"'\s]/.test(limpio);
+                                return es_buena ? respuesta : borrar_copia();
+                            });
+                        }
+                    }]
+                }
+            }]
         },
 
-        // Estos valores son un fallback: en produccion admin-api los reescribe por cliente antes
-        // de compilar, en EcommerceInstallationService::patch_spa_vue_config() (grupo 208).
-        themeColor: "#c5111d",
-        name: "Tienda",
+        // Estos valores son un fallback: en la vía vieja admin-api los reescribe por cliente antes
+        // de compilar, en EcommerceInstallationService::patch_spa_vue_config() (grupo 208), con un
+        // sed que pisa la línea ENTERA que empieza con themeColor: / name: (y exige que haya una sola
+        // línea name: en todo el archivo). Por eso cada uno sigue siendo UNA línea, con la condición
+        // adentro. En el build de release (releaseBuild) salen los tokens que reemplaza el admin al
+        // desplegar: van al manifest.json y a los meta theme-color / apple-mobile-web-app-title.
+        themeColor: releaseBuild ? '__CC_THEME_COLOR__' : "#c5111d",
+        name: releaseBuild ? '__CC_SITE_NAME__' : "Tienda",
 
         // Version de los iconos, para cache-busting. admin-api escribe VUE_APP_ICONS_VERSION en el
         // .env del clone (un timestamp nuevo en cada install y en cada update) antes de compilar, y

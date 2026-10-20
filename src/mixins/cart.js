@@ -1,6 +1,37 @@
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
+import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
+import { env } from '@/runtime_config'
+import { direcciones_activas, zona_a_convenir, linea_de_direccion, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
 export default {
 	computed: {
+		/**
+		 * Si la tienda tiene las direcciones de envío nuevas (misión formas-envio-direcciones-maps,
+		 * 19/10/2026): el bloque "¿A dónde te lo enviamos?" con el buscador de Google y la lista de
+		 * direcciones del comprador. Sin esto el checkout es exactamente el de antes. Ver
+		 * `direcciones_activas` en helpers/direcciones.js.
+		 *
+		 * @returns {boolean}
+		 */
+		direcciones_de_envio_activas() {
+			return direcciones_activas(this.$store.state.commerce.commerce)
+		},
+		/**
+		 * La dirección de entrega elegida en el checkout (forma del contrato), o null.
+		 *
+		 * @returns {object|null}
+		 */
+		cart_direccion_envio() {
+			return this.$store.state.cart.direccion_envio
+		},
+		/**
+		 * Si la forma de envío propia elegida es "a convenir": no se cobra en la tienda, el costo lo
+		 * coordina el vendedor después.
+		 *
+		 * @returns {boolean}
+		 */
+		zona_elegida_a_convenir() {
+			return zona_a_convenir(this.cart_delivery_zone)
+		},
 		/**
 		 * Unidades totales del carrito: la suma de las cantidades, no la cantidad de lineas.
 		 *
@@ -33,11 +64,17 @@ export default {
 				cart.promociones_vinoteca.forEach(promo => {
 					cant_items += Number(promo.amount) || 0
 				})
+
+				/* Tercera coleccion del carrito. El `|| []` cubre el carrito que vino de una API
+				   sin combos, donde la clave directamente no existe. */
+				;(cart.combos || []).forEach(combo => {
+					cant_items += Number(combo.amount) || 0
+				})
 			}
 			return cant_items
 		},
 		/**
-		 * Cantidad de líneas distintas en el carrito (artículos + promos vinoteca).
+		 * Cantidad de líneas distintas en el carrito (artículos + promos vinoteca + combos).
 		 * @returns {number}
 		 */
 		cart_unique_products_count() {
@@ -51,6 +88,9 @@ export default {
 			}
 			if (cart.promociones_vinoteca) {
 				count += cart.promociones_vinoteca.length
+			}
+			if (cart.combos) {
+				count += cart.combos.length
 			}
 			return count
 		},
@@ -85,6 +125,19 @@ export default {
 			}
 			return []
 		},
+		/**
+		 * Los combos del carrito. Devuelve [] cuando el carrito vino de una API que todavía no
+		 * los conoce, así que quien lo consume puede hacer `v-for` sin preguntar.
+		 *
+		 * @returns {Array}
+		 */
+		cart_combos() {
+			let cart = this.$store.state.cart.cart
+			if (cart && cart.combos) {
+				return cart.combos
+			}
+			return []
+		},
 		cart() {
 			return this.$store.state.cart.cart
 		},
@@ -97,14 +150,6 @@ export default {
 		deliver() {
 			return this.$store.state.cart.cart.deliver
 		},
-		cupon: {
-			get() {
-				return this.$store.state.cart.cupon
-			},
-			set(value) {
-				this.$store.commit('cart/setCupon', value)
-			}
-		},
 		cart_payment_method: {
 			get() {
 				return this.$store.state.cart.payment_method
@@ -112,6 +157,36 @@ export default {
 			set(value) {
 				this.$store.commit('cart/setPaymentMethod', value)
 			}
+		},
+		/**
+		 * La forma de pago elegida, con los datos de la LISTA de formas de pago de la tienda (la
+		 * que trae `cuotas_disponibles`) y no los del carrito guardado. Ver metodo_de_la_lista().
+		 *
+		 * Los `cuotas_mp_*` llevan prefijo porque este mixin se mezcla en muchos componentes y un
+		 * nombre repetido pisa a otro sin avisar.
+		 *
+		 * @returns {object|null}
+		 */
+		cuotas_mp_metodo() {
+			return metodo_de_la_lista(this.cart_payment_method, this.$store.state.payment_methods.models)
+		},
+		/**
+		 * Las cuotas que ofrece la forma de pago elegida: [{cantidad_cuotas, recargo}], o [] si no es
+		 * de Mercado Pago, no tiene vinculo / cuotas cargadas en el ERP, o la API es vieja y no manda
+		 * el campo. Con [] no hay selector y el checkout es el de siempre.
+		 *
+		 * @returns {Array}
+		 */
+		cuotas_mp_ofrecidas() {
+			return cuotas_ofrecidas(this.cuotas_mp_metodo)
+		},
+		/**
+		 * Lo elegido en el selector: null (no hay selector), 'contado' o la cantidad de cuotas.
+		 *
+		 * @returns {string|number|null}
+		 */
+		cuotas_mp_elegida() {
+			return cuota_elegida_efectiva(this.$store.state.cart.cuotas_elegidas, this.cuotas_mp_ofrecidas)
 		},
 		cart_delivery_zone: {
 			get() {
@@ -130,7 +205,24 @@ export default {
 		total() {
 			let cart_total = this.$store.state.cart.cart.total
 			if (cart_total != null && cart_total !== undefined) {
-				return cart_total
+				/*
+				 * 🔴 El Number() NO es decorativo, es el mismo bug que ya se pago en cant_cart_items.
+				 * `carts.total` es decimal(20,2) y PDO lo devuelve como STRING ("10000.00"), asi que
+				 * todo lo que sume sobre este valor CONCATENA en vez de sumar:
+				 *
+				 *   "10000.00" + 2000  ->  "10000.002000"   (el envio desaparece del total)
+				 *   "10000.00" + 1000  ->  "10000.001000"   (el recargo desaparece, y su linea da $0)
+				 *
+				 * price() formatea eso como $10.000,00, o sea que la pantalla muestra un total menor
+				 * que el que efectivamente cobra la API (OnlinePaymentHelper si suma bien). Se nota
+				 * recien con el carrito YA GUARDADO: con el carrito local el total se calcula abajo
+				 * con Number() y da bien, que es por lo que esto sobrevivio tanto.
+				 *
+				 * Las restas y multiplicaciones (descuentos, cupon) nunca se rompieron: `-` y `*`
+				 * fuerzan el numero. Solo el `+` concatena.
+				 */
+				let numero = Number(cart_total)
+				return isFinite(numero) ? numero : 0
 			}
 			// Calcular localmente para guest (cart no persistido aun)
 			let total = 0
@@ -138,6 +230,36 @@ export default {
 			articles.forEach(function(article) {
 				if (article.pivot && article.pivot.price != null && article.pivot.price !== undefined) {
 					total += Number(article.pivot.price) * Number(article.pivot.amount)
+				}
+			})
+			/*
+			 * 🔴 Sin este forEach el total de un combo/promo vinoteca queda afuera de la cuenta:
+			 * medido en produccion (truvaribebidas.com.ar, 14/9/2026) con un combo solo en el
+			 * carrito el TOTAL daba "-" (price() de 0), y con un combo + un articulo normal daba
+			 * solo el precio del articulo. Esta rama de `total()` nunca contemplo
+			 * `promociones_vinoteca` desde que existe, mientras que sus hermanas de mas arriba
+			 * en este mismo archivo -- `cant_cart_items()` y `cart_unique_products_count()` --
+			 * ya suman/cuentan articles Y promociones_vinoteca por separado. Mismo patron que
+			 * ellas, no una novedad.
+			 */
+			let promociones_vinoteca = this.$store.state.cart.cart.promociones_vinoteca || []
+			promociones_vinoteca.forEach(function(promo) {
+				if (promo.pivot && promo.pivot.price != null && promo.pivot.price !== undefined) {
+					total += Number(promo.pivot.price) * Number(promo.pivot.amount)
+				}
+			})
+			/*
+			 * 🔴 Los combos son la TERCERA coleccion y van en la misma cuenta, con el mismo
+			 * patron y el mismo guard de null. Sin este forEach se reproduce exactamente el bug
+			 * del 14/9/2026 que arreglo el de arriba: el invitado con un combo solo en el
+			 * carrito veria el total en "-", y con un combo mas un articulo veria solo el
+			 * precio del articulo. El numero corto se propaga hasta la pantalla de confirmar
+			 * compra, que es donde mas caro sale.
+			 */
+			let combos = this.$store.state.cart.cart.combos || []
+			combos.forEach(function(combo) {
+				if (combo.pivot && combo.pivot.price != null && combo.pivot.price !== undefined) {
+					total += Number(combo.pivot.price) * Number(combo.pivot.amount)
 				}
 			})
 			return total
@@ -163,19 +285,83 @@ export default {
 			}
 			return this.total
 		},
-		total_with_cupon() {
-			let total = this.total_with_payment_method 
-			if (this.cupon) {
-				if (this.cupon.amount) {
-					total -= this.cupon.amount
-				} else {
-					total = total - (total * this.percentageToMultiply(this.cupon.percentage))
-				}
-			}
-			return total
+		/**
+		 * Estado del envío por correo (Zipnova) en el store: código postal, opciones cotizadas,
+		 * opción elegida, sucursal y destino.
+		 *
+		 * @returns {object}
+		 */
+		envio() {
+			return this.$store.state.cart.envio
 		},
+		/**
+		 * La opción de Zipnova que el comprador eligió, buscada por su `key` entre las opciones
+		 * cotizadas. Es null si no eligió o si la opción ya no está en la lista (se re-cotizó y
+		 * desapareció): con eso la pantalla nunca muestra un precio que no esté en la cotización.
+		 *
+		 * @returns {object|null}
+		 */
+		cart_envio_opcion() {
+			let envio = this.$store.state.cart.envio
+			if (!envio || !envio.opcion_key) {
+				return null
+			}
+			let opcion = envio.opciones.find(opcion => {
+				return opcion.key == envio.opcion_key
+			})
+			return opcion ? opcion : null
+		},
+		/**
+		 * Si el pedido va por correo (Zipnova): envío a domicilio y una opción de Zipnova elegida.
+		 * Es lo que esconde el input de "Dirección" de una sola línea (la reemplaza el formulario
+		 * completo de DireccionEnvio) y lo que decide qué se valida al confirmar.
+		 *
+		 * @returns {boolean}
+		 */
+		envio_zipnova_elegido() {
+			return Number(this.cart.deliver) === 1 && !!this.cart_envio_opcion
+		},
+		/**
+		 * Lo que suma el envío al total en PANTALLA: la zona propia del negocio o la opción de
+		 * Zipnova (`precio`, que ya viene con la regla de envío gratis aplicada). Sin envío a
+		 * domicilio, cero. Es un cálculo de pantalla: lo que se cobra lo resuelve la API con
+		 * `carts.envio_precio` / la zona guardada, y sale del mismo dato.
+		 *
+		 * @returns {number}
+		 */
+		envio_precio_elegido() {
+			if (Number(this.cart.deliver) !== 1) {
+				return 0
+			}
+			if (this.cart_delivery_zone) {
+				// Forma propia "a convenir" (19/10/2026): no suma nada al total, su `price` no se mira.
+				// Es lo mismo que hace la API en OrderTotalsHelper y en la preferencia de Mercado Pago.
+				if (this.zona_elegida_a_convenir) {
+					return 0
+				}
+				let precio = Number(this.cart_delivery_zone.price)
+				return isFinite(precio) ? precio : 0
+			}
+			if (this.cart_envio_opcion) {
+				let precio = Number(this.cart_envio_opcion.precio)
+				return isFinite(precio) ? precio : 0
+			}
+			return 0
+		},
+		/**
+		 * Total con el envío. Hasta el 14/9/2026 hacía `Number(this.cart_delivery_zone.price)` sin
+		 * guarda y reventaba con la zona en null (retiro por el local, o zona todavía sin elegir);
+		 * Total.vue lo esquivaba con un cálculo propio. Ahora suma `envio_precio_elegido`, que ya
+		 * contempla la zona, la opción de Zipnova y el caso sin envío.
+		 *
+		 * Hasta el 14/10/2026 sumaba sobre `total_with_cupon` (el total con medio de pago menos el
+		 * cupón). La tienda ya no tiene cupones y sin cupón ese computed devolvía exactamente
+		 * `total_with_payment_method`, así que la cuenta es la misma de siempre.
+		 *
+		 * @returns {number}
+		 */
 		total_with_deliver() {
-			return this.total_with_cupon + Number(this.cart_delivery_zone.price)
+			return this.total_with_payment_method + this.envio_precio_elegido
 		},
 		total_final() {
 			return this.total_with_deliver
@@ -196,6 +382,13 @@ export default {
 		 * cualquier direccion guardada del Buyer o del Client del ERP).
 		 *
 		 * Orden de resolucion, siguiendo lo que cada flujo muestra en pantalla:
+		 *   0. Envio por correo (Zipnova) -> el destino del formulario de DireccionEnvio, en una
+		 *      linea (mismo texto que arma EnvioDestinoHelper::como_texto en la API). Con las
+		 *      direcciones nuevas el destino sale de la direccion elegida.
+		 *   0b. Direcciones nuevas (`direcciones_de_envio_activas`) con envio a domicilio -> la
+		 *      direccion elegida en "¿A dónde te lo enviamos?", en la misma linea que arma la API
+		 *      con `envio_direccion` (ver `linea_de_direccion`). Los inputs de texto libre de abajo
+		 *      no se muestran en ese caso.
 		 *   1. Vendedor con cliente seleccionado -> el input de Addresses.vue, que edita
 		 *      selected_buyer.comercio_city_client.address.
 		 *   2. Comprador invitado -> el input "Direccion" de Buyer.vue (store cart.buyer.address).
@@ -205,6 +398,23 @@ export default {
 		 * @returns {string|null}
 		 */
 		order_address() {
+			// 0) Envio por correo: la direccion es el destino completo que el comprador cargo. Los
+			// inputs de una sola linea de abajo estan ocultos en este caso, asi que no hay otra.
+			if (this.envio_zipnova_elegido) {
+				let texto = this.envio_destino_texto()
+				if (texto) {
+					return texto
+				}
+			}
+
+			// 0b) Direcciones nuevas: la direccion elegida en el bloque del checkout.
+			if (this.direcciones_de_envio_activas && Number(this.cart.deliver) === 1 && this.cart_direccion_envio) {
+				let linea = linea_de_direccion(this.cart_direccion_envio)
+				if (linea) {
+					return linea
+				}
+			}
+
 			// 1) Vendedor con un cliente seleccionado: gana siempre, porque cart.buyer
 			// puede tener datos de una sesion anterior del mismo browser.
 			if (this.selected_buyer && this.selected_buyer.comercio_city_client && this.selected_buyer.comercio_city_client.address) {
@@ -244,153 +454,681 @@ export default {
 		},
 	},
 	methods: {
-		setBtnMpVisible(set_visible) {
-			let btn = document.getElementsByClassName('mp-btn')
-			console.log(btn)
-			if (btn.length) {
-				if (set_visible) {
-					btn[0].style.display = 'block'
-					console.log('se hizo visible')
+		/**
+		 * Un valor del destino de envío como texto recortado, o cadena vacía.
+		 *
+		 * @param {string} clave
+		 * @returns {string}
+		 */
+		envio_destino_valor(clave) {
+			let destino = this.$store.state.cart.envio.destino
+			if (!destino || destino[clave] === undefined || destino[clave] === null) {
+				return ''
+			}
+			return String(destino[clave]).trim()
+		},
+		/**
+		 * El destino de Zipnova en una sola línea, para `orders.address` (el ERP viejo la muestra
+		 * tal cual, y también va en los mails y el WhatsApp del pedido).
+		 *
+		 * 🔴 Es la réplica en JS de `EnvioDestinoHelper::como_texto()` de la API, y tiene que dar
+		 * EXACTAMENTE el mismo texto: el servidor lo vuelve a armar desde `envio_destino` al crear
+		 * el pedido, y si difieren el comprador vería una dirección en pantalla y otra en el mail.
+		 * Formato: "{calle} {numero} {piso_depto}, {localidad}, {provincia} (CP {cp}) — {nombre}
+		 * {apellido}, DNI {documento}, tel {telefono} ({referencia})".
+		 *
+		 * @returns {string}
+		 */
+		envio_destino_texto() {
+			let direccion = (this.envio_destino_valor('calle') + ' ' + this.envio_destino_valor('numero') + ' ' + this.envio_destino_valor('piso_depto'))
+				.trim()
+				.replace(/\s+/g, ' ')
+
+			let partes = []
+			if (direccion !== '') {
+				partes.push(direccion)
+			}
+			if (this.envio_destino_valor('localidad') !== '') {
+				partes.push(this.envio_destino_valor('localidad'))
+			}
+			let provincia = this.envio_destino_valor('provincia')
+			let cp = this.envio_destino_valor('codigo_postal')
+			if (provincia !== '' || cp !== '') {
+				partes.push((provincia + (cp !== '' ? ' (CP ' + cp + ')' : '')).trim())
+			}
+
+			let persona = (this.envio_destino_valor('nombre') + ' ' + this.envio_destino_valor('apellido')).trim()
+			let datos = []
+			if (persona !== '') {
+				datos.push(persona)
+			}
+			if (this.envio_destino_valor('documento') !== '') {
+				datos.push('DNI ' + this.envio_destino_valor('documento'))
+			}
+			if (this.envio_destino_valor('telefono') !== '') {
+				datos.push('tel ' + this.envio_destino_valor('telefono'))
+			}
+
+			let texto = partes.join(', ')
+			if (datos.length) {
+				texto += (texto !== '' ? ' — ' : '') + datos.join(', ')
+			}
+			if (this.envio_destino_valor('referencia') !== '') {
+				texto += ' (' + this.envio_destino_valor('referencia') + ')'
+			}
+			return texto
+		},
+		/**
+		 * Etiquetas visibles de los campos del destino, por clave. Son las mismas que muestra
+		 * DireccionEnvio.vue: el aviso de "te falta completar" tiene que decir lo que el
+		 * comprador ve en la pantalla, no el nombre del campo en la base.
+		 *
+		 * @param {string} clave
+		 * @returns {string}
+		 */
+		envio_destino_etiqueta(clave) {
+			let etiquetas = {
+				nombre: 'Nombre',
+				apellido: 'Apellido',
+				documento: 'DNI',
+				email: 'Email',
+				telefono: 'Teléfono',
+				calle: 'Calle',
+				numero: 'Número',
+				piso_depto: 'Piso / Depto',
+				localidad: 'Localidad',
+				provincia: 'Provincia',
+				codigo_postal: 'Código postal',
+				referencia: 'Referencias',
+				point_id: 'Sucursal de retiro',
+			}
+			return etiquetas[clave] ? etiquetas[clave] : clave
+		},
+		/**
+		 * Claves del destino que faltan o son inválidas, con las mismas reglas que
+		 * `EnvioDestinoHelper::faltantes()` de la API: nombre, DNI (7 a 11 dígitos), email válido,
+		 * teléfono (8 dígitos o más), localidad, provincia y código postal siempre; calle y número
+		 * solo a domicilio; sucursal elegida solo en retiro en sucursal.
+		 *
+		 * Se valida acá para no mandar un carrito que el servidor va a rechazar con 422, pero el
+		 * servidor valida igual: esto es la primera línea, no la única.
+		 *
+		 * @returns {string[]} claves (ver envio_destino_etiqueta para el nombre visible)
+		 */
+		envio_destino_faltantes() {
+			let faltan = []
+			let opcion = this.cart_envio_opcion
+			let es_punto_de_retiro = !!(opcion && opcion.es_punto_de_retiro)
+
+			let obligatorios = ['nombre', 'documento', 'email', 'telefono', 'localidad', 'provincia', 'codigo_postal']
+			if (!es_punto_de_retiro) {
+				obligatorios.push('calle', 'numero')
+			}
+			obligatorios.forEach(clave => {
+				if (this.envio_destino_valor(clave) === '') {
+					faltan.push(clave)
+				}
+			})
+
+			// Mismo recorte que hace el servidor al normalizar: espacios, puntos y guiones afuera,
+			// así "30.111.222" vale acá igual que allá.
+			let documento = this.envio_destino_valor('documento').replace(/[\s.\-]/g, '')
+			if (documento !== '' && !/^\d{7,11}$/.test(documento)) {
+				faltan.push('documento')
+			}
+			let email = this.envio_destino_valor('email')
+			if (email !== '' && !this.isEmail(email)) {
+				faltan.push('email')
+			}
+			let telefono = this.envio_destino_valor('telefono')
+			if (telefono !== '' && telefono.replace(/\D/g, '').length < 8) {
+				faltan.push('telefono')
+			}
+			if (es_punto_de_retiro && !this.$store.state.cart.envio.point_id) {
+				faltan.push('point_id')
+			}
+
+			return faltan.filter((clave, index) => {
+				return faltan.indexOf(clave) === index
+			})
+		},
+		/**
+		 * Lleva la pantalla a una sección del checkout, solo si existe. `makeOrder` corre también
+		 * desde Payway y el modal del carrito, donde no hay ninguna sección de envío, y el
+		 * `_scrollTo` del mixin general reintenta cada 500 ms para siempre si el id no está.
+		 *
+		 * @param {string} id
+		 */
+		scroll_a_seccion(id) {
+			if (document.getElementById(id)) {
+				this.scrollTo(id)
+			}
+		},
+		/**
+		 * Atiende los errores del envío por correo que devuelven el `PUT /api/carts` y el
+		 * `POST /api/orders`, y le dice al comprador qué hacer:
+		 *
+		 *   - 422 `opcion_envio`: la opción elegida ya no está (cambió el carrito, venció la
+		 *     cotización). Se suelta la elección; si el servidor mandó `opciones` frescas se
+		 *     muestran esas (ya re-cotizó él), si no se vuelve a cotizar.
+		 *   - 422 `destino`: faltan datos del destinatario. Se marcan los campos que el servidor
+		 *     rechazó (`errors`) y se lleva al comprador al formulario.
+		 *   - 422 `sin_zipnova` / `sin_articulos`: el negocio ya no cotiza por correo o no hay
+		 *     nada que enviar. Se suelta la opción para que elija otra forma de envío.
+		 *   - 422 `ubicacion`: Zipnova no reconoció el destino. Se suelta la opción y el cotizador
+		 *     pide localidad y provincia.
+		 *   - 502 `zipnova`: Zipnova no respondió. Se avisa y la opción queda: es reintentable.
+		 *
+		 * @param {object} err Error de axios.
+		 * @returns {boolean} true si el error era del envío y ya se le avisó al comprador.
+		 */
+		manejar_error_de_envio(err) {
+			if (!err || !err.response || !err.response.data) {
+				return false
+			}
+			let status = err.response.status
+			let data = err.response.data
+			if ((status != 422 && status != 502) || !data.codigo) {
+				return false
+			}
+			let self = this
+
+			if (data.codigo == 'opcion_envio') {
+				this.$toast.error(data.message ? escapar_html(data.message) : 'Esa forma de envío ya no está disponible, volvé a cotizar')
+				this.$store.commit('cart/set_envio_opcion_key', null)
+				/*
+				 * Direcciones nuevas (19/10/2026): tienda-api también responde `opcion_envio` cuando el
+				 * código postal de la dirección elegida no es el cotizado ("La dirección elegida es de
+				 * otro código postal..."). Ahí no sirve volver a cotizar al CP del store, que es el
+				 * viejo: se pone el de la dirección y se cotiza a ese.
+				 */
+				let cp_de_la_direccion = this.direcciones_de_envio_activas && this.cart_direccion_envio
+					? codigo_postal_para_cotizar(this.cart_direccion_envio.zip_code)
+					: ''
+				if (cp_de_la_direccion && !mismo_codigo_postal(cp_de_la_direccion, this.$store.state.cart.envio.zipcode)) {
+					this.$store.commit('cart/set_envio_zipcode', cp_de_la_direccion)
+					this.$store.dispatch('cart/cotizar_envio', {
+						articles: lineas_del_carrito(this.$store.state.cart.cart),
+						cart_id: this.cart && this.cart.id ? this.cart.id : null,
+					})
+					.catch(() => {
+						// El mensaje ya quedó en envio.error y el cotizador lo muestra.
+					})
+				} else if (Array.isArray(data.opciones)) {
+					// El servidor ya re-cotizó: son las opciones vigentes para este carrito y este
+					// CP, no hace falta pedirlas de nuevo (y sería otra consulta a Zipnova).
+					this.$store.commit('cart/set_envio_opciones', {
+						opciones: data.opciones,
+						zipcode: this.$store.state.cart.envio.zipcode,
+						city: data.city,
+						state: data.state,
+						envio_gratis: data.opciones.length ? !!data.opciones[0].envio_gratis : false,
+						items_firma: firma_de_lineas(lineas_del_carrito(this.$store.state.cart.cart)),
+					})
+				} else if (this.$store.state.cart.envio.zipcode) {
+					this.$store.dispatch('cart/cotizar_envio', {
+						articles: lineas_del_carrito(this.$store.state.cart.cart),
+						cart_id: this.cart && this.cart.id ? this.cart.id : null,
+					})
+					.catch(() => {
+						// El mensaje ya quedó en envio.error y el cotizador lo muestra.
+					})
+				}
+				this.scroll_a_seccion('formas-de-envio')
+				return true
+			}
+
+			if (data.codigo == 'destino') {
+				let claves = []
+				if (data.errors && typeof data.errors === 'object') {
+					Object.keys(data.errors).forEach(clave => {
+						claves.push(clave)
+					})
+				}
+				this.$store.commit('cart/set_envio_errores_destino', claves)
+				let etiquetas = []
+				claves.forEach(clave => {
+					etiquetas.push(self.envio_destino_etiqueta(clave))
+				})
+				if (etiquetas.length) {
+					this.$toast.error('Revisá los datos del envío: ' + etiquetas.join(', '))
 				} else {
-					btn[0].style.display = 'none'
-					let child = document.getElementsByClassName('mercadopago-button')
-					console.log('se hizo no visible')
-					if (child.length) {
-						child[0].remove()
-						console.log('se removio btn')
+					this.$toast.error(data.message || 'Revisá los datos del envío')
+				}
+				// Con las direcciones nuevas, la calle, la localidad y el código postal se corrigen en
+				// "¿A dónde te lo enviamos?" (DireccionEnvio solo tiene los datos de contacto).
+				let es_de_la_direccion = claves.some(clave => {
+					return ['calle', 'numero', 'piso_depto', 'localidad', 'provincia', 'codigo_postal'].indexOf(clave) !== -1
+				})
+				if (this.direcciones_de_envio_activas && es_de_la_direccion) {
+					this.scroll_a_seccion('direccion-de-entrega')
+				} else {
+					this.scroll_a_seccion('direccion-envio')
+				}
+				return true
+			}
+
+			if (data.codigo == 'sin_zipnova' || data.codigo == 'sin_articulos' || data.codigo == 'ubicacion') {
+				this.$toast.error(data.message || 'No pudimos cotizar el envío. Elegí otra forma de envío.')
+				this.$store.commit('cart/set_envio_opcion_key', null)
+				if (data.codigo == 'ubicacion') {
+					this.$store.commit('cart/set_envio_needs_location', true)
+				}
+				this.scroll_a_seccion('formas-de-envio')
+				return true
+			}
+
+			if (data.codigo == 'zipnova') {
+				this.$toast.error(data.message || 'No pudimos cotizar el envío en este momento. Probá de nuevo en un rato.')
+				return true
+			}
+
+			return false
+		},
+		/**
+		 * Atiende los 422 de la dirección de entrega que pueden devolver el `PUT/POST /api/carts` y
+		 * el `POST /api/orders` con las direcciones nuevas (misión formas-envio-direcciones-maps,
+		 * 19/10/2026):
+		 *
+		 *   - `direccion`: la dirección guardada que se mandó (`buyer_address_id`) no es de este
+		 *     comprador o ya no existe (la borró desde otra pestaña) —se suelta la elección y el
+		 *     bloque vuelve a elegir la principal, o abre el buscador—, o a la cargada a mano le
+		 *     faltan datos (viene con `errors`: queda a la vista para que la cambie). En los dos
+		 *     casos se muestra el `message` del servidor y se lleva al comprador al bloque.
+		 *   - `sin_direcciones`: la base del cliente no tiene la tabla de direcciones. No debería
+		 *     llegar (sin la tabla `direcciones_de_envio` es false y el SPA no manda nada), pero si
+		 *     llega se le dice qué hacer en vez del genérico.
+		 *
+		 * Vive aparte de `manejar_error_de_envio` por el mismo motivo que
+		 * `manejar_articulos_no_disponibles`: aquél es del correo (Zipnova) y no tiene por qué
+		 * conocer esto. Contra una tienda-api vieja nunca llega ninguno de los dos códigos.
+		 *
+		 * @param {object} err Error de axios.
+		 * @returns {boolean} true si el error era éste y ya se le avisó al comprador.
+		 */
+		manejar_error_de_direccion(err) {
+			if (!err || !err.response || !err.response.data) {
+				return false
+			}
+			let data = err.response.data
+			if (err.response.status != 422 || (data.codigo != 'direccion' && data.codigo != 'sin_direcciones')) {
+				return false
+			}
+			if (data.codigo == 'direccion') {
+				/*
+				 * El `message` lo escribe tienda-api ("Esa dirección ya no está en tu cuenta...",
+				 * "Faltan datos de la dirección de entrega."). Se escapa igual: el toast lo dibuja con
+				 * `v-html`.
+				 */
+				this.$toast.error(data.message ? escapar_html(data.message) : 'Revisá la dirección de entrega. Elegí otra o cargala de nuevo.')
+				// Sin `errors` por campo es la guardada que ya no es de este comprador (la borró en otra
+				// pestaña): se suelta, y el bloque vuelve a elegir la principal con la lista nueva. Con
+				// `errors`, a la cargada le faltan datos: queda a la vista para que la cambie.
+				if (!data.errors) {
+					this.$store.commit('cart/set_direccion_envio', null)
+					if (this.authenticated && this.user && !this.user.seller_id) {
+						this.$store.dispatch('buyer_addresses/fetch').catch(() => {})
 					}
 				}
+			} else {
+				this.$toast.error('Por ahora no podemos guardar direcciones. Probá de nuevo en un rato o elegí retiro por el local.')
 			}
+			this.scroll_a_seccion('direccion-de-entrega')
+			return true
 		},
-		discountCupon(total) {
-			if (this.cupon) {
-				if (this.cupon.amount) {
-					total -= this.cupon.amount
-				} else {
-					total = total - (total * this.percentageToMultiply(this.cupon.percentage))
-				}
+		/**
+		 * Atiende el 422 `articulos_no_disponibles` de `POST /api/orders` (contrato C3 de la
+		 * misión catalogo-por-lista-tienda, 5/10/2026): el carrito guardado tiene artículos que
+		 * este comprador no puede comprar con su lista de precios (`articulos: [{id, name}]`).
+		 *
+		 * Vive APARTE de `manejar_error_de_envio` a propósito: aquél es solo del envío por correo
+		 * y su docblock lo dice; mezclarlos haría que el próximo que toque el envío tenga que
+		 * entender también el catálogo por lista.
+		 *
+		 * Hace tres cosas, y las tres hacen falta:
+		 *   1. Saca esas líneas del carrito LOCAL. Sin esto el reintento vuelve a guardar el
+		 *      carrito con ellas adentro y pega el mismo 422.
+		 *   2. Le avisa al comprador con los nombres, aclarando que el pedido NO se envió. Si el
+		 *      servidor no mandó artículos reconocibles, con su `message`. Si con eso el carrito
+		 *      quedó vacío, lo lleva al carrito (`llevar_al_carrito_vacio`).
+		 *   3. Devuelve true, para que `makeOrder` resuelva `false` (= "ya le dije qué hacer") y
+		 *      el botón no pise este aviso con el genérico de "No pudimos guardar tu pedido".
+		 *
+		 * Contra una tienda-api vieja nunca llega este 422, así que nunca corre.
+		 *
+		 * @param {object} err Error de axios.
+		 * @returns {boolean} true si el error era éste y ya se le avisó al comprador.
+		 */
+		manejar_articulos_no_disponibles(err) {
+			if (!err || !err.response || !err.response.data) {
+				return false
 			}
-			return total
+			let data = err.response.data
+			if (err.response.status != 422 || data.codigo != 'articulos_no_disponibles') {
+				return false
+			}
+			let articulos = articulos_no_disponibles(data.articulos)
+			this.$store.commit('cart/quitar_articulos_no_disponibles', articulos)
+			// Se mira DESPUÉS de sacar las líneas: si el carrito local quedó sin ninguna, el aviso lo dice.
+			let carrito_vacio = carrito_sin_lineas(this.$store.state.cart.cart)
+			if (!avisar_articulos_no_disponibles(articulos, true, carrito_vacio)) {
+				/*
+				 * 🔴 El `message` viene del servidor y puede traer nombres de artículos, que los
+				 * escribe el comerciante en el ERP, y el toast lo dibuja con `v-html`: se escapa igual
+				 * que los nombres de `mensaje_de_articulos_no_disponibles`. El texto de respaldo es
+				 * nuestro y no lleva nada que escapar.
+				 */
+				this.$toast.error(data.message ? escapar_html(data.message) : 'Algunos productos de tu carrito ya no están disponibles. Revisá tu carrito y confirmá el pedido de nuevo.')
+			} else if (carrito_vacio) {
+				// El aviso fue el de "tu carrito quedó vacío": no hay nada que volver a confirmar acá.
+				this.llevar_al_carrito_vacio()
+			}
+			return true
 		},
-		makeOrder(from_mercadopago = false) {
-			if (this.canMakeOrder()) {
+		/**
+		 * Corta la confirmación del pedido si el guardado del carrito que la precede DESCARTÓ
+		 * artículos no disponibles para este comprador (catalogo-por-lista-tienda).
+		 *
+		 * 🔴 Por qué cortar y no seguir con el carrito ya corregido: el comprador confirmó un
+		 * carrito y un total que acaba de cambiar. Seguir crearía un pedido distinto del que
+		 * vio —y en Mercado Pago le cobraría otro monto— con un aviso que dura unos segundos
+		 * mientras la pantalla ya se fue a "Gracias". Cortando, se queda en el checkout con el
+		 * carrito corregido, el aviso explica qué pasó, y vuelve a confirmar. Si el carrito quedó
+		 * VACÍO no hay nada que confirmar: se lo lleva al carrito (`llevar_al_carrito_vacio`).
+		 *
+		 * Pasa con un carrito viejo (de antes de que el comerciante restringiera la lista) que
+		 * `getLastCart` trae tal cual y nadie volvió a guardar hasta el checkout.
+		 *
+		 * Avisa acá —con el texto de "tu pedido todavía no se envió"— y tira un error marcado
+		 * que el `.catch` del llamador reconoce con `es_corte_por_articulos_no_disponibles()`.
+		 * Por eso el llamador guarda con `{avisar_no_disponibles: false}`: si no, salían dos
+		 * avisos.
+		 *
+		 * Sin descartes (siempre, contra una tienda-api vieja) no hace nada.
+		 *
+		 * @param {Array|undefined} descartados Lo que resolvió `cart/save`.
+		 * @throws {Error} con `articulos_no_disponibles_ya_avisados = true`.
+		 */
+		cortar_si_el_guardado_descarto(descartados) {
+			let articulos = articulos_no_disponibles(descartados)
+			if (!articulos.length) {
+				return
+			}
+			// El guardado ya dejó en el store el carrito que devolvió el servidor (en blanco si fue
+			// `cart: null`, o sin líneas): si descartó todo, el aviso lo dice.
+			let carrito_vacio = carrito_sin_lineas(this.$store.state.cart.cart)
+			avisar_articulos_no_disponibles(articulos, true, carrito_vacio)
+			if (carrito_vacio) {
+				// Y en el checkout no queda nada que volver a confirmar: se lo lleva al carrito.
+				this.llevar_al_carrito_vacio()
+			}
+			let corte = new Error('articulos_no_disponibles')
+			corte.articulos_no_disponibles_ya_avisados = true
+			throw corte
+		},
+		/**
+		 * Si el error es el corte de `cortar_si_el_guardado_descarto()`: el comprador ya fue
+		 * avisado y no hay que mostrar ningún otro mensaje.
+		 *
+		 * @param {*} err
+		 * @returns {boolean}
+		 */
+		es_corte_por_articulos_no_disponibles(err) {
+			return !!(err && err.articulos_no_disponibles_ya_avisados)
+		},
+		/**
+		 * Lleva al comprador a la página del carrito cuando el checkout se quedó sin nada que
+		 * confirmar: se descartaron todas las líneas (catalogo-por-lista-tienda) o el carrito ya
+		 * estaba vacío.
+		 *
+		 * 🔴 Por qué: "Confirmá tu pedido" (views/Payment.vue) no se redirige solo con el carrito
+		 * vacío y su botón sigue activo. Si el comprador volvía a tocar "Finalizar compra", se
+		 * guardaba un carrito sin líneas y, como no queda pedido que crear, lo único que veía era el
+		 * genérico "No pudimos guardar tu pedido. Probá de nuevo.", que no dice nada del carrito. En
+		 * el carrito, en cambio, ve cómo quedó y puede volver a elegir productos.
+		 *
+		 * `replace` y no `push`: el checkout vacío no es un lugar al que se pueda volver con "atrás".
+		 * El `.catch` vacío es por `NavigationDuplicated`: pasa cuando ya está en el carrito (el
+		 * modal de forma de pago se abre ahí) y no es un error para nadie.
+		 *
+		 * El aviso (toast) lo da quien llama o el store, y sigue en pantalla después de navegar.
+		 */
+		llevar_al_carrito_vacio() {
+			this.$router.replace({name: 'Cart'}).catch(() => {})
+		},
+		/**
+		 * Crea el pedido a partir del carrito.
+		 *
+		 * Devuelve SIEMPRE una promesa, y resuelve con `true` si el pedido quedo creado o con `null`
+		 * si algo fallo. Antes no devolvia nada, y por eso el checkout no tenia forma de encadenar
+		 * nada despues del pedido: el camino de Mercado Pago pedia la preferencia EN PARALELO, sin
+		 * mirar si el pedido se habia creado.
+		 *
+		 * Desde el 14/9/2026 tambien puede resolver con `false`: el `PUT /carts` o el `POST /orders`
+		 * rechazaron el envio por correo (422 `opcion_envio` / `destino` / `sin_zipnova` /
+		 * `sin_articulos` / `ubicacion`, o 502 `zipnova`) y `manejar_error_de_envio` YA le dijo al
+		 * comprador que hacer. El llamador no tiene que mostrar el aviso generico en ese caso.
+		 *
+		 * Desde el 5/10/2026 (catalogo-por-lista-tienda) tambien resuelve con `false` cuando:
+		 *   - el `POST /orders` respondio 422 `articulos_no_disponibles` (ver
+		 *     `manejar_articulos_no_disponibles`),
+		 *   - el llamador pidio `frenar_si_hay_descartes` y el `cart/save` del principio descarto
+		 *     articulos no disponibles (ver `cortar_si_el_guardado_descarto`), o
+		 *   - ese `cart/save` dejo el carrito sin guardar o sin lineas: se descartaron TODAS (el
+		 *     servidor borro el carrito, `cart: null`, y no hay `cart_id`) o ya estaba vacio. No se
+		 *     le pega a `POST /orders`: sin `cart_id` respondia 403 y resolvia `null`, y un carrito
+		 *     vacio no es un pedido. Se lleva al comprador al carrito (`llevar_al_carrito_vacio`).
+		 * En los tres casos el pedido NO se creo. El aviso de lo descartado, si lo hubo, ya lo dio
+		 * el store (o `cortar_si_el_guardado_descarto`).
+		 *
+		 * Desde el 19/10/2026 (direcciones de envio) tambien resuelve con `false` ante el 422
+		 * `direccion` / `sin_direcciones` de la direccion de entrega (ver `manejar_error_de_direccion`).
+		 *
+		 * No rechaza nunca: los llamadores viejos (Payway, el modal del carrito, el gateway) la
+		 * invocan sin `.catch`, y una promesa rechazada ahi solo ensuciaria la consola.
+		 *
+		 * @param {boolean} from_mercadopago El pago sigue en Mercado Pago: no se limpia el carrito ni
+		 *                                   se navega a la pagina de gracias, eso pasa al volver.
+		 * @param {boolean} mostrar_overlay Prender el cartel de carga a pantalla completa. El checkout
+		 *                                  pasa `false` porque muestra el estado adentro del boton;
+		 *                                  los demas llamadores no tienen boton propio y lo dejan en
+		 *                                  `true`.
+		 * @param {boolean} frenar_si_hay_descartes Si el `cart/save` del principio descarta
+		 *                                  articulos no disponibles, no crear el pedido y
+		 *                                  resolver `false`. Lo pide SOLO el checkout
+		 *                                  (BtnSave.vue), donde todavia no se cobro nada. Los
+		 *                                  llamadores viejos lo dejan en `false` a proposito:
+		 *                                  `savePayment()` de mixins/payment_gateway.js llama a
+		 *                                  makeOrder() DESPUES de cobrar la tarjeta, y frenar ahi
+		 *                                  dejaria un pago sin pedido. Con `false` el pedido sale
+		 *                                  con el carrito ya corregido y el aviso lo da el store,
+		 *                                  salvo que se hayan descartado TODAS las lineas: sin
+		 *                                  carrito guardado no hay pedido que crear y resuelve
+		 *                                  `false` (ver arriba).
+		 * @returns {Promise<boolean|null>}
+		 */
+		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false) {
+			if (!this.canMakeOrder()) {
+				return Promise.resolve(null)
+			}
+
+			let self = this
+
+			if (mostrar_overlay) {
 				this.$store.commit('auth/setLoading', true)
-				if (from_mercadopago) {
-					this.$store.commit('auth/setMessage', 'Guardando pedido para luego pagar con Mercado Pago')
-				} else {
-					this.$store.commit('auth/setMessage', 'Enviando pedido')
+				this.$store.commit('auth/setMessage', 'Enviando pedido')
+			}
+
+			let apagar_overlay = function() {
+				if (mostrar_overlay) {
+					self.$store.commit('auth/setLoading', false)
+					self.$store.commit('auth/setMessage', '')
 				}
-				this.$store.dispatch('cart/save')
-				.then(() => {
-					return this.$api.post('/orders', {
-						commerce_id 	: process.env.VUE_APP_COMMERCE_ID,
-						cart_id         : this.cart.id,
-						dolar_blue      : this.dolar_blue,
-						buyer_id		: this.buyer_id,
-						seller_id		: this.user.seller_id,
-						buyer 			: this.user,
-						selected_buyer 	: this.selected_buyer,
-						fecha_entrega 	: this.fecha_entrega,
-						// Direccion explicita: la que el comprador VIO en el formulario y acepto al
-						// confirmar. OrderController@get_address le da prioridad sobre cualquier
-						// direccion guardada en buyer/selected_buyer (ver prompt 402).
-						address         : this.order_address,
-					})
-					.then(res => {
-						if (from_mercadopago) {
-							// El pedido YA quedo creado (el POST devolvio 201): lo que falta es el
-							// pago en MercadoPago. Se trackea igual porque checkout_complete
-							// significa "pedido creado", no "pedido pagado", y este camino nunca
-							// vuelve a pasar por aca.
-							//
-							// El order_id sale del cuerpo del 201, que OrderController@store ahora
-							// devuelve como {"order_id": N}. En esta rama el SPA nunca llama a
-							// getCurrentOrder, asi que es la unica forma de conocerlo — y MercadoPago
-							// es el medio dominante, o sea que sin esto el grueso de los
-							// checkout_complete quedaria sin poder atarse a la venta.
-							//
-							// 🔴 El fallback a null NO es defensivo por las dudas: los dos lados nunca
-							// se despliegan juntos, asi que este SPA va a correr un tiempo contra la
-							// API vieja, que responde 201 con cuerpo VACIO. Ahi order_id queda null y
-							// el evento igual se manda (armar_evento saltea los null).
-							let order_id = res.data && res.data.order_id ? res.data.order_id : null
-							trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
-								order_id: order_id,
-								amount: this.total,
-							})
-							// Vaciado inmediato: esta rama se va del SPA enseguida (redirect a
-							// MercadoPago) y los 5 segundos del temporizador de la cola no llegan.
-							// Ver el comentario largo de la rama de abajo para el otro motivo.
-							enviar_cola()
-							this.$store.commit('auth/setLoading', false)
-							this.$store.commit('auth/setMessage', '')
-							return
-						}
+			}
 
-						// Se guarda el id ANTES de limpiar el carrito del store: despues this.cart es null.
-						const cart_id = this.cart.id
-						// Mismo motivo que cart_id: el total del carrito hay que leerlo antes de vaciarlo.
-						const total_del_pedido = this.total
+			// Si este llamador frena ante descartes, el aviso lo da cortar_si_el_guardado_descarto
+			// (con el texto de "tu pedido todavia no se envio") y el store no tiene que dar otro.
+			let opciones_del_guardado = frenar_si_hay_descartes ? { avisar_no_disponibles: false } : undefined
 
-						this.$store.commit('cart/setCart', null)
-						this.$store.commit('cart/set_buyer_id', null)
-						this.$store.commit('cart/set_selected_buyer', null)
-						localStorage.cart = null
-
-						// Secuencia obligatoria. El orden ES el fix: OrderController@current resuelve el
-						// comprador leyendo del guard 'buyer', asi que si la sesion se invalida antes,
-						// el pedido no se puede recuperar nunca mas y la pagina de gracias queda vacia.
-						// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion -> 4) navegar.
-						this.$store.dispatch('orders/getCurrentOrder')
-						.then(() => {
-							// El tracking se SUMA a la secuencia, no la altera: sigue siendo
-							// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion ->
-							// 4) navegar. Va aca y no antes porque el order_id recien se conoce
-							// despues de getCurrentOrder (POST /orders responde 201 sin cuerpo).
-							let pedido = this.$store.state.orders.order
-							trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
-								order_id: pedido ? pedido.id : null,
-								amount: pedido && pedido.total != null ? pedido.total : total_del_pedido,
-							})
-							/*
-							 * 🔴 Vaciado INMEDIATO, y esto no es una optimizacion: es lo unico que
-							 * le da una chance al buyer_id.
-							 *
-							 * trackear() solo encola — el envio real sale 5 segundos despues, por
-							 * temporizador. Mientras tanto esta misma cadena sigue y llega a
-							 * logoutGuestAfterOrder(), que hace POST buyer/logout y es el camino
-							 * NORMAL del checkout de invitado. Cuando el lote finalmente saliera, la
-							 * sesion ya no existe, y BuyerTrackingController resuelve el comprador
-							 * desde el guard en el momento de la ingesta: buyer_id llegaria null.
-							 * Peor que perderlo siempre: si el temporizador casualmente disparaba
-							 * antes del logout, si lo llevaba. Sin esto la atribucion de las compras
-							 * queda librada a una carrera, sin patron.
-							 *
-							 * ⚠️ Esto REDUCE la carrera, no la elimina: el envio del tracking y el
-							 * del logout son dos requests independientes y el orden en que llegan al
-							 * servidor no esta garantizado. La atribucion igual es recuperable por
-							 * order_id -> orders.buyer_id, que es la via confiable cuando el
-							 * buyer_id del evento viene null.
-							 */
-							enviar_cola()
-							return this.deleteCartAfterOrder(cart_id)
-						})
-						.then(() => {
-							return this.logoutGuestAfterOrder()
-						})
-						.then(() => {
-							this.$store.commit('auth/setLoading', false)
-							this.$store.commit('auth/setMessage', '')
-							this.$router.push({name: 'Thanks'})
-						})
-					})
-					.catch(err => {
-						this.$store.commit('auth/setLoading', false)
-						this.$store.commit('auth/setMessage', '')
-						console.log(err)
-					})
+			return this.$store.dispatch('cart/save', opciones_del_guardado)
+			.then(function(descartados) {
+				if (frenar_si_hay_descartes) {
+					self.cortar_si_el_guardado_descarto(descartados)
+				}
+				/*
+				 * 🔴 Sin carrito guardado, o sin líneas, no hay pedido que crear. Si el guardado descartó
+				 * TODAS las líneas (catalogo-por-lista-tienda), el servidor borra el carrito y responde
+				 * `cart: null`: `setCart(null)` lo deja en blanco y `self.cart.id` queda undefined, y el
+				 * POST saldría sin `cart_id`, que tienda-api rechaza con 403. Eso resolvía `null` y
+				 * quienes no frenan (`savePayment()` corre DESPUÉS de cobrar la tarjeta) seguían como si
+				 * nada.
+				 *
+				 * Un carrito con id pero SIN líneas (el POST de uno vacío lo crea igual) tampoco es un
+				 * pedido, y tienda-api no lo valida.
+				 *
+				 * Corta ANTES de pegarle a /orders y resuelve `false`, igual que los otros cortes, y
+				 * lleva al comprador al carrito: con el checkout vacío en pantalla el único aviso posible
+				 * era el genérico "No pudimos guardar tu pedido". Con una tienda-api vieja el POST sin
+				 * `cart_id` fallaba igual: no cambia nada que anduviera.
+				 */
+				if (!self.cart || !self.cart.id || carrito_sin_lineas(self.cart)) {
+					self.llevar_al_carrito_vacio()
+					let corte = new Error('carrito_sin_guardar')
+					corte.carrito_sin_guardar = true
+					throw corte
+				}
+				return self.$api.post('/orders', {
+					commerce_id 	: env('VUE_APP_COMMERCE_ID'),
+					cart_id         : self.cart.id,
+					dolar_blue      : self.dolar_blue,
+					buyer_id		: self.buyer_id,
+					seller_id		: self.user.seller_id,
+					buyer 			: self.user,
+					selected_buyer 	: self.selected_buyer,
+					fecha_entrega 	: self.fecha_entrega,
+					// Direccion explicita: la que el comprador VIO en el formulario y acepto al
+					// confirmar. OrderController@get_address le da prioridad sobre cualquier
+					// direccion guardada en buyer/selected_buyer (ver prompt 402).
+					address         : self.order_address,
 				})
-			} 
+			})
+			.then(function(res) {
+				if (from_mercadopago) {
+					// El pedido YA quedo creado (el POST devolvio 201): lo que falta es el
+					// pago en MercadoPago. Se trackea igual porque checkout_complete
+					// significa "pedido creado", no "pedido pagado", y este camino nunca
+					// vuelve a pasar por aca.
+					//
+					// El order_id sale del cuerpo del 201, que OrderController@store ahora
+					// devuelve como {"order_id": N}. En esta rama el SPA nunca llama a
+					// getCurrentOrder, asi que es la unica forma de conocerlo — y MercadoPago
+					// es el medio dominante, o sea que sin esto el grueso de los
+					// checkout_complete quedaria sin poder atarse a la venta.
+					//
+					// 🔴 El fallback a null NO es defensivo por las dudas: los dos lados nunca
+					// se despliegan juntos, asi que este SPA va a correr un tiempo contra la
+					// API vieja, que responde 201 con cuerpo VACIO. Ahi order_id queda null y
+					// el evento igual se manda (armar_evento saltea los null).
+					let order_id = res.data && res.data.order_id ? res.data.order_id : null
+					trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
+						order_id: order_id,
+						amount: self.total,
+					})
+					// Vaciado inmediato: esta rama se va del SPA enseguida (redirect a
+					// MercadoPago) y los 5 segundos del temporizador de la cola no llegan.
+					// Ver el comentario largo de la rama de abajo para el otro motivo.
+					enviar_cola()
+					apagar_overlay()
+					return true
+				}
+
+				// Se guarda el id ANTES de limpiar el carrito del store: despues self.cart es null.
+				let cart_id = self.cart.id
+				// Mismo motivo que cart_id: el total del carrito hay que leerlo antes de vaciarlo.
+				let total_del_pedido = self.total
+
+				self.$store.commit('cart/setCart', null)
+				self.$store.commit('cart/set_buyer_id', null)
+				self.$store.commit('cart/set_selected_buyer', null)
+				localStorage.cart = null
+
+				// Secuencia obligatoria. El orden ES el fix: OrderController@current resuelve el
+				// comprador leyendo del guard 'buyer', asi que si la sesion se invalida antes,
+				// el pedido no se puede recuperar nunca mas y la pagina de gracias queda vacia.
+				// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion -> 4) navegar.
+				return self.$store.dispatch('orders/getCurrentOrder')
+				.then(function() {
+					// El tracking se SUMA a la secuencia, no la altera: sigue siendo
+					// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion ->
+					// 4) navegar. Va aca y no antes porque el order_id recien se conoce
+					// despues de getCurrentOrder (POST /orders responde 201 sin cuerpo).
+					let pedido = self.$store.state.orders.order
+					trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
+						order_id: pedido ? pedido.id : null,
+						amount: pedido && pedido.total != null ? pedido.total : total_del_pedido,
+					})
+					/*
+					 * 🔴 Vaciado INMEDIATO, y esto no es una optimizacion: es lo unico que
+					 * le da una chance al buyer_id.
+					 *
+					 * trackear() solo encola — el envio real sale 5 segundos despues, por
+					 * temporizador. Mientras tanto esta misma cadena sigue y llega a
+					 * logoutGuestAfterOrder(), que hace POST buyer/logout y es el camino
+					 * NORMAL del checkout de invitado. Cuando el lote finalmente saliera, la
+					 * sesion ya no existe, y BuyerTrackingController resuelve el comprador
+					 * desde el guard en el momento de la ingesta: buyer_id llegaria null.
+					 * Peor que perderlo siempre: si el temporizador casualmente disparaba
+					 * antes del logout, si lo llevaba. Sin esto la atribucion de las compras
+					 * queda librada a una carrera, sin patron.
+					 *
+					 * ⚠️ Esto REDUCE la carrera, no la elimina: el envio del tracking y el
+					 * del logout son dos requests independientes y el orden en que llegan al
+					 * servidor no esta garantizado. La atribucion igual es recuperable por
+					 * order_id -> orders.buyer_id, que es la via confiable cuando el
+					 * buyer_id del evento viene null.
+					 */
+					enviar_cola()
+					return self.deleteCartAfterOrder(cart_id)
+				})
+				.then(function() {
+					return self.logoutGuestAfterOrder()
+				})
+				.then(function() {
+					apagar_overlay()
+					self.$router.push({name: 'Thanks'})
+					return true
+				})
+			})
+			.catch(function(err) {
+				apagar_overlay()
+				console.log(err)
+				// El guardado descarto articulos no disponibles y se freno antes de crear el
+				// pedido: el aviso ya salio en cortar_si_el_guardado_descarto.
+				if (self.es_corte_por_articulos_no_disponibles(err)) {
+					return false
+				}
+				// El guardado dejo el carrito sin guardar o sin lineas: no se le pego a /orders (y ya se
+				// llevo al comprador al carrito). Ver el guard de arriba.
+				if (err && err.carrito_sin_guardar) {
+					return false
+				}
+				// 422 `articulos_no_disponibles` del POST /orders (`manejar_error_de_envio` no
+				// conoce este codigo y devolveria false). Mismo `false`, mismo motivo.
+				if (self.manejar_articulos_no_disponibles(err)) {
+					return false
+				}
+				// 422 de la direccion de entrega (direcciones nuevas): mismo `false`, mismo motivo.
+				if (self.manejar_error_de_direccion(err)) {
+					return false
+				}
+				// Un 422 del envio por correo tiene su propio aviso (y su propia salida: volver a
+				// cotizar o corregir el destino). Se distingue con `false` para que el boton no
+				// pise ese aviso con el generico de "no pudimos guardar tu pedido".
+				if (self.manejar_error_de_envio(err)) {
+					return false
+				}
+				return null
+			})
 		},
 		// 🔴 NO convertir esto en un porton que devuelva false sin frenar tambien a los
 		// llamadores. Se intento el 31/8/2026 y se revirtio: makeOrder() se alcanza desde

@@ -6,12 +6,7 @@
 			@click="home">
 				Inicio
 			</b-nav-item>
-			<!-- <b-nav-item 
-			:class="active('Help')"
-			:to="{name: 'Help'}">
-				Ayuda
-			</b-nav-item> -->
-			<template 
+			<template
 			v-if="authenticated">
 				<b-nav-item 
 				:class="active('Messages')"
@@ -26,28 +21,8 @@
 				<b-nav-item-dropdown right>
 					<template v-slot:button-content>
 						{{ user_name }}
-						<b-badge
-                        v-show="cupons_not_read > 0"
-                        class="badge"
-                        variant="danger"
-                        size="sm">
-                            {{ cupons_not_read }}
-                        </b-badge>
 					</template>
-					<b-dropdown-item 
-					:class="active('Cupons')"
-					@click="cupons">
-						<i class="bi bi-ticket-perforated icon-black"></i>
-                        <b-badge
-                        v-show="cupons_not_read > 0"
-                        class="badge"
-                        variant="danger"
-                        size="sm">
-                            {{ cupons_not_read }}
-                        </b-badge>
-						Cupones
-					</b-dropdown-item>
-					<b-dropdown-item 
+					<b-dropdown-item
 					:class="active('Questions')"
 					@click="questions">
 						<i class="bi bi-chat-dots icon-black"></i>

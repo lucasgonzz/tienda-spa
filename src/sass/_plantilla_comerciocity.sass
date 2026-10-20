@@ -57,10 +57,12 @@
 				box-shadow: var(--cc-shadow-hover) !important
 				border: 1px solid rgba(0, 0, 0, .12)
 
-		// Proporción fija 1:1 y la foto entera adentro (`contain`), sobre un fondo neutro. Las fotos
-		// de catálogo de una ferretería o una distribuidora vienen de cualquier proporción:
-		// enmarcarlas es mejor que recortarlas, y además deja todos los precios de la fila a la
-		// misma altura, que con el `max-height: 500px` de `_article_card.sass` no pasaba.
+		// Proporción fija 1:1, sobre un fondo neutro que solo se ve mientras la imagen carga o si
+		// falla (`vue-load-image` renderiza el spinner/el texto de error contra este mismo fondo).
+		// Antes la foto iba con `object-fit: contain` + `padding: 10%` para entrar entera sin
+		// recortar, a costa de dejar ese 10% de fondo neutro asomando como marco alrededor de la
+		// foto. Lucas pidió sacar ese margen: la imagen ahora ocupa el recuadro completo con
+		// `cover`, recortando lo que sobre de una foto que no sea cuadrada.
 		.cont-images
 			position: relative
 			// Anula el `max-height: 500px` de `_article_card.sass`. Sin esto el `aspect-ratio`
@@ -80,10 +82,7 @@
 				img
 					width: 100%
 					height: 100%
-					object-fit: contain
-					// El padding va en la `img` y no en el contenedor para que el `scale` del hover
-					// llegue a ocupar el cuadro completo.
-					padding: 10%
+					object-fit: cover
 					// El redondeo lo hace el `overflow: hidden` de la tarjeta. Redondear también acá
 					// —como hace `_article_card.sass` por breakpoint— deja un halo entre los dos radios.
 					border-radius: 0
@@ -134,31 +133,33 @@
 		// nombre de cinco líneas desalinea los precios de la fila entera. El min-height son dos
 		// líneas del font-size y line-height de acá abajo: si se toca uno, se tocan los dos.
 		.product-name
-			font-size: 15px
-			line-height: 1.35
-			font-weight: 500
+			font-size: 14px
+			line-height: 1.25
+			font-weight: 400
 			letter-spacing: -.01em
-			color: var(--cc-ink)
+			color: rgba(0, 0, 0, .8)
 			text-align: left
 			margin-bottom: 10px
 			display: -webkit-box
 			-webkit-line-clamp: 2
 			-webkit-box-orient: vertical
 			overflow: hidden
-			min-height: 40px
+			min-height: 35px
 			@media screen and (max-width: 576px)
-				font-size: 14px
-				min-height: 38px
+				min-height: 35px
 
+		// El nombre chico y liviano arriba de un precio grande y liviano es lo que hace que el
+		// precio sea lo unico que grita en la tarjeta. Los numeros salen de la captura que paso
+		// Lucas, no de una preferencia: nombre 14/1.25 normal, precio 24 normal.
 		.product-price
-			font-size: 20px
-			font-weight: 600
+			font-size: 24px
+			font-weight: 400
 			letter-spacing: -.02em
-			color: var(--cc-ink)
+			color: rgba(0, 0, 0, .9)
 			text-align: left
 			margin-bottom: 0
 			@media screen and (max-width: 576px)
-				font-size: 17px
+				font-size: 20px
 
 		// El precio en efectivo es un dato de apoyo, no el titular: el chip verde saturado de
 		// `_article_card.sass` competía con el precio principal.
@@ -287,7 +288,12 @@
 		box-shadow: var(--cc-shadow-rest)
 
 	.cont-article-image
-		margin: 0 0 24px
+		// Antes "0 0 24px": esta plantilla pisa por especificidad el "margin: 20px 0" que define
+		// ArticleImage.vue, y CategoryInfo.vue (el breadcrumb de arriba) tampoco tiene
+		// margin-bottom propio — entre los dos no quedaba NINGÚN espacio, la imagen tocaba el
+		// breadcrumb. Medido en la app corriendo (regla 18 de contexto_master.md): con el margin-
+		// top en 0, el gap real entre .category-info y .cont-article-image daba 0px.
+		margin: 24px 0
 		background: var(--cc-surface)
 		overflow: hidden
 

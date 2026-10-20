@@ -24,24 +24,36 @@ import PaymentPending from '../views/PaymentPending.vue'
 import PaymentFailure from '../views/PaymentFailure.vue'
 import Cards from '../views/Cards.vue'
 import Location from '../views/Location.vue'
-import Help from '../views/Help.vue'
 import TerminosCondiciones from '../views/TerminosCondiciones.vue'
 import PoliticaDePrivacidad from '../views/PoliticaDePrivacidad.vue'
 import Thanks from '../views/Thanks.vue'
 import Maps from '../views/Maps.vue'
-import SocialLogin from '../views/SocialLogin.vue'
-import Callback from '../views/Callback.vue'
-import Cupons from '../views/Cupons.vue'
 import Contacto from '../views/Contacto.vue'
 import QuienesSomos from '../views/QuienesSomos.vue'
 import SeleccionEspecial from '../views/SeleccionEspecial.vue'
 import PromocionesVinoteca from '../views/PromocionesVinoteca.vue'
 import CuentaCorriente from '../views/CuentaCorriente.vue'
 import Catalogo from '../views/Catalogo.vue'
+import NotFound from '../views/NotFound.vue'
 
 Vue.use(VueRouter)
 
+/*
+ * SEO (mision seo-tiendas, 23/9/2026):
+ * - `meta.noindex` marca las rutas privadas o funcionales (carrito, login, checkout, cuenta...):
+ *   App.vue les pone robots "noindex,follow" con vue-meta. Es la misma tabla que usa tienda-api
+ *   (/api/seo/pagina) y la misma lista de Disallow de robots.txt. Si se agrega una ruta privada
+ *   nueva, va en los tres lados.
+ * - `/` tiene ruta propia (redirect a la home): antes no matcheaba nada y lo resolvia
+ *   checkHomeRoute() (mixins/app.js); con el comodin `*` del final habria mostrado NotFound.
+ * - `*` va SIEMPRE al final: toda URL que no existe muestra NotFound (noindex) en vez de una
+ *   pantalla en blanco. El servidor ya responde 404 para esas URLs (seo.php + tienda-api).
+ */
     const routes = [
+    {
+        path: '/',
+        redirect: { name: 'Home', params: { category: 'ultimos-ingresados' } },
+    },
     {
         path: '/inicio/:category?/:sub_category?',
         name: 'Home',
@@ -50,7 +62,8 @@ Vue.use(VueRouter)
     {
         path: '/buscar',
         name: 'Search',
-        component: Search
+        component: Search,
+        meta: { noindex: true },
     },
     // {
     //     path: '/categorias',
@@ -65,27 +78,32 @@ Vue.use(VueRouter)
     {
         path: '/notificaciones',
         name: 'Notifications',
-        component: Notifications
+        component: Notifications,
+        meta: { noindex: true },
     },
     {
         path: '/mensajes',
         name: 'Messages',
-        component: Messages
+        component: Messages,
+        meta: { noindex: true },
     },
     {
         path: '/carrito',
         name: 'Cart',
-        component: Cart
+        component: Cart,
+        meta: { noindex: true },
     },
     {
         path: '/compras',
         name: 'Orders',
-        component: Orders
+        component: Orders,
+        meta: { noindex: true },
     },
     {
         path: '/favoritos',
         name: 'Favorites',
-        component: Favorites
+        component: Favorites,
+        meta: { noindex: true },
     },
     {
         path: '/articulos/:slug/:commerce_id',
@@ -95,69 +113,78 @@ Vue.use(VueRouter)
     {
         path: '/preguntas',
         name: 'Questions',
-        component: Questions
+        component: Questions,
+        meta: { noindex: true },
     },
     {
         path: '/configuracion',
         name: 'Configuration',
-        component: Configuration
+        component: Configuration,
+        meta: { noindex: true },
     },
     {
         path: '/registro/:view',
         name: 'Register',
-        component: Register
+        component: Register,
+        meta: { noindex: true },
     },
     {
         path: '/login',
         name: 'Login',
-        component: Login
+        component: Login,
+        meta: { noindex: true },
     },
     {
         path: '/recuperar-clave',
         name: 'PasswordReset',
-        component: PasswordReset
+        component: PasswordReset,
+        meta: { noindex: true },
     },
     {
         path: '/confirmar-compra',
         name: 'Payment',
-        component: Payment
+        component: Payment,
+        meta: { noindex: true },
     },
     {
         path: '/pagar',
         name: 'PaymentCard',
-        component: PaymentCard
+        component: PaymentCard,
+        meta: { noindex: true },
     },
     {
         path: '/pago-exitoso',
         name: 'PaymentSuccess',
-        component: PaymentSuccess
+        component: PaymentSuccess,
+        meta: { noindex: true },
     },
     {
         path: '/pago-pendiente',
         name: 'PaymentPending',
-        component: PaymentPending
+        component: PaymentPending,
+        meta: { noindex: true },
     },
     {
         path: '/pago-rechazado',
         name: 'PaymentFailure',
-        component: PaymentFailure
+        component: PaymentFailure,
+        meta: { noindex: true },
     },
 
     {
         path: '/tarjetas',
         name: 'Cards',
-        component: Cards
+        component: Cards,
+        meta: { noindex: true },
     },
     {
         path: '/ubicacion',
         name: 'Location',
-        component: Location
+        component: Location,
+        meta: { noindex: true },
     },
-    {
-        path: '/ayuda/:selected_option?',
-        name: 'Help',
-        component: Help
-    },
+    // `/ayuda` (Help) se saco el 14/10/2026 (mision tiendas-demo-y-limpieza-tienda): la tienda ya
+    // no tiene seccion de ayuda. Un link viejo a /ayuda cae en NotFound, y tienda-api la responde 404.
     {
         path: '/terminos-y-condiciones',
         name: 'TerminosCondiciones',
@@ -171,28 +198,18 @@ Vue.use(VueRouter)
     {
         path: '/gracias-por-tu-compra',
         name: 'Thanks',
-        component: Thanks
+        component: Thanks,
+        meta: { noindex: true },
     },
     {
         path: '/mapas',
         name: 'Maps',
-        component: Maps
+        component: Maps,
+        meta: { noindex: true },
     },
-    {
-        path: '/social-login',
-        name: 'SocialLogin',
-        component: SocialLogin
-    },
-    {
-        path: '/auth/:provider/callback',
-        name: 'Callback',
-        component: Callback,
-    },
-    {
-        path: '/cupones',
-        name: 'Cupons',
-        component: Cupons,
-    },
+    // `/social-login` (SocialLogin) y `/auth/:provider/callback` (Callback) se sacaron el 14/10/2026
+    // con el login con Google: la tienda ya no tiene login social.
+    // `/cupones` (Cupons) se saco el 14/10/2026 junto con los cupones de la tienda.
     {
         path: '/contacto',
         name: 'Contacto',
@@ -207,6 +224,7 @@ Vue.use(VueRouter)
         path: '/seleccion-especial/:articles_id',
         name: 'SeleccionEspecial',
         component: SeleccionEspecial,
+        meta: { noindex: true },
     },
     {
         path: '/promociones',
@@ -217,13 +235,19 @@ Vue.use(VueRouter)
         path: '/cuenta-corriente',
         name: 'CuentaCorriente',
         component: CuentaCorriente,
+        meta: { noindex: true },
     },
     {
         path: '/catalogo',
         name: 'Catalogo',
         component: Catalogo,
     },
-
+    {
+        path: '*',
+        name: 'NotFound',
+        component: NotFound,
+        meta: { noindex: true },
+    },
 ]
 
 const router = new VueRouter({

@@ -8,13 +8,7 @@
 		class="m-0 p-r-15 d-lg-none p-r">
 			<span 
 			v-b-toggle.nav-sidebar
-			class="bi bi-list p-r-5"></span> 
-            <b-badge
-            v-show="cupons_not_read > 0"
-            class="badge"
-            variant="danger">
-                {{ cupons_not_read }}
-            </b-badge>
+			class="bi bi-list p-r-5"></span>
             <!-- En ambas img estaba logo-blanco -->
 			<img 
 			@click="home"

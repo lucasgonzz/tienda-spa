@@ -388,7 +388,7 @@
 				Para la rectificación, actualización, eliminación, así como a la oposición del tratamiento de los datos personales, el titular de los mismo podrá ejercer tales derechos dentro de los 5 (cinco) días hábiles de acreditada su identidad. Pinocho libreria y jugueteria procederá con dicha solicitud o informará de las razones por las que estime no corresponde en el plazo anteriormente indicado.
 			</p>
 			<p>
-				Puedes gestionar y solicitar la eliminación de tus datos personales tú mismo, desde las entradas “Mi Cuenta” y “Ayuda en línea” de la aplicación.
+				Puedes gestionar y solicitar la eliminación de tus datos personales tú mismo, desde las entradas “Mi Cuenta” y “Contacto” de la aplicación.
 			</p>
 			<p>
 				La AGENCIA DE ACCESO A LA INFORMACIÓN PÚBLICA, en su carácter de Órgano de Control de la Ley N° 25.326, tiene la atribución de atender las denuncias y reclamos que interpongan quienes resulten afectados en sus derechos por incumplimiento de las normas vigentes en materia de protección de datos personales.

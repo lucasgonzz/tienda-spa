@@ -1,40 +1,86 @@
 <template>
-	<b-form-group
-	class="m-t-15">
-		<!-- <p
-		v-if="cart_payment_method && cart_payment_method.type && cart_payment_method.type.name == 'MercadoPago'"
-		class="text-with-icon text-black b-w s">
-			<i class="bi bi-exclamation-triangle-fill"></i>
-			Luego de que MercadoPago procese tu pago, no olvides <strong>regresar al sitio</strong>, presionando el botón "Volver al sitio", para que actualicemos la información de tu pago y enviemos tu pedido.
-		</p> -->
-
-		<div 
-		@click="saveCart"
-		class="mp-btn shadow-1"></div>
-
+	<div class="checkout-confirm">
 		<b-button
-		v-if="is_payway"
-		block
-		@click="payway"
-		variant="success">
-			Ir a pagar
-		</b-button>
-		
-		<b-button
-		v-if="!is_mp && !is_payway"
 		block
 		size="lg"
-		@click="ready"
-		class="btn-pay">
-			<i class="bi bi-lock-fill"></i>
-			Finalizar Compra
+		:disabled="procesando"
+		:class="{'checkout-confirm__btn--mp': is_mp}"
+		class="checkout-confirm__btn"
+		@click="confirmar">
+
+			<span v-if="procesando">
+				<b-spinner
+				small
+				class="m-r-10"></b-spinner>
+				{{ texto_mientras_procesa }}
+			</span>
+
+			<span v-else-if="is_mp">
+				<i class="bi bi-wallet2"></i>
+				Pagar con Mercado Pago
+			</span>
+
+			<span v-else-if="is_payway">
+				<i class="bi bi-credit-card-2-front"></i>
+				Pagar con tarjeta
+			</span>
+
+			<span v-else>
+				<i class="bi bi-lock-fill"></i>
+				Finalizar compra
+			</span>
 		</b-button>
-	</b-form-group>
+
+		<p
+		v-if="is_mp"
+		class="checkout-confirm__hint">
+			Te llevamos a Mercado Pago para completar el pago.
+		</p>
+	</div>
 </template>
 <script>
 import cart from '@/mixins/cart'
+import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
+
+/**
+ * El único botón que confirma el pedido.
+ *
+ * 🔴 UN SOLO BOTON PARA TODAS LAS FORMAS DE PAGO, y ese es el cambio del 7/9/2026. Antes había
+ * dos: éste, y uno que dibujaba el SDK de Mercado Pago dentro de un `<div class="mp-btn">` y que
+ * aparecía recién después de elegir esa forma de pago (con un cartel de carga a pantalla completa
+ * en el medio, porque el pedido se creaba ahí). Ahora el botón cambia de texto según la forma de
+ * pago elegida y hace todo en un click, mostrando el estado adentro suyo — sin tapar la pantalla.
+ *
+ * El orden del camino de Mercado Pago importa y no es el que había: primero se pide la
+ * preferencia y DESPUES se crea el pedido. Si Mercado Pago rechaza la preferencia (el comercio sin
+ * cuenta conectada es el caso real), el comprador se queda en el checkout sin ningún pedido
+ * colgado, y puede reintentar o elegir otra forma de pago.
+ */
 export default {
 	mixins: [cart],
+	data() {
+		return {
+			/** Hay un checkout en curso: el botón queda deshabilitado y muestra el estado. */
+			procesando: false,
+		}
+	},
+	watch: {
+		/**
+		 * Congela el selector de cuotas mientras el botón confirma y lo libera cuando termina —también
+		 * cuando el flujo falla y el comprador vuelve a la pantalla: todos los caminos de error
+		 * devuelven `procesando` a false—. Hace falta porque la elección de cuotas se lee DOS veces
+		 * en un mismo checkout (el guardado de antes de la preferencia y el de `makeOrder`), y si
+		 * cambiara en el medio Mercado Pago cobraría una cantidad y el pedido nacería con otra.
+		 */
+		procesando(valor) {
+			this.$store.commit('cart/set_cuotas_bloqueadas', valor)
+		},
+	},
+	beforeDestroy() {
+		// Si el comprador se va de la pantalla con el flujo en curso, el selector no puede quedar
+		// congelado para la próxima vez que entre.
+		this.$store.commit('cart/set_cuotas_bloqueadas', false)
+	},
 	computed: {
 		is_payway() {
 			return this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'Payway'
@@ -43,16 +89,37 @@ export default {
 			return this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago'
 		},
 		payment_methods() {
-			return this.$store.state.payment_methods.models 
+			return this.$store.state.payment_methods.models
 		},
 		buyer_id() {
 			return this.$store.state.cart.buyer_id
 		},
+		/**
+		 * Qué dice el botón mientras trabaja. Con Mercado Pago la espera termina en otro sitio,
+		 * así que conviene anticiparlo.
+		 * @returns {string}
+		 */
+		texto_mientras_procesa() {
+			if (this.is_mp) {
+				return 'Te llevamos a Mercado Pago...'
+			}
+			return 'Enviando tu pedido...'
+		},
 	},
 	methods: {
-		saveCart() {
-			this.$store.dispatch('cart/save')
-		},	
+		/**
+		 * Punto de entrada del botón. Reparte según la forma de pago elegida.
+		 */
+		confirmar() {
+			if (this.procesando) {
+				return
+			}
+			if (this.is_payway) {
+				this.payway()
+				return
+			}
+			this.ready()
+		},
 		payway() {
 			if (this.check()) {
 				this.$router.push({name: 'PaymentCard'})
@@ -69,10 +136,9 @@ export default {
 		 * handler del click, y una excepcion ahi no produce ninguna senial: sin pedido, sin
 		 * request, sin toast y sin cambio de URL. Medido en la demo el 31/8/2026.
 		 *
-		 * Vive en un metodo propio, y no adentro de ready(), porque hay DOS botones que
-		 * arrancan el checkout -- "Finalizar Compra" (ready) e "Ir a pagar" de Payway
-		 * (check) -- y los dos tienen que aplicar la misma politica. Poner el guard solo en
-		 * ready() dejaba a Payway navegando a /pagar sin sesion.
+		 * Vive en un metodo propio, y no adentro de ready(), porque hay DOS caminos que
+		 * arrancan el checkout -- el pedido comun y el de Payway (check) -- y los dos tienen
+		 * que aplicar la misma politica.
 		 *
 		 * @returns {boolean} true si redirigio; el que llama tiene que cortar ahi
 		 */
@@ -91,6 +157,11 @@ export default {
 			if (this.redirect_to_login_if_no_session()) {
 				return
 			}
+			if (this.avisar_direccion_sin_confirmar()) {
+				return
+			}
+
+			let self = this
 
 			// Flujo guest: identificar comprador antes de crear el pedido
 			if (!this.authenticated && this.puede_comprar_sin_login) {
@@ -104,24 +175,39 @@ export default {
 				// Datos del comprador invitado a enviar al endpoint de identificación
 				const buyer = this.$store.state.cart.buyer
 
-				this.$store.commit('auth/setLoading', true)
-				this.$store.commit('auth/setMessage', 'Enviando pedido')
+				// Con envio por correo (Zipnova) el input "Direccion" de una linea esta oculto: la
+				// direccion que se guarda en la ficha del comprador es el destino completo, en texto.
+				let datos_buyer = { ...buyer, commerce_id: this.commerce.id }
+				if (this.direcciones_de_envio_activas && this.cart.deliver == 1 && this.cart_direccion_envio) {
+					// Direcciones nuevas (19/10/2026): tampoco hay input de una linea; va la direccion
+					// elegida en "¿A dónde te lo enviamos?", sin los datos de contacto del correo.
+					datos_buyer.address = linea_de_direccion(this.cart_direccion_envio)
+					// La ciudad no se le pidio (Buyer.vue, `pide_ciudad`): es la de la direccion.
+					datos_buyer.ciudad = this.cart_direccion_envio.city || datos_buyer.ciudad
+				} else if (this.envio_zipnova_elegido) {
+					datos_buyer.address = this.envio_destino_texto()
+					if (!datos_buyer.ciudad) {
+						datos_buyer.ciudad = this.envio_destino_valor('localidad')
+					}
+				}
 
-				this.$api.post('buyer', { ...buyer, commerce_id: this.commerce.id })
-				.then(res => {
+				this.procesando = true
+
+				this.$api.post('buyer', datos_buyer)
+				.then(function(res) {
 					// El modelo que devuelve POST buyer viene con la direccion ya actualizada
 					// (el backend la persiste al reconocer el email, prompt 400). Aun asi, la
 					// direccion del pedido se manda explicita desde order_address (prompt 402):
 					// es lo que el comprador VIO en pantalla, y esa es la unica fuente de verdad.
 					// Este bug ya se pago una vez -- un pedido guardado con la direccion vieja de
 					// un cliente del ERP mientras el comprador miraba en pantalla la nueva.
-					this.$store.commit('auth/setUser', res.data.model)
-					this.makeOrder()
+					self.$store.commit('auth/setUser', res.data.model)
+					return self.confirmar_pedido()
 				})
-				.catch(err => {
-					this.$store.commit('auth/setLoading', false)
-					this.$store.commit('auth/setMessage', '')
-					this.$toast.error('Hubo un error al identificar el comprador')
+				.catch(function(err) {
+					console.log(err)
+					self.procesando = false
+					self.$toast.error('Hubo un error al identificar el comprador')
 				})
 
 			} else {
@@ -131,16 +217,284 @@ export default {
 					this.show_checkout_validation_errors(checkout_errors)
 					return
 				}
-				this.$store.commit('auth/setLoading', true)
-				this.$store.commit('auth/setMessage', 'Enviando pedido')
-				this.$store.dispatch('cart/save')
-				.then(() => {
-					this.makeOrder()
-				})
-				.catch(err => {
-					this.$store.commit('auth/setLoading', false)
+
+				this.procesando = true
+
+				// Sin `cart/save` acá: los dos caminos de `confirmar_pedido()` lo hacen igual
+				// (`pagar_con_mercado_pago()` antes de la preferencia, `makeOrder()` antes del
+				// pedido). El que había guardaba el carrito una tercera vez, para nada.
+				this.confirmar_pedido()
+				.catch(function(err) {
+					console.log(err)
+					self.procesando = false
+					if (self.manejar_error_de_direccion(err)) {
+						return
+					}
+					if (self.manejar_error_de_envio(err)) {
+						return
+					}
+					self.$toast.error('No pudimos guardar tu pedido. Probá de nuevo.')
 				})
 			}
+		},
+		/**
+		 * Con los datos ya validados y el comprador identificado: crea el pedido, o arranca el
+		 * pago por Mercado Pago (que crea el pedido él mismo, después de la preferencia).
+		 *
+		 * @returns {Promise}
+		 */
+		confirmar_pedido() {
+			if (this.is_mp) {
+				return this.pagar_con_mercado_pago()
+			}
+
+			let self = this
+
+			// mostrar_overlay = false: el estado ya lo muestra este botón, y el cartel a pantalla
+			// completa es justamente lo que se sacó del checkout.
+			// frenar_si_hay_descartes = true: si al guardar el carrito el servidor saca artículos
+			// no disponibles para este comprador, no se crea un pedido distinto del que vio.
+			return this.makeOrder(false, false, true)
+			.then(function(ok) {
+				self.procesando = false
+				// `false`: el PUT /carts rechazo el envio por correo y makeOrder ya le dijo al
+				// comprador que hacer (volver a cotizar o corregir el destino). Sin aviso generico.
+				// Idem si se freno por articulos no disponibles (catalogo-por-lista-tienda).
+				if (ok === false) {
+					return
+				}
+				if (!ok) {
+					self.$toast.error('No pudimos guardar tu pedido. Probá de nuevo.')
+				}
+			})
+		},
+		/**
+		 * El camino de Mercado Pago, en un solo click.
+		 *
+		 * 🔴 EL ORDEN ES PRIMERO LA PREFERENCIA Y DESPUES EL PEDIDO, al revés de como estaba. Con
+		 * el orden viejo (pedido primero, preferencia después, y encima en paralelo), un comercio
+		 * sin cuenta de Mercado Pago conectada — que responde 422 y es el caso real de hoy — dejaba
+		 * un pedido creado que nadie iba a pagar, y cada reintento del comprador dejaba otro.
+		 *
+		 * El `cart_id` se manda para que la API lo escriba como `external_reference` de la
+		 * preferencia: con eso el webhook sabe a qué pedido atarle el pago aunque el comprador
+		 * nunca vuelva a la tienda.
+		 *
+		 * Cuotas (15/10/2026): si la forma de pago ofrece cuotas, el cuerpo suma `contado: true` o
+		 * `cuotas: N` (nunca los dos). Con una forma de pago sin cuotas, o contra una API que no manda
+		 * `cuotas_disponibles`, no se agrega ninguna de las dos claves y el cuerpo es el de siempre.
+		 * Solo viaja QUÉ eligió el comprador: el porcentaje lo resuelve la API en su base.
+		 *
+		 * @returns {Promise}
+		 */
+		pagar_con_mercado_pago() {
+			let self = this
+
+			// null (la forma de pago no ofrece cuotas), 'contado' o la cantidad. Se lee ANTES del
+			// guardado y no adentro del .then: `cart/save` toma lo elegido en este mismo instante para
+			// `carts.cuotas`, y lo que viaja en la preferencia tiene que ser lo mismo que quedó guardado
+			// aunque el comprador toque el selector mientras espera.
+			let cuotas_elegida = this.cuotas_mp_elegida
+			// Se prende si la API rechazó la PREFERENCIA (no el guardado del carrito) con un 422 habiendo
+			// mandado `contado` o `cuotas`. Ver revisar_cuotas_tras_rechazo().
+			let preferencia_rechazada_con_cuotas = false
+
+			// 🔴 El carrito se guarda ANTES de pedir la preferencia, y no alcanza con que
+			// makeOrder() lo guarde después: la API escribe `carts.id` como `external_reference` de
+			// la preferencia, y ese es el ÚNICO dato con el que el webhook sabe a qué pedido
+			// atarle el pago. En el checkout de invitado el carrito todavía no existe a esta
+			// altura (recién se identificó al comprador), así que sin este save la preferencia
+			// viajaba con `cart_id: null` y el pago quedaba sin registrar en el pedido — en
+			// silencio, porque la compra igual se completa. Medido el 7/9/2026 mirando el orden de
+			// los requests: buyer, preference, carts, orders.
+			//
+			// Catálogo por lista (5/10/2026): si este guardado saca artículos que el comprador no
+			// puede comprar con su lista, se frena ANTES de pedir la preferencia —si no, Mercado
+			// Pago le cobraría un total distinto del que confirmó—. El aviso lo da
+			// cortar_si_el_guardado_descarto, por eso el store no avisa (`avisar_no_disponibles`).
+			return this.$store.dispatch('cart/save', { avisar_no_disponibles: false })
+			.then(function(descartados) {
+				self.cortar_si_el_guardado_descarto(descartados)
+				let cuerpo = {
+					payment_method: self.cart_payment_method,
+					// Hasta el 14/10/2026 viajaba tambien `cupon`: la tienda ya no tiene cupones. La
+					// API lo lee con `$request->cupon` solo sin carrito resuelto, y sin la clave le
+					// llega null, la vieja y la nueva (con carrito usa `$cart->cupon`, que tampoco
+					// hay: ver `save()` en store/cart.js).
+					// 🔴 La zona SOLO viaja si el pedido se envia. OnlinePaymentHelper::setPrices()
+					// agrega el item "Envio" con que la zona no sea null, sin mirar `deliver`, asi
+					// que un comprador que elegia envio, elegia zona y despues se pasaba a retiro
+					// por el local pagaba un envio que la pantalla no le mostraba en ningun lado.
+					//
+					// Forma propia "a convenir" (19/10/2026): tampoco viaja. No se cobra nada online, y
+					// mandada con su precio la API (sin carrito resuelto) agregaria el item "Envio". Sin
+					// item, la preferencia no lleva un renglon de envio en $0 que Mercado Pago rechace.
+					delivery_zone: self.cart.deliver && !self.zona_elegida_a_convenir ? self.cart_delivery_zone : null,
+					articles: self.articles,
+					cart_id: self.cart ? self.cart.id : null,
+				}
+				if (cuotas_elegida === 'contado') {
+					cuerpo.contado = true
+				} else if (cuotas_elegida !== null) {
+					cuerpo.cuotas = cuotas_elegida
+				}
+				return self.$api.post('mercado-pago/preference', cuerpo)
+				.catch(function(err) {
+					if (cuotas_elegida !== null && err && err.response && err.response.status == 422) {
+						preferencia_rechazada_con_cuotas = true
+					}
+					throw err
+				})
+			})
+			.then(function(res) {
+				const init_point = res.data && res.data.init_point ? res.data.init_point : null
+				const preference_id = res.data && res.data.preference_id ? res.data.preference_id : null
+
+				if (!init_point && !preference_id) {
+					self.procesando = false
+					self.$toast.error('No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.')
+					return
+				}
+
+				// frenar_si_hay_descartes = true: el comprador todavía no pagó, frenar acá es seguro.
+				return self.makeOrder(true, false, true)
+				.then(function(ok) {
+					if (ok === false) {
+						// 422 del envio por correo, o freno por articulos no disponibles: ya
+						// avisado por makeOrder. No se va a Mercado Pago.
+						self.procesando = false
+						return
+					}
+					if (!ok) {
+						self.procesando = false
+						self.$toast.error('No pudimos guardar tu pedido. Probá de nuevo.')
+						return
+					}
+
+					if (init_point) {
+						// Un solo salto: el comprador se va del SPA derecho al checkout de
+						// Mercado Pago. `procesando` queda en true a propósito — la página se está
+						// yendo y no hay que devolverle el botón habilitado en el medio.
+						window.location.href = init_point
+						return
+					}
+
+					// API todavía sin `init_point` (los dos lados de la tienda no se despliegan el
+					// mismo día): se abre el checkout con el SDK, como se hacía antes.
+					self.abrir_checkout_con_el_sdk(preference_id)
+				})
+			})
+			.catch(function(err) {
+				// 🔴 El mensaje de la API NO se le muestra al comprador, y no es por prolijidad. Los
+				// dos que puede devolver `MercadoPagoController@preference` son "El comercio no tiene
+				// una cuenta de Mercado Pago conectada" —un problema del NEGOCIO, que el comprador no
+				// puede resolver ni entender— y el detalle crudo que devuelve Mercado Pago, que viene
+				// en inglés. Al comprador se le dice qué puede hacer él; el detalle queda en la
+				// consola y en el log de la API, que es donde lo busca quien lo puede arreglar.
+				console.log(err)
+				// La API rechazó la preferencia con `contado` o `cuotas`: puede ser que la lista de
+				// cuotas que tiene la pantalla ya no sea la vigente. `procesando` queda en true hasta que
+				// se refresque la lista, para que no se reintente con la elección vieja en el medio.
+				if (preferencia_rechazada_con_cuotas) {
+					return self.revisar_cuotas_tras_rechazo(cuotas_elegida)
+				}
+				self.procesando = false
+				// El `cart/save` del principio descartó artículos no disponibles: el comprador ya
+				// fue avisado (y no es un problema de Mercado Pago).
+				if (self.es_corte_por_articulos_no_disponibles(err)) {
+					return
+				}
+				// El `cart/save` del principio puede rechazar la direccion de entrega (422 `direccion`):
+				// tampoco es un problema de Mercado Pago.
+				if (self.manejar_error_de_direccion(err)) {
+					return
+				}
+				// El `cart/save` del principio puede rechazar el envio por correo (422): ese aviso
+				// es especifico y no es un problema de Mercado Pago.
+				if (self.manejar_error_de_envio(err)) {
+					return
+				}
+				self.$toast.error('No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.')
+			})
+		},
+		/**
+		 * La API rechazó (422) la preferencia habiendo recibido `contado` o `cuotas`: vuelve a pedir
+		 * la lista de formas de pago —el mismo camino que usa App.vue al arrancar— y decide qué
+		 * decirle al comprador.
+		 *
+		 * 🔴 Por qué hace falta: la SPA pide la lista UNA sola vez, al cargar. Si el comercio cambia o
+		 * saca una cantidad de cuotas con el checkout abierto, la API (que valida contra su base) la
+		 * rechaza con 422, y sin esto el comprador veía el cartel genérico y reintentaba con la misma
+		 * elección vieja, otra vez 422, hasta recargar la página.
+		 *
+		 * Con la lista nueva, `cuotas_mp_elegida` ya dice si lo que se mandó sigue siendo una opción:
+		 *   - NO sigue (la cantidad ya no se ofrece, o el método perdió sus cuotas): la elección queda
+		 *     en «Contado» (o sin selector, si ya no ofrece cuotas) y se avisa que las cuotas
+		 *     cambiaron. Nunca se muestra el mensaje de la API (política de este botón).
+		 *   - SIGUE: la lista no era el problema (por ejemplo, el comercio sin cuenta de Mercado Pago
+		 *     conectada, que también responde 422), así que va el cartel genérico de siempre. Decir que
+		 *     «las cuotas cambiaron» ahí mandaría al comprador a elegir de nuevo algo que no tiene
+		 *     arreglo desde su lado.
+		 *
+		 * El selector busca las cuotas por id en la lista del store, que `getModels` reemplaza entera,
+		 * así que sigue andando con la lista nueva. Si el pedido de la lista falla, `getModels` lo
+		 * resuelve igual con la lista vieja y se cae en el cartel genérico.
+		 *
+		 * @param {string|number} enviada Lo que se mandó: 'contado' o la cantidad de cuotas.
+		 * @returns {Promise}
+		 */
+		revisar_cuotas_tras_rechazo(enviada) {
+			let self = this
+			let terminar = function(cuotas_cambiaron) {
+				self.procesando = false
+				if (cuotas_cambiaron) {
+					self.$toast.warning('Las cuotas de este comercio cambiaron. Revisá las opciones y elegí de nuevo.', { duration: 7000 })
+					return
+				}
+				self.$toast.error('No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.')
+			}
+			return this.$store.dispatch('payment_methods/getModels')
+			.then(function() {
+				let sigue_vigente = self.cuotas_mp_elegida === enviada
+				if (!sigue_vigente) {
+					self.$store.commit('cart/set_cuotas_elegidas', self.cuotas_mp_ofrecidas.length ? 'contado' : null)
+				}
+				terminar(!sigue_vigente)
+			})
+			.catch(function(err) {
+				console.log(err)
+				terminar(false)
+			})
+		},
+		/**
+		 * Respaldo para cuando la API todavía no devuelve `init_point`: el SDK abre el checkout de
+		 * Mercado Pago sobre la tienda. El script del SDK se carga en `public/index.html`.
+		 *
+		 * @param {string|null} preference_id
+		 */
+		abrir_checkout_con_el_sdk(preference_id) {
+			if (!preference_id || typeof MercadoPago === 'undefined') {
+				this.procesando = false
+				this.$toast.error('No pudimos abrir Mercado Pago. Probá de nuevo o elegí otra forma de pago.')
+				return
+			}
+
+			const mp = new MercadoPago(this.cart_payment_method.public_key, {
+				locale: 'es-AR',
+			})
+
+			mp.checkout({
+				preference: {
+					id: preference_id,
+				},
+				autoOpen: true,
+			})
+
+			// El comprador ya esta adentro del checkout de Mercado Pago, y este camino NO se va del
+			// SPA. Si cierra el modal sin pagar, el boton tiene que estar vivo para que pueda
+			// reintentar: sin esto quedaba deshabilitado con el spinner para siempre, y encima con
+			// el pedido ya creado.
+			this.procesando = false
 		},
 		/**
 		 * Indica si un valor de formulario está vacío o solo contiene espacios.
@@ -164,12 +518,15 @@ export default {
 				errors.push('Nombre y apellido')
 			}
 			if (this.is_blank_field(buyer.phone)) {
-				errors.push('Telefono')
+				errors.push('Teléfono')
 			}
 			if (this.is_blank_field(buyer.email)) {
-				errors.push('Correo electronico')
+				errors.push('Correo electrónico')
 			}
-			if (this.is_blank_field(buyer.ciudad)) {
+			// Con las direcciones nuevas y envio a domicilio la ciudad no se pide (Buyer.vue,
+			// `pide_ciudad`): es la localidad de la direccion elegida, que valida collect_envio_errors().
+			let ciudad_de_la_direccion = this.direcciones_de_envio_activas && this.cart.deliver == 1
+			if (!ciudad_de_la_direccion && this.is_blank_field(buyer.ciudad)) {
 				errors.push('Ciudad')
 			}
 			if (
@@ -179,21 +536,136 @@ export default {
 				errors.push('Barrio')
 			}
 			// La direccion solo es obligatoria si el comprador eligio envio a domicilio
-			// (deliver == 1). Con retiro por local (deliver == 0) no hace falta.
-			if (this.cart.deliver == 1 && this.is_blank_field(buyer.address)) {
-				errors.push('Direccion')
+			// (deliver == 1). Con retiro por local (deliver == 0) no hace falta, y con envio por
+			// correo (Zipnova) la valida collect_envio_errors() campo por campo. Con las direcciones
+			// nuevas tampoco se mira este input (no se muestra): la valida collect_envio_errors().
+			if (this.cart.deliver == 1 && !this.envio_zipnova_elegido && !this.direcciones_de_envio_activas && this.is_blank_field(buyer.address)) {
+				errors.push('Dirección')
 			}
 			if (this.cart.deliver == null) {
-				errors.push('Metodo de entrega')
+				errors.push('Cómo lo recibís')
 			}
+			this.collect_envio_errors().forEach(error => {
+				errors.push(error)
+			})
 			if (!this.cart_payment_method && this.payment_methods.length) {
-				errors.push('Metodo de pago')
+				errors.push('Cómo pagás')
 			}
 			if (this.must_select_delivery_day() && !this.has_selected_delivery_day()) {
-				errors.push('Dia de entrega')
+				errors.push('Qué día te lo llevamos')
 			}
 
 			return errors
+		},
+		/**
+		 * Lo que falta de la forma de envio, para los dos flujos (invitado y autenticado):
+		 *
+		 *   - con envio a domicilio y alguna forma de envio disponible (zonas del negocio o
+		 *     Zipnova), hay que elegir una: "¿Cómo te lo enviamos?";
+		 *   - si la elegida es de Zipnova, el destino tiene que estar completo (mismas reglas que
+		 *     el servidor, ver envio_destino_faltantes) y con sucursal si es retiro en sucursal.
+		 *
+		 * Los textos son los titulos de las secciones que el comprador ve, con los campos que
+		 * faltan entre parentesis.
+		 *
+		 * @returns {string[]}
+		 */
+		collect_envio_errors() {
+			const errors = []
+			if (this.cart.deliver != 1) {
+				return errors
+			}
+			/*
+			 * Direcciones nuevas (19/10/2026): primero, que haya una direccion elegida y completa en
+			 * "¿A dónde te lo enviamos?". Con Zipnova sin direccion ni siquiera hay correos para
+			 * elegir (se cotiza con su codigo postal), asi que el resto se valida despues.
+			 */
+			if (this.direcciones_de_envio_activas) {
+				let error_de_direccion = this.error_de_direccion_de_entrega()
+				if (error_de_direccion) {
+					errors.push(error_de_direccion)
+					return errors
+				}
+			}
+			let hay_formas = this.delivery_zones.length > 0 || !!this.commerce.envios_zipnova
+			if (hay_formas && !this.cart_delivery_zone && !this.cart_envio_opcion) {
+				errors.push('¿Cómo te lo enviamos?')
+				return errors
+			}
+			/*
+			 * 🔴 Direcciones nuevas + correo: la cotizacion tiene que ser para el codigo postal de la
+			 * direccion elegida. Si quedo de otro (se cambio la direccion con una cotizacion en vuelo,
+			 * o una respuesta vieja piso el codigo postal), el paquete se cobraria a otro destino: se
+			 * suelta la opcion y el cotizador vuelve a cotizar al de la direccion (lo mira por el
+			 * cambio de codigo postal). tienda-api tambien lo rechaza (422 `opcion_envio`).
+			 */
+			if (this.direcciones_de_envio_activas && this.envio_zipnova_elegido && this.cart_direccion_envio) {
+				let cp_de_la_direccion = codigo_postal_para_cotizar(this.cart_direccion_envio.zip_code)
+				// Misma comparación que tienda-api (`mismo_codigo_postal`): "X5000ABC" y "5000" son el mismo lugar.
+				if (cp_de_la_direccion && !mismo_codigo_postal(cp_de_la_direccion, this.$store.state.cart.envio.zipcode)) {
+					this.$store.commit('cart/set_envio_zipcode', '')
+					errors.push('¿Cómo te lo enviamos? (el envío estaba calculado para otro código postal: elegilo de nuevo)')
+					return errors
+				}
+			}
+			if (this.envio_zipnova_elegido) {
+				let faltantes = this.envio_destino_faltantes()
+				if (faltantes.length) {
+					let etiquetas = []
+					faltantes.forEach(clave => {
+						etiquetas.push(this.envio_destino_etiqueta(clave))
+					})
+					this.$store.commit('cart/set_envio_errores_destino', faltantes)
+					let titulo = this.cart_envio_opcion.es_punto_de_retiro ? '¿Quién lo retira en la sucursal?' : '¿A dónde te lo enviamos?'
+					// Con las direcciones nuevas, DireccionEnvio solo tiene los datos de contacto.
+					if (this.direcciones_de_envio_activas && !this.cart_envio_opcion.es_punto_de_retiro) {
+						titulo = '¿Quién recibe el paquete?'
+					}
+					errors.push(titulo + ' (' + etiquetas.join(', ') + ')')
+				}
+			}
+			return errors
+		},
+		/**
+		 * Direcciones nuevas, comprador con cuenta: si en el buscador hay una direccion NUEVA
+		 * completa que todavia no guardo, el pedido no sale (iria a la direccion que sigue elegida,
+		 * que no es la que esta mirando): se le dice exactamente que tocar y se lo lleva ahi.
+		 *
+		 * @returns {boolean} true si aviso; el que llama corta ahi.
+		 */
+		avisar_direccion_sin_confirmar() {
+			if (!this.direcciones_de_envio_activas || this.cart.deliver != 1 || !this.$store.state.cart.direccion_sin_confirmar) {
+				return false
+			}
+			this.$toast.error('Tocá «Guardar y usar esta dirección» para confirmar la dirección nueva.')
+			this.scroll_a_seccion('direccion-de-entrega')
+			return true
+		},
+		/**
+		 * Lo que le falta a la direccion de entrega (direcciones nuevas): que este elegida, y que
+		 * tenga calle, altura, localidad y provincia. El buscador ya no deja confirmar una
+		 * incompleta; esto cubre una guardada vieja o una que vino del carrito del servidor.
+		 *
+		 * El codigo postal NO se le exige a la direccion: el que vale para el correo es el cotizado
+		 * (`envio.zipcode`), y una direccion guardada de antes de que el comercio conectara Zipnova
+		 * puede no tenerlo —ahi el cotizador muestra su input de siempre—. Si falta, lo marca
+		 * `envio_destino_faltantes()` como "Código postal" del destino.
+		 *
+		 * @returns {string} El texto para el aviso, o '' si esta todo.
+		 */
+		error_de_direccion_de_entrega() {
+			if (!this.cart_direccion_envio) {
+				return '¿A dónde te lo enviamos?'
+			}
+			let faltantes = faltantes_de_direccion(this.cart_direccion_envio, false, false)
+			if (!faltantes.length) {
+				return ''
+			}
+			let etiquetas = []
+			faltantes.forEach(clave => {
+				etiquetas.push(etiqueta_de_campo(clave))
+			})
+			return '¿A dónde te lo enviamos? (' + etiquetas.join(', ') + ')'
 		},
 		/**
 		 * Arma la lista de datos faltantes del checkout autenticado.
@@ -204,23 +676,29 @@ export default {
 			const errors = []
 
 			if (this.cart.deliver == null) {
-				errors.push('Metodo de entrega')
-			}
-			if (!this.cart_payment_method && this.payment_methods.length) {
-				errors.push('Metodo de pago')
+				errors.push('Cómo lo recibís')
 			}
 			if (
 				this.cart.deliver
+				&& !this.envio_zipnova_elegido
+				&& !this.direcciones_de_envio_activas
 				&& this.user
 				&& (
 					(this.user.comercio_city_client && this.user.comercio_city_client.address == '')
 					&& (this.user.address == '')
 				)
 			) {
-				errors.push('Direccion de entrega')
+				errors.push('Dónde te lo llevamos')
 			}
-			if (this.cart.deliver && this.delivery_zones.length && !this.cart_delivery_zone) {
-				errors.push('Precio de envio')
+			// Forma de envio (zona del negocio u opcion de Zipnova) y destino del correo. Hasta el
+			// 14/9/2026 aca decia 'Costo del envío', que era el titulo de la seccion vieja.
+			this.collect_envio_errors().forEach(error => {
+				errors.push(error)
+			})
+			// Va despues del envio porque en la pantalla "¿Cómo pagás?" esta debajo de las
+			// secciones de envio: el aviso lista lo que falta en el orden en que se ve.
+			if (!this.cart_payment_method && this.payment_methods.length) {
+				errors.push('Cómo pagás')
 			}
 			// 🔴 Este this.user.seller_id NO lleva guarda a proposito, aunque su hermana de
 			// la Direccion de entrega si la tenga. Se le puso el 31/8/2026 y se revirtio:
@@ -233,10 +711,10 @@ export default {
 			// redirect_to_login_if_no_session(). Sacar esta nota solo cuando el checkout de
 			// invitado valide sus propios datos en check(), como ya hace ready().
 			if (this.user.seller_id && !this.buyer_id) {
-				errors.push('Cliente del pedido')
+				errors.push('Cliente de este pedido')
 			}
 			if (this.must_select_delivery_day() && !this.has_selected_delivery_day()) {
-				errors.push('Dia de entrega')
+				errors.push('Qué día te lo llevamos')
 			}
 
 			return errors
@@ -264,7 +742,12 @@ export default {
 			return fecha_entrega && Number(fecha_entrega) !== 0
 		},
 		/**
-		 * Muestra al usuario todos los campos faltantes en una sola notificación.
+		 * Muestra al comprador todo lo que le falta completar, en una sola notificación.
+		 *
+		 * 🔴 Los nombres que se listan acá son los TÍTULOS DE LAS SECCIONES que el comprador está
+		 * viendo, no los del modelo. Antes decían "Metodo de entrega" o "Precio de envio" mientras
+		 * la pantalla mostraba "¿Cómo lo recibís?" y "Costo del envío": el comprador leía el aviso
+		 * y no tenía a dónde ir. Si se renombra una sección, se renombra también acá.
 		 *
 		 * @param {string[]} errors
 		 */
@@ -273,18 +756,27 @@ export default {
 				return
 			}
 
+			// Direcciones nuevas: sin direccion de entrega, ademas del aviso se lleva al comprador
+			// al bloque, que es donde la elige o la carga.
+			if (this.direcciones_de_envio_activas && this.cart.deliver == 1 && this.error_de_direccion_de_entrega()) {
+				this.scroll_a_seccion('direccion-de-entrega')
+			}
+
 			if (errors.length === 1) {
-				this.$toast.error('Completá el campo: ' + errors[0])
+				this.$toast.error('Te falta completar: ' + errors[0])
 				return
 			}
 
-			this.$toast.error('Completá los siguientes campos: ' + errors.join(', '))
+			this.$toast.error('Te falta completar: ' + errors.join(', '))
 		},
 		check() {
 			// Payway entra por aca, no por ready(). Sin esto, un comprador sin sesion en una
 			// tienda con registro obligatorio navegaba a /pagar y terminaba llamando a
 			// makeOrder() desde Payway.vue.
 			if (this.redirect_to_login_if_no_session()) {
+				return false
+			}
+			if (this.avisar_direccion_sin_confirmar()) {
 				return false
 			}
 			const checkout_errors = this.collect_authenticated_checkout_errors()
@@ -297,17 +789,3 @@ export default {
 	}
 }
 </script>
-<style lang="sass">
-.btn-pay
-	background: #269e24 !important
-	border: 1px solid #269e24 !important
-	padding: .7rem 1rem !important
-.mp-btn
-	.mercadopago-button
-		display: block
-		width: 100%
-		padding: .7rem 1rem
-		font-size: 1.25rem
-		line-height: 1.5
-		border-radius: 0.3rem
-</style>

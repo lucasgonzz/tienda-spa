@@ -5,8 +5,24 @@
 		<!-- Producto agregado -->
 		<div class="last-article__product">
 			<img
+			v-if="imagen"
 			class="last-article__image"
-			:src="articleImage(article)"
+			:src="imagen"
+			:alt="article.name">
+			<!--
+				Solo un combo sin ninguna imagen (ni propia, ni de sus componentes, ni la por
+				defecto del comercio) llega acá: un ícono en vez de un <img> sin src.
+			-->
+			<span
+			v-else-if="article.is_combo"
+			class="last-article__image last-article__image--vacia"
+			aria-hidden="true">
+				<i class="bi bi-image"></i>
+			</span>
+			<img
+			v-else
+			class="last-article__image"
+			:src="null"
 			:alt="article.name">
 			<div class="last-article__product-body">
 				<p class="last-article__name">
@@ -56,6 +72,7 @@
 <script>
 import cart from '@/mixins/cart'
 import nav from '@/mixins/nav'
+import { imagen_de_combo } from '@/helpers/combo'
 
 /**
  * Detalle del último ítem agregado al carrito.
@@ -95,10 +112,39 @@ export default {
 			return this.article.amount
 		},
 		/**
+		 * La imagen de la fila.
+		 *
+		 * 🔴 Un COMBO no pasa por `articleImage()`: ese método entra derecho a `article.images.length`
+		 * y un combo llegaba sin `images` (TypeError en el render del popup). El servidor ahora
+		 * manda `images` siempre, pero acá se lee defensivo igual: foto propia del combo, si no la
+		 * primera imagen de un componente, si no la imagen por defecto del comercio.
+		 * @returns {string|null}
+		 */
+		imagen() {
+			if (this.article.is_combo) {
+				return imagen_de_combo(this.article, this.commerce.online_configuration.default_article_image_url)
+			}
+			return this.articleImage(this.article)
+		},
+		/**
 		 * Precio unitario formateado de la línea agregada.
+		 *
+		 * Un combo muestra lo que se cobra (el pivote, que resolvió el servidor por lista) tal
+		 * cual, igual que su tarjeta: NO pasa por `articlePriceEfectivo()`, que le suma el
+		 * recargo online de un artículo y en comercios con la extensión de rangos por cantidad
+		 * lee `article.ranges`, que un combo no tiene.
 		 * @returns {string}
 		 */
 		line_unit_price() {
+			if (this.article.is_combo) {
+				if (!this.puede_ver_precios()) {
+					return null
+				}
+				let precio = this.article.pivot && this.article.pivot.price != null
+					? this.article.pivot.price
+					: this.article.final_price
+				return this.price(precio)
+			}
 			return this.articlePriceEfectivo(this.article)
 		},
 	},
@@ -128,6 +174,14 @@ export default {
 	background: #f8f9fa
 	border: 1px solid rgba(0, 0, 0, 0.06)
 	flex-shrink: 0
+
+/* Combo sin ninguna imagen: el mismo cuadrito que la miniatura, con un ícono adentro. */
+.last-article__image--vacia
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	color: rgba(0, 0, 0, 0.25)
+	font-size: 1.4rem
 
 .last-article__product-body
 	min-width: 0

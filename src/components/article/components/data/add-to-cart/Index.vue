@@ -71,6 +71,7 @@
 <script>
 import articles from '@/mixins/articles'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
+import { articulo_fue_descartado } from '@/store/cart'
 export default {
 	name: 'AddToCart',
 	mixins: [articles],
@@ -136,15 +137,39 @@ export default {
 			if (this.actualizar_carrito_disabled) {
 				return
 			}
-			console.log(this.article)
-			console.log(this.article.is_promocion_vinoteca)
 			let is_promocion_vinoteca = typeof this.article.is_promocion_vinoteca != 'undefined' ? true : false
+			/*
+			 * `is_combo` apunta al pivote correcto del lado del servidor, igual que ya hace
+			 * `is_promocion_vinoteca`. Sin él, un combo iría a parar a la tabla de artículos y
+			 * el id —que es de otra secuencia— actualizaría la línea equivocada.
+			 */
+			let is_combo = typeof this.article.is_combo != 'undefined' ? true : false
+
+			/*
+			 * 🔴 EL CARRITO DEL INVITADO NO EXISTE DEL LADO DEL SERVIDOR. `saveCart()` lo deja en
+			 * memoria y no lo persiste hasta el checkout (ver su rama `else`), asi que no tiene
+			 * `id`. Sin esta guarda la URL salia como `carts/update-article-amount/undefined`, la
+			 * API devolvia 404 y el comprador veia dos carteles de error mientras la cantidad no
+			 * cambiaba. Y es el camino NORMAL: en una tienda con `register_to_buy` apagado se
+			 * compra sin registrarse.
+			 */
+			if (!this.authenticated || !this.cart || !this.cart.id) {
+				this.actualizar_carrito_local(is_promocion_vinoteca, is_combo)
+				return
+			}
 
 			this.$store.commit('auth/setMessage', 'Cargando')
 			this.$store.commit('auth/setLoading', true)
+			/*
+			 * 🔴 Es el servidor el que recalcula acá el precio por cantidad: cambiar la cantidad
+			 * puede cambiar de tramo de `article_price_ranges`, y `CartHelper` lo reevalúa al
+			 * actualizar. Por eso lo que vuelve en `res.data.cart` pisa el carrito entero en vez
+			 * de tocar solo el `amount` local.
+			 */
 			this.$api.put('carts/update-article-amount/'+this.cart.id, {
 				id: this.article.id,
 				is_promocion_vinoteca: is_promocion_vinoteca,
+				is_combo: is_combo,
 				amount: this.amount
 			})
 			.then(res => {
@@ -156,6 +181,33 @@ export default {
 				this.$store.commit('auth/setLoading', false)
 				this.$toast.error(err)
 			})
+		},
+		/**
+		 * Actualiza la cantidad en el carrito local del invitado, sin pasar por la API.
+		 *
+		 * Espeja lo que hace la rama de invitado de `saveCart()`: el precio unitario se
+		 * resuelve con `precio_por_cantidad()` porque cambiar la cantidad puede cambiar de
+		 * tramo de `article_price_ranges`. Para el comprador logueado eso lo hace el servidor
+		 * y vuelve en el `setCart` de la respuesta.
+		 */
+		actualizar_carrito_local(is_promocion_vinoteca, is_combo) {
+
+			let amount = Number(this.amount)
+			let precio_de_rango = this.precio_por_cantidad(this.article, amount, false)
+
+			this.$store.commit('cart/update_item_amount', {
+				item: {
+					id: this.article.id,
+					is_combo: is_combo,
+					is_promocion_vinoteca: is_promocion_vinoteca,
+					variant_id: this.selected_article_variant ? this.selected_article_variant.id : null,
+				},
+				amount: amount,
+				price: precio_de_rango !== null ? precio_de_rango : this.articlePriceEfectivo(this.article, false),
+				notes: this.notes,
+			})
+
+			this.$toast.success('Carrito actualizado')
 		},
 		saveCart(buy_now = false) {
 			// Doble validación por seguridad para evitar altas al carrito por eventos manuales.
@@ -173,13 +225,28 @@ export default {
 			}
 			if (this.checkVariant()) {
 				console.log('paso variants')
-				this.article.amount = amount 
-				this.article.notes = this.notes 
+				/*
+				 * 🔴 EL PRECIO DE LA LÍNEA SIGUE LA CANTIDAD. Si la cantidad que el comprador
+				 * eligió cae en un rango de `article_price_ranges`, el unitario de la línea es
+				 * el del rango y no el precio de lista.
+				 *
+				 * El pivote es OPTIMISTA: el precio que efectivamente se cobra lo resuelve
+				 * `CartHelper::get_price()` del lado de la API y vuelve en el `setCart` de la
+				 * respuesta. Esto es lo que ve el invitado —que no persiste el carrito hasta el
+				 * checkout— y lo que suma el total local de mixins/cart.js.
+				 *
+				 * `precio_por_cantidad()` devuelve null cuando ningún rango aplica; ahí manda el
+				 * precio de siempre. Las dos cifras están en la misma escala (recargo online y
+				 * redondeo incluidos), que es justo lo que ese helper existe para garantizar.
+				 */
+				let precio_de_rango = this.precio_por_cantidad(this.article, amount, false)
+				this.article.amount = amount
+				this.article.notes = this.notes
 				this.article.pivot = {
 					amount: amount,
 					notes: this.notes,
 					variant_id: this.selected_article_variant ? this.selected_article_variant.id : null,
-					price: this.articlePriceEfectivo(this.article, false)
+					price: precio_de_rango !== null ? precio_de_rango : this.articlePriceEfectivo(this.article, false)
 				}
 				this.$store.commit('cart/addItem', this.article)
 				/*
@@ -207,7 +274,24 @@ export default {
 					this.$store.commit('auth/setMessage', 'Guardando carrito')
 					this.$store.commit('auth/setLoading', true)
 					this.$store.dispatch('cart/save')
-					.then(() => {
+					.then(descartados => {
+
+						/*
+						 * 🔴 `cart/save` resuelve con los artículos que el servidor DESCARTÓ por no estar
+						 * disponibles para este comprador (catalogo-por-lista-tienda). Si el que se acaba
+						 * de agregar es uno de ellos, el store ya avisó ("X ya no está disponible...") y el
+						 * carrito que quedó es el del servidor, sin esa línea: no hay nada que mostrar como
+						 * "agregado" —ni el item, ni el popup— ni a dónde llevar con "Comprar ahora", que
+						 * iría a Payment con el carrito sin este artículo (o vacío).
+						 *
+						 * Pasa con una lista que cambió con la ficha abierta (dos pestañas) o con listados
+						 * que no se recargan (similares, favoritos). Contra una tienda-api vieja nunca
+						 * llega un descartado, así que esto no corta nada.
+						 */
+						if (articulo_fue_descartado(descartados, this.article)) {
+							this.$store.commit('auth/setLoading', false)
+							return
+						}
 
 						this.$store.commit('cart/set_added_item', this.article)
 
@@ -234,7 +318,19 @@ export default {
 					// Guest checkout: carrito local sin persistir en API hasta el paso de pago.
 					this.$bvModal.hide('add-to-cart-modal')
 					this.$store.commit('cart/set_added_item', this.article)
-					this.$store.commit('cart/set_added_item_popup_visible', true)
+
+					/*
+					 * 🔴 Mismo criterio que la rama logueada de arriba: "Comprar ahora" tiene que
+					 * llevar al pago tambien para el invitado. Antes de este arreglo `buy_now` se
+					 * ignoraba aca y el boton se comportaba igual que "Agregar al carrito", sin
+					 * avisar nada.
+					 */
+					if (buy_now) {
+						this.$router.push({name: 'Payment'})
+					} else {
+						this.$store.commit('cart/set_added_item_popup_visible', true)
+					}
+
 					this.$store.commit('articles/setAmount', '')
 					this.$store.commit('articles/setNotes', '')
 				}
@@ -347,6 +443,20 @@ export default {
 		.add-to-cart__btn-group
 			flex: 1
 			min-width: 0
+
+		.add-to-cart__btn-add
+			color: var(--add-to-cart-button-color) !important
+			border-color: var(--add-to-cart-button-color) !important
+
+			&:hover, &:focus, &:active
+				color: #fff !important
+				background-color: var(--add-to-cart-button-color) !important
+				border-color: var(--add-to-cart-button-color) !important
+
+			&.disabled, &:disabled
+				color: color-mix(in srgb, var(--add-to-cart-button-color) 45%, white 55%) !important
+				background-color: transparent !important
+				border-color: color-mix(in srgb, var(--add-to-cart-button-color) 45%, white 55%) !important
 
 	.add-to-cart__btn-actualizar--disabled
 		opacity: 0.65

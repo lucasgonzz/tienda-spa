@@ -2,6 +2,7 @@ import firebase from "firebase/app"
 import { getAnalytics } from "firebase/analytics"
 import "firebase/messaging"
 import Cookies from "js-cookie"
+import { env } from '@/runtime_config'
 export default {
     methods: {
         checkNotificationsPermissions() {
@@ -35,11 +36,11 @@ export default {
         initializeFirebase() {
             if (firebase.messaging.isSupported()) {
                 let config = {
-                    apiKey: process.env.VUE_APP_FIREBASE_API_KEY,
-					authDomain: process.env.VUE_APP_FIREBASE_AUTH_DOMAIN,
-					projectId: process.env.VUE_APP_FIREBASE_PROJECT_ID,
-					messagingSenderId: process.env.VUE_APP_FIREBASE_MESSAGING_SENDER_ID,
-					appId: process.env.VUE_APP_FIREBASE_APP_ID,
+                    apiKey: env('VUE_APP_FIREBASE_API_KEY'),
+					authDomain: env('VUE_APP_FIREBASE_AUTH_DOMAIN'),
+					projectId: env('VUE_APP_FIREBASE_PROJECT_ID'),
+					messagingSenderId: env('VUE_APP_FIREBASE_MESSAGING_SENDER_ID'),
+					appId: env('VUE_APP_FIREBASE_APP_ID'),
                 };
                 let fire = firebase.initializeApp(config);
                 // getAnalytics(fire)

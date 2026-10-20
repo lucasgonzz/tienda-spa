@@ -1,8 +1,9 @@
 import axios from 'axios'
 axios.defaults.withCredentials = true
-axios.defaults.baseURL = process.env.VUE_APP_API_URL
+axios.defaults.baseURL = env('VUE_APP_API_URL')
 import last_searchs from '@/store/last_searchs'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
+import { env } from '@/runtime_config'
 export default {
 	namespaced: true,
 	state: {
@@ -13,6 +14,14 @@ export default {
 		promociones_vinoteca: [],
 		in_offer: [],
 		novedades: [],
+		/*
+		 * Artículos con al menos un rango de precio por cantidad (`article_price_ranges`), para
+		 * la sección "Comprando más, pagás menos" de la home. Arranca en [] y se queda en [] si
+		 * la API todavía no manda la clave: la sección no se renderiza y no hay error.
+		 */
+		articulos_con_rangos: [],
+		/* Combos publicados en la tienda (`combos.online = 1`). Mismo criterio que arriba. */
+		combos: [],
 
 		selected_category: null,
 		selected_sub_category: null,
@@ -33,6 +42,42 @@ export default {
 		loading_sub_categories: false,
 		loading_articles: false,
 		loading_brands: false,
+
+		/*
+		 * 🔴 Número del último pedido del LISTADO de artículos (getIndex, getArticles y
+		 * searchArticles). Cada una de esas acciones lo incrementa al salir y se guarda el suyo;
+		 * a la vuelta, si ya no es el último, la respuesta se descarta entera: no commitea nada
+		 * ni toca el loading, que es del pedido vigente.
+		 *
+		 * Por qué (Fenix, 23/9/2026): el getIndex anónimo del arranque —o una búsqueda— puede
+		 * tardar mucho, y si el comprador se loguea antes de que vuelva, la recarga de
+		 * `recargar_articulos_con_la_sesion()` vuelve primero y la vieja la pisaba después con
+		 * los precios en null. Mismo patrón que store/client_offers.js, que descarta cuando
+		 * cambió el comprador.
+		 */
+		pedido_del_listado: 0,
+		/*
+		 * Lo mismo, pero solo de getIndex: los carruseles de la home (destacados, ofertas,
+		 * novedades, promociones, rangos y combos) solo los trae getIndex. Una búsqueda que sale
+		 * después descarta el LISTADO de un getIndex en vuelo, pero no sus carruseles: esos solo
+		 * los reemplaza un getIndex más nuevo (el de después del login).
+		 */
+		pedido_de_la_home: 0,
+		/*
+		 * 🔴 Lo mismo para las CATEGORÍAS y las MARCAS (getCategories / getBrands), que hasta
+		 * el 5/10/2026 no tenían guarda. Desde la misión catalogo-por-lista-tienda el árbol de
+		 * categorías y la lista de marcas dependen de QUIÉN pregunta: un comprador cuya lista de
+		 * precios es restringida ve solo las categorías y marcas de los artículos habilitados
+		 * para su lista. Por eso se vuelven a pedir al loguearse y al cerrar sesión
+		 * (`recargar_catalogo()` en mixins/auth.js).
+		 *
+		 * Sin el contador, la respuesta ANÓNIMA lenta del arranque (App.vue pide categorías y
+		 * marcas apenas carga el comercio) puede volver DESPUÉS de la recarga del comprador ya
+		 * logueado y pisarla: el mayorista vería el árbol público, con categorías que al
+		 * abrirlas salen vacías. Es la misma carrera que la de Fenix con los artículos.
+		 */
+		pedido_de_categorias: 0,
+		pedido_de_marcas: 0,
 	},
 	mutations: {
 		setCategories(state, categories) {
@@ -80,6 +125,28 @@ export default {
 		},
 		setNovedades(state, value) {
 			state.novedades = value
+		},
+		/**
+		 * 🔴 El `|| []` es el guard del contrato con la API, no una costumbre: las dos claves
+		 * son OPCIONALES. Una tienda desplegada contra una `tienda-api` vieja —o contra un
+		 * cliente al que todavía no le llegó la columna `combos.online`— recibe la respuesta
+		 * sin ellas, y `res.data.combos` llega `undefined`. Sin el `|| []` el estado quedaría
+		 * en undefined y el `v-if` de la sección reventaría al leerle el `.length`.
+		 *
+		 * @param {object} state
+		 * @param {Array|undefined} value
+		 */
+		set_articulos_con_rangos(state, value) {
+			state.articulos_con_rangos = Array.isArray(value) ? value : []
+		},
+		/**
+		 * Ver set_articulos_con_rangos: misma clave opcional, mismo guard.
+		 *
+		 * @param {object} state
+		 * @param {Array|undefined} value
+		 */
+		set_combos(state, value) {
+			state.combos = Array.isArray(value) ? value : []
 		},
 		addArticles(state, value) {
 			state.articles = state.articles.concat(value)
@@ -144,31 +211,120 @@ export default {
 		setLoadingBrands(state, value) {
 			state.loading_brands = value
 		},
+		/**
+		 * Un pedido nuevo del listado de artículos: ver `pedido_del_listado` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_del_listado(state) {
+			state.pedido_del_listado++
+		},
+		/**
+		 * Un pedido nuevo de la home: ver `pedido_de_la_home` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_de_la_home(state) {
+			state.pedido_de_la_home++
+		},
+		/**
+		 * Un pedido nuevo de categorías: ver `pedido_de_categorias` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_de_categorias(state) {
+			state.pedido_de_categorias++
+		},
+		/**
+		 * Un pedido nuevo de marcas: ver `pedido_de_marcas` en el state.
+		 *
+		 * @param {object} state
+		 */
+		nuevo_pedido_de_marcas(state) {
+			state.pedido_de_marcas++
+		},
+		/**
+		 * Suelta la selección activa (categoría, subcategoría, bodega, cepa y marca) cuando
+		 * cambia la identidad del comprador (login o logout), justo antes de volver a pedir el
+		 * catálogo (`recargar_catalogo()` en mixins/auth.js).
+		 *
+		 * 🔴 Por qué la selección sí se suelta: es un objeto del catálogo de la identidad
+		 * ANTERIOR, y el comprador nuevo puede no ver esa categoría o esa marca (su lista de
+		 * precios es restringida). `getIndex` ya suelta categoría, subcategoría y marca, pero no
+		 * bodega ni cepa: si quedara una, la home escondería sus carruseles (todos miran
+		 * `!selected_bodega && !selected_cepa`) y el scroll infinito seguiría filtrando por un
+		 * objeto de la identidad anterior. `sub_categories` es la lista de la categoría
+		 * seleccionada y se va con ella: nada la lee sin una categoría seleccionada, y
+		 * `getSubCategories` la vuelve a pedir cuando el comprador elige otra.
+		 *
+		 * 🔴 Y por qué el árbol (`categories`) y las marcas (`brands`) NO se vacían: vaciarlos haría
+		 * desaparecer el menú de categorías y marcas hasta que volviera la respuesta —para TODOS
+		 * los compradores, tengan o no una lista restringida— y, si la recarga fallara, lo dejaría
+		 * vacío hasta recargar la página. Con las guardas de `pedido_de_categorias` y
+		 * `pedido_de_marcas` ya no hace falta: la respuesta nueva reemplaza al árbol y a las
+		 * marcas, y una respuesta vieja que vuelva tarde se descarta. El costo, asumido: mientras
+		 * vuelve la respuesta el menú sigue mostrando lo de la identidad anterior, y si la recarga
+		 * falla se queda con eso.
+		 *
+		 * No toca los contadores de pedidos: la recarga que sigue los incrementa al salir, y eso
+		 * es lo que descarta cualquier respuesta vieja que todavía esté en vuelo.
+		 *
+		 * @param {object} state
+		 */
+		soltar_seleccion_por_cambio_de_identidad(state) {
+			state.sub_categories = []
+			state.selected_category = null
+			state.selected_sub_category = null
+			state.selected_bodega = null
+			state.selected_cepa = null
+			state.selected_brand = null
+		},
 	},
 	actions: {
-		getCategories({ commit }) {
+		getCategories({ commit, state }) {
 			commit('setLoadingCategories', true)
-			return axios.get(`/api/categories/${ process.env.VUE_APP_COMMERCE_ID }`)
+			/* Guarda anti-carrera: ver `pedido_de_categorias` en el state. */
+			commit('nuevo_pedido_de_categorias')
+			const pedido = state.pedido_de_categorias
+			return axios.get(`/api/categories/${ env('VUE_APP_COMMERCE_ID') }`)
 			.then(res => {
+				/* Llegó tarde: ya salió otro pedido de categorías (el de después del login o del
+				   logout). Ni el árbol ni el loading son de esta respuesta. */
+				if (pedido !== state.pedido_de_categorias) {
+					return
+				}
 				commit('setLoadingCategories', false)
 				commit('setCategories', res.data.categories)
 				// commit('setIndexAsSelectedCategory')
 			})
 			.catch(err => {
-				commit('setLoadingCategories', false)
 				console.log(err)
+				if (pedido !== state.pedido_de_categorias) {
+					return
+				}
+				commit('setLoadingCategories', false)
 			})
 		},
-		getBrands({ commit }) {
+		getBrands({ commit, state }) {
 			commit('setLoadingBrands', true)
-			return axios.get('/api/brands/' + process.env.VUE_APP_COMMERCE_ID)
+			/* Guarda anti-carrera: ver `pedido_de_categorias` en el state (vale igual para las marcas). */
+			commit('nuevo_pedido_de_marcas')
+			const pedido = state.pedido_de_marcas
+			return axios.get('/api/brands/' + env('VUE_APP_COMMERCE_ID'))
 				.then(res => {
+					/* Llegó tarde: ya salió otro pedido de marcas. */
+					if (pedido !== state.pedido_de_marcas) {
+						return
+					}
 					commit('setLoadingBrands', false)
 					commit('setBrands', res.data.brands)
 				})
 				.catch(err => {
-					commit('setLoadingBrands', false)
 					console.log(err)
+					if (pedido !== state.pedido_de_marcas) {
+						return
+					}
+					commit('setLoadingBrands', false)
 				})
 		},
 		getSubCategories({ commit, state }) {
@@ -190,21 +346,30 @@ export default {
 		getArticles({ commit, state }) {
 			commit('setPage', 1)
 			commit('setLoadingArticles', true)
+			commit('nuevo_pedido_del_listado')
+			const pedido = state.pedido_del_listado
 			if (state.selected_brand) {
 				return axios.get(
 					'api/articles/from-brand/'
-					+ state.selected_brand.id + '/' + state.order_by + '/' + process.env.VUE_APP_COMMERCE_ID
+					+ state.selected_brand.id + '/' + state.order_by + '/' + env('VUE_APP_COMMERCE_ID')
 					+ '?page=1'
 				)
 					.then(res => {
+						/* Llegó tarde: otro pedido del listado ya salió después. */
+						if (pedido !== state.pedido_del_listado) {
+							return
+						}
 						commit('setLoadingArticles', false)
 						let articles = res.data.articles.data
 						commit('setArticles', articles)
 						commit('setOrder')
 					})
 					.catch(err => {
-						commit('setLoadingArticles', false)
 						console.log(err)
+						if (pedido !== state.pedido_del_listado) {
+							return
+						}
+						commit('setLoadingArticles', false)
 					})
 			}
 			let category_id = 0
@@ -226,8 +391,12 @@ export default {
 				cepa_id = state.selected_cepa.id
 			}
 
-			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+bodega_id+'/'+cepa_id+'/'+state.order_by+'/'+process.env.VUE_APP_COMMERCE_ID+'?page=1')
+			return axios.get('api/articles/from-category/'+category_id+'/'+sub_category_id+'/'+bodega_id+'/'+cepa_id+'/'+state.order_by+'/'+env('VUE_APP_COMMERCE_ID')+'?page=1')
 			.then(res => {
+				/* Llegó tarde: otro pedido del listado ya salió después. */
+				if (pedido !== state.pedido_del_listado) {
+					return
+				}
 				commit('setLoadingArticles', false)
 				let articles = res.data.articles.data 
 				// let articles_ordenados = []
@@ -257,8 +426,11 @@ export default {
 				commit('setOrder')
 			})
 			.catch(err => {
-				commit('setLoadingArticles', false)
 				console.log(err)
+				if (pedido !== state.pedido_del_listado) {
+					return
+				}
+				commit('setLoadingArticles', false)
 			})
 		},
 		getIndex({ commit, state }) {
@@ -267,19 +439,38 @@ export default {
 			commit('setSelectedCategory', null)
 			commit('setSelectedSubCategory', null)
 			commit('setLoadingArticles', true)
-			return axios.get(`api/articles/featured-last-uploads/${ process.env.VUE_APP_COMMERCE_ID }?page=1`)
+			commit('nuevo_pedido_del_listado')
+			commit('nuevo_pedido_de_la_home')
+			const pedido = state.pedido_del_listado
+			const pedido_home = state.pedido_de_la_home
+			return axios.get(`api/articles/featured-last-uploads/${ env('VUE_APP_COMMERCE_ID') }?page=1`)
 			.then(res => {
 				console.log(res)
-				commit('setLoadingArticles', false)
-				commit('setArticles', res.data.articles.data)
+				/* Un getIndex más nuevo (el de después del login) ya salió: esta respuesta no
+				   vale nada, ni el listado ni los carruseles. */
+				if (pedido_home !== state.pedido_de_la_home) {
+					return
+				}
+				/* El listado solo si ningún otro pedido del listado salió después (una búsqueda,
+				   una categoría); los carruseles son solo de getIndex y van igual. */
+				if (pedido === state.pedido_del_listado) {
+					commit('setLoadingArticles', false)
+					commit('setArticles', res.data.articles.data)
+				}
 				commit('setFeatured', res.data.featured)
 				commit('set_promociones_vinoteca', res.data.promociones_vinoteca)
 				commit('setInOffer', res.data.in_offer)
 				commit('setNovedades', res.data.novedades)
+				/* Claves nuevas y opcionales: si no vienen, las mutaciones dejan []. */
+				commit('set_articulos_con_rangos', res.data.articulos_con_rangos)
+				commit('set_combos', res.data.combos)
 			})
 			.catch(err => {
-				commit('setLoadingArticles', false)
 				console.log(err)
+				if (pedido !== state.pedido_del_listado) {
+					return
+				}
+				commit('setLoadingArticles', false)
 			})
 		},
 		searchArticles({ commit, state }) {
@@ -298,15 +489,25 @@ export default {
 			 * es peor que no tenerlo, porque nadie lo puede detectar después.
 			 */
 			const termino_buscado = state.search_query
-			return axios.get(`/api/articles/search/${termino_buscado}/${process.env.VUE_APP_COMMERCE_ID}`)
+			commit('nuevo_pedido_del_listado')
+			const pedido = state.pedido_del_listado
+			return axios.get(`/api/articles/search/${termino_buscado}/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
-				commit('setLoadingArticles', false)
+				/* Si llegó tarde (otro pedido del listado ya salió después) no toca ni el loading
+				   ni el listado. La búsqueda igual existió: el servidor ya la registró como última
+				   búsqueda y el evento de tracking se manda igual, con sus propios datos. */
+				const vigente = pedido === state.pedido_del_listado
+				if (vigente) {
+					commit('setLoadingArticles', false)
+				}
 				console.log(res)
 				let last_search = res.data.last_search
 				if (last_search) {
 					last_searchs.state.last_searchs.unshift(last_search)
 				}
-				commit('setArticles', res.data.articles.data)
+				if (vigente) {
+					commit('setArticles', res.data.articles.data)
+				}
 				/*
 				 * El evento de búsqueda va acá, en la búsqueda COMPLETA, y no en el
 				 * autocomplete del navbar (components/nav/buscador/Index.vue), que dispara
@@ -326,8 +527,11 @@ export default {
 				})
 			})
 			.catch(err => {
-				commit('setLoadingArticles', false)
 				console.log(err)
+				if (pedido !== state.pedido_del_listado) {
+					return
+				}
+				commit('setLoadingArticles', false)
 			})
 		},
 	},

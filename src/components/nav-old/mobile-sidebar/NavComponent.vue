@@ -35,13 +35,7 @@
                         <i :class="getIconActive('Questions', 'comment')"></i>
                         Preguntas
                     </b-nav-item> -->
-                    <!-- <b-nav-item 
-                    @click="home()"
-                    :class="active('Cupons')">
-                        <i class="bi bi-ticket-perforated"></i>
-                        Cupones
-                    </b-nav-item> -->
-                    <b-nav-item 
+                    <b-nav-item
                     :to="{name: 'Configuration'}"
                     :class="active('Configuration')">
                         <i :class="getIconActive('Configuration', 'user')"></i>
@@ -61,13 +55,7 @@
                     <i class="bi bi-geo-alt"></i>
                     Nuestro local
                 </b-nav-item>
-                <b-nav-item 
-                :to="{name: 'Help'}"
-                :class="active('Help')">
-                    <i class="bi bi-headphones"></i>
-                    Ayuda
-                </b-nav-item>
-                <b-nav-item 
+                <b-nav-item
                 v-b-modal="'informacion-legal'"
                 :class="active('TerminosCondiciones')">
                     <i class="bi bi-info-circle"></i>

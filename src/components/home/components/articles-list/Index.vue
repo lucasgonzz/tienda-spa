@@ -11,9 +11,23 @@ id="articles-list">
 
 		<novedades></novedades>
 
-		<p 
+		<!--
+			Las dos secciones nuevas van DEBAJO de Novedades, en este orden y no en otro: es
+			donde las pidió Lucas. La sección "Ofertas" (in-offer, el check `in_offer` del
+			artículo) queda donde estaba, arriba de Novedades: son mecanismos distintos.
+		-->
+		<comprando-mas-pagas-menos></comprando-mas-pagas-menos>
+
+		<combos></combos>
+
+		<!--
+			Con un filtro elegido este titulo es el h1 de la pagina (mision seo-tiendas; en la
+			portada el h1 lo pone Home.vue). .seo-titulo le devuelve el line-height que tenia como
+			<p>: el resto del estilo cuelga de .title y no cambia.
+		-->
+		<h1
 		v-if="selected_category || selected_sub_category || selected_bodega || selected_cepa || selected_brand"
-		class="title">
+		class="title seo-titulo">
 			<span
 			v-if="selected_category">
 				{{ selected_category.name }}
@@ -34,7 +48,7 @@ id="articles-list">
 			v-else-if="selected_brand">
 				{{ selected_brand.name }}
 			</span>
-		</p>
+		</h1>
 		<p
 		class="title"
 		v-else-if="is_from_search">
@@ -103,11 +117,14 @@ import ArticleCardSkeleton from '@/components/common/ArticleCardSkeleton'
 import VueHorizontalList from "vue-horizontal-list"
 import articles_mixin from "@/mixins/articles"
 import VueScreenSize from 'vue-screen-size'
+import { env } from '@/runtime_config'
 export default {
 	name: 'ArticleList',
 	mixins: [articles_mixin, VueScreenSize.VueScreenSizeMixin],
 	components: {
 		PromocionesVinoteca: () => import('@/components/home/components/articles-list/PromocionesVinoteca'),
+		ComprandoMasPagasMenos: () => import('@/components/home/components/articles-list/ComprandoMasPagasMenos'),
+		Combos: () => import('@/components/home/components/articles-list/Combos'),
 		InfiniteLoading,
 		Featured,
 		InOffer,
@@ -122,8 +139,16 @@ export default {
 			auto_scroll_timeout: null,
 			auto_scroll_interval: null,
 			auto_scroll_pending_pixels: 0,
-			auto_scroll_programmatic: false,
-			auto_scroll_events: ['scroll'],
+			// Eventos con los que se detecta que el comprador intervino: rueda, toque,
+			// teclado y click. En Chrome/Edge el click incluye usar la barra de scroll (medido);
+			// en Firefox y Safari no se probó.
+			// NO se escucha 'scroll' a propósito: el evento del propio scrollBy del autoscroll
+			// se despacha en el siguiente frame de render, después de cualquier temporizador,
+			// así que una bandera de "es programático" bajada con setTimeout o
+			// requestAnimationFrame no es confiable y el autoscroll se cortaba solo en el
+			// primer paso (caso medido el 12/10/2026 en la tienda 1.1.0 con 80 px/s).
+			// Por eso la intervención se detecta por las entradas del comprador, no por el scroll.
+			auto_scroll_events: ['wheel', 'touchstart', 'keydown', 'mousedown'],
 		}
 	},
 	computed: {
@@ -249,10 +274,8 @@ export default {
 					: Math.ceil(this.auto_scroll_pending_pixels)
 
 				if (pixels_to_scroll !== 0) {
-					this.auto_scroll_programmatic = true
 					window.scrollBy(0, pixels_to_scroll)
 					this.auto_scroll_pending_pixels -= pixels_to_scroll
-					setTimeout(() => { this.auto_scroll_programmatic = false }, 0)
 				}
 			}, this.auto_scroll_home_interval_ms)
 		},
@@ -262,21 +285,16 @@ export default {
 				this.auto_scroll_interval = null
 			}
 			this.auto_scroll_pending_pixels = 0
-
-			// alert('Se limpio autoscroll')
 		},
 		onUserActivity() {
-			console.log('onUserActivity')
-			console.log('auto_scroll_programmatic: '+this.auto_scroll_programmatic)
-			console.log('auto_scroll_home_speed: '+this.auto_scroll_home_speed)
-			if (this.auto_scroll_programmatic) {
-				return
-			}
+			// Si el autoscroll no está corriendo no hay nada que frenar
 			if (!this.auto_scroll_interval) {
 				return
 			}
+			// Una vez que el comprador toma el control, el autoscroll NO se reanuda solo por
+			// inactividad (no se llama a restartAutoScroll): queda detenido hasta que se vuelva a
+			// montar la portada o cambie alguna de las tres opciones de auto scroll de la configuración.
 			this.stopAutoScroll()
-			// this.restartAutoScroll()
 		},
 		setAutoScrollListeners() {
 			this.auto_scroll_events.forEach(event_name => {
@@ -322,11 +340,22 @@ export default {
 				} else {
 					url += 'featured-last-uploads'
 				}
-				url += `/${process.env.VUE_APP_COMMERCE_ID}?page=${this.page}`
+				url += `/${env('VUE_APP_COMMERCE_ID')}?page=${this.page}`
 				console.log(url)
+				/* El listado al que pertenece esta página (ver `pedido_del_listado` en
+				   store/categories.js). Si mientras vuelve sale un listado nuevo —la recarga de
+				   después del login, una búsqueda, otra categoría—, esta página es del viejo y no
+				   se puede pegar al nuevo: en Fenix serían artículos con el precio en null. */
+				let pedido = this.$store.state.categories.pedido_del_listado
 				this.$api.get(url)
 				.then(res => {
 					console.log(res)
+					if (pedido !== this.$store.state.categories.pedido_del_listado) {
+						/* Se descarta, y el scroll queda listo para pedir la página del listado
+						   nuevo. */
+						$state.loaded()
+						return
+					}
 					let articles = res.data.articles.data
 					if (articles.length) {
 						this.$store.commit('categories/addArticles', articles)
@@ -347,7 +376,8 @@ export default {
 }
 </script>
 <style lang="sass">
-// Espaciado entre secciones de carrusel en home (Promociones, Destacados, Ofertas, Novedades)
+// Espaciado entre secciones de carrusel en home (Promociones, Destacados, Ofertas, Novedades,
+// Comprando más pagás menos, Combos)
 #articles-list
 	.featured-list
 		margin-bottom: 12px
@@ -357,6 +387,18 @@ export default {
 			margin-right: 0
 		.vhl-item
 			margin: 0 0 20px !important
+		// Las flechas de vue-horizontal-list traen `margin: -24px` hacia afuera (cuelgan la mitad de
+		// sus 48px fuera del carrusel). El colchón lateral de la portada es de 15px (el padding del
+		// `b-container fluid` de App.vue), así que desde los 993px —donde la librería las muestra— la
+		// derecha terminaba 9px después del borde y le agregaba scroll horizontal a la página, y la
+		// izquierda quedaba cortada 9px antes del borde (medido el 15/10/2026 en Masquito y en el slot:
+		// x=1289 a 1280px y x=-9). Con 12px siguen sobresaliendo del carrusel y entran en el colchón.
+		// Si el colchón baja de 12px, hay que bajar este número.
+		.vue-horizontal-list
+			.vhl-btn-left
+				margin-left: -12px
+			.vhl-btn-right
+				margin-right: -12px
 
 .paddings
 	padding: 0 0 1em

@@ -1,4 +1,5 @@
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
+import { env } from '@/runtime_config'
 export default {
 	computed: {
 		color() {
@@ -45,6 +46,13 @@ export default {
 			}
 		},
 		hasStock(article) {
+			/* ignorar_stock (Online Configurations -> Stock): la tienda entera pasa a tratar
+			   TODO articulo como ya se trata hoy uno con stock null -- siempre disponible, sin
+			   tope -- asi que va primero, antes de mirar variantes y stock_null_equal_0 (que
+			   con esto prendido dejan de importar). */
+			if (this.commerce.online_configuration.ignorar_stock) {
+				return true
+			}
 			if (article.article_variants && article.article_variants.length) {
 				console.log('has_stock variants')
 				return !this.selected_article_variant || this.selected_article_variant.stock === null || this.selected_article_variant.stock > 0
@@ -58,7 +66,7 @@ export default {
 		toArticle(article) {
 			this.$store.commit('articles/setArticleToShow', article)
 			this.set_amount_add_to_cart()
-			let params = {slug: article.slug, commerce_id: process.env.VUE_APP_COMMERCE_ID}
+			let params = {slug: article.slug, commerce_id: env('VUE_APP_COMMERCE_ID')}
 			console.log('params:')
 			console.log(params)
 			this.$router.push({name: 'Article', params})

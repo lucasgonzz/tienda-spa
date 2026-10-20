@@ -1,6 +1,6 @@
 import moment from 'moment'
 moment.locale('es')
-import numeral from 'numeral'
+import { precio_es } from '../helpers/formato_precio'
 export default {
 	methods: {
 		date(d) {
@@ -12,13 +12,25 @@ export default {
 		hour_from_time(d) {
 			return moment(d, 'HH:mm:ss').format('HH:mm')
 		},
+		/**
+		 * Precio para mostrar en formato es-AR: $3.779,07 (punto de miles, coma decimal).
+		 * El formato lo resuelve precio_es() sin registrar ningun locale de numeral (ver el helper:
+		 * con el locale global los precios que llegan como string de la API se multiplican por 100).
+		 *
+		 * @param {number|string} p Importe. Vacio, null o 0 devuelve '-'.
+		 * @param {boolean} with_decimals false = recorta los decimales.
+		 * @param {boolean} quitar_decimales_solo_si_no_es_00 Con with_decimals en false, recorta solo
+		 *        si los decimales son ",00" ($100,00 -> $100); $100,50 queda como esta.
+		 * @returns {string}
+		 */
 		price(p, with_decimals = true, quitar_decimales_solo_si_no_es_00 = true) {
 			if (p) {
-				let price = numeral(p).format('$0,0.00')
+				let price = precio_es(p)
 				if (with_decimals) {
 					return price
 				} else {
-					if (!quitar_decimales_solo_si_no_es_00 || price.substr(price.length-2, price.length) == '00') {
+					// El texto siempre termina en ",dd": se recortan esos 3 caracteres.
+					if (!quitar_decimales_solo_si_no_es_00 || price.substr(price.length-3) == ',00') {
 						return price.substr(0, price.length-3)
 					} else {
 						return price 

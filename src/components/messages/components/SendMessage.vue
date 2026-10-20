@@ -17,6 +17,7 @@
 </template>
 <script>
 import BtnLoader from '@/components/common/BtnLoader'
+import { env } from '@/runtime_config'
 export default {
 	components: {
 		BtnLoader,
@@ -33,7 +34,7 @@ export default {
 				this.loading = true
 				this.$api.post('messages', {
 					text: this.text,
-					commerce_id: process.env.VUE_APP_COMMERCE_ID,
+					commerce_id: env('VUE_APP_COMMERCE_ID'),
 				})
 				.then(res => {
 					this.$store.commit('messages/addMessage', res.data.message)

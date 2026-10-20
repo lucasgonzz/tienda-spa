@@ -2,7 +2,11 @@
 	<p 
 	translate="no"
 	class="product-name">
-		{{ article_name }}
+		<!-- Link real a la ficha (mision seo-tiendas); el click sube a la tarjeta como antes. -->
+		<a
+		class="seo-link"
+		:href="href_articulo(article)"
+		@click.prevent>{{ article_name }}</a>
 	</p>
 </template>
 <script>

@@ -11,9 +11,11 @@
 		:key="bodega.id"
 		:class="is_active_bodega(bodega) ? 'active-item' : ''"
 		class="item">
-			<div 
-			@click.stop="setBodega(bodega)"
-			class="header">
+			<!-- <a> real a la bodega para los buscadores (mision seo-tiendas); el click es el mismo. -->
+			<a
+			:href="href_filtro('bodega', bodega)"
+			@click.stop.prevent="setBodega(bodega)"
+			class="header seo-link">
 				<span>
 					{{ bodega.name }}
 				</span>
@@ -21,7 +23,7 @@
 				class="j-end">
 					({{ bodega.articles_count }})
 				</div>
-			</div>
+			</a>
 		</div>	
 	</b-sidebar>
 </template>

@@ -164,14 +164,51 @@ export default {
 			this.$store.dispatch('current_acount/getMovements')
 		},
 		/**
-		 * Abre en una pestaña nueva el PDF del estado de cuenta en empresa-api.
+		 * Abre en una pestaña nueva el PDF del estado de cuenta en empresa-api, con el token de
+		 * `pdf_links` (misión pdf-de-venta-publico, 10/10/2026).
+		 *
+		 * empresa-api deja de servir ese PDF sin sesión ni token, y el comprador no tiene sesión de
+		 * empresa: el link lleva `?t=<token>`, que tienda-api emite solo si la cuenta es suya.
+		 *
+		 * Si el token viene null (la base del cliente todavía no tiene `pdf_links`: empresa sin
+		 * actualizar, la ruta sigue pública) o el pedido falla, se abre el link de siempre, sin
+		 * token: mientras dure la ventana de transición de empresa sigue andando, y es lo mismo que
+		 * se abría antes de este cambio.
+		 *
+		 * Mismo manejo de popup que el PDF de la venta (components/cuenta-corriente/Table.vue): la
+		 * pestaña en blanco se abre SÍNCRONA, en el gesto del click, porque el navegador bloquea un
+		 * window.open() que llega después de una respuesta asíncrona. Al llegar el token se le
+		 * cambia la dirección.
 		 */
 		printEstadoCuenta() {
+			let self = this
 			const empresa_url = this.commerce.api_url ? this.commerce.api_url : ''
 			if (!empresa_url || !this.current_credit_account) return
 			const url = `${empresa_url}/current-acount/pdf/${this.current_credit_account.id}/${this.cantidad_movimientos}/simple`
 
-			window.open(url)
+			let win = window.open('', '_blank')
+
+			this.$store.dispatch('current_acount/getPdfLinkToken', { tipo: 'credit_account', id: this.current_credit_account.id })
+			.then(function (token) {
+				self.llevarPestanaAlPdf(win, token ? `${url}?t=${encodeURIComponent(token)}` : url)
+			})
+			.catch(function () {
+				self.llevarPestanaAlPdf(win, url)
+			})
+		},
+		/**
+		 * Lleva la pestaña abierta en el click a la URL del PDF. Si el navegador no dejó abrirla
+		 * (window.open devolvió null), la abre ahora, como hace el flujo de la venta.
+		 *
+		 * @param {Window|null} win Pestaña abierta en el gesto del usuario
+		 * @param {string} url URL final del PDF
+		 */
+		llevarPestanaAlPdf(win, url) {
+			if (win) {
+				win.location = url
+			} else {
+				window.open(url)
+			}
 		},
 	}
 }

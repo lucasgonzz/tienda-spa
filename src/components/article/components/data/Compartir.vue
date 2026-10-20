@@ -3,11 +3,18 @@
 	type="button"
 	class="article-action-link"
 	@click="compartir_por_whatsapp">
-		<i class="bi bi-whatsapp" aria-hidden="true"></i>
+		<!--
+			Icono generico de compartir y no el de WhatsApp. Desde que este boton y el de
+			"Consultar" viven en la MISMA fila (17/9/2026), los dos con el icono de WhatsApp se
+			leian como el mismo boton repetido. El que comparte sigue abriendo WhatsApp: lo que
+			cambia es que el icono nombra la accion y no el canal, como en Mercado Libre.
+		-->
+		<i class="bi bi-share" aria-hidden="true"></i>
 		<span>Compartir</span>
 	</button>
 </template>
 <script>
+import { env } from '@/runtime_config'
 export default {
 	name: 'Compartir',
 	props: {
@@ -31,7 +38,7 @@ export default {
 				? this.article.slug
 				: this.$route.params.slug
 			/* Identificador del comercio en la URL de la tienda. */
-			let commerce_id = process.env.VUE_APP_COMMERCE_ID || this.$route.params.commerce_id
+			let commerce_id = env('VUE_APP_COMMERCE_ID') || this.$route.params.commerce_id
 			let route_location = this.$router.resolve({
 				name: 'Article',
 				params: {
@@ -40,7 +47,7 @@ export default {
 				},
 			})
 			/* Base pública de la tienda (env) o el origen actual del navegador. */
-			let base_url = process.env.VUE_APP_APP_URL || window.location.origin
+			let base_url = env('VUE_APP_APP_URL') || window.location.origin
 			base_url = base_url.replace(/\/$/, '')
 			return base_url + route_location.href
 		},

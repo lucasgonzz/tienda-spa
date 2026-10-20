@@ -26,6 +26,7 @@
 		<nav-categories></nav-categories>
 		<nav-bodegas></nav-bodegas>
 		<nav-cepas></nav-cepas>
+		<nav-marcas></nav-marcas>
 	</div>
 </template>
 <script>
@@ -58,10 +59,11 @@ export default {
 		NavCategories: () => import('@/components/nav/categories/Index'),
 		NavBodegas: () => import('@/components/nav/bodegas/Index'),
 		NavCepas: () => import('@/components/nav/cepas/Index'),
+		NavMarcas: () => import('@/components/nav/marcas/Index'),
 	},
 	computed: {
         show_nav() {
-        	return this.route_name != 'Maps'
+            return this.route_name != 'Maps'
         },
 	},
 }

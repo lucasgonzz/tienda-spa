@@ -101,9 +101,6 @@
 				Para el uso del Portal, los Usuarios deberán crear una cuenta de usuario (en adelante, la “Cuenta”) donde se le solicitarán ciertos datos personales tales como: nombre y apellido, fecha de nacimiento, dirección, teléfono, correo electrónico y datos para procesar los pagos online (en adelante, los “Datos”). Los Usuarios garantizan y responden, en cualquier caso, de la veracidad, exactitud, vigencia, autenticidad y actualización de sus Datos. En ningún caso {{ commerce.company_name }} se responsabiliza por la certeza de los Datos de los Usuarios.
 			</p>
 			<p>
-				Si los Usuarios tuvieran cuenta en Facebook o en Google, se le podrá ofrecer la posibilidad de crear su Cuenta con la utilización de las credenciales allí incluidas.
-			</p>
-			<p>
 				{{ commerce.company_name }} podrá requerir alguna información o documentación adicional a los efectos de comprobar o corroborar los Datos, pudiendo suspender temporal o definitivamente a aquellos Usuarios cuyos Datos no hayan podido ser confirmados.
 			</p>
 			<p>
@@ -200,7 +197,7 @@
 				Pago Online:
 			</p>
 			<p>
-				El Usuario podrá abonar el precio del Pedido mediante medios electrónicos de pago online tales como tarjeta de crédito o tarjeta de débito, así como cupones de descuentos de {{ commerce.company_name }}, billetera virtual, y otros que a futuro se habiliten y sean informados a los Usuarios).
+				El Usuario podrá abonar el precio del Pedido mediante medios electrónicos de pago online tales como tarjeta de crédito, tarjeta de débito, billetera virtual y otros que a futuro se habiliten y sean informados a los Usuarios).
 			</p>
 			<p>
 				Cuando el Usuario elija realizar el pago online: (i) deberá cargar una tarjeta de crédito, débito u otro medio de pago electrónico autorizado para abonar el monto del Pedido. Esta información es gestionada de forma segura; sus datos no son almacenados en {{ commerce.company_name }}; o (ii) deberá seleccionar un medio de pago electrónico cargado previamente en el Portal.

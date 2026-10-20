@@ -8,24 +8,61 @@
 			<b-skeleton type="button" width="100%"></b-skeleton>
 		</b-card>
 	</template>
+	<!--
+		🔴 La clase dejo de ser `.article-data` a proposito (16/9/2026). Esta columna ya no es
+		una tarjeta: la ficha entera vive adentro de UNA sola tarjeta blanca, que la pone
+		`article-view/Index.vue`. Y habia reglas `.plantilla-comerciocity .article-data ...` en
+		`_plantilla_comerciocity.sass` (padding de 28px, nombre de 26px) con especificidad
+		(0,3,0) que con el nombre viejo seguian mandando y dejaban un marco adentro de otro.
+
+		El orden es el de las capturas de Mercado Libre: condicion → nombre → precio → cuotas →
+		envio → variantes → lo que tenes que saber. La caja de compra se fue a su propia columna
+		(`buy-box/Index.vue`).
+	-->
+	<!--
+		Sin margen propio arriba: adentro de la tarjeta la columna de datos tiene que arrancar a
+		la misma altura que la foto, y los 20px de `m-t-20` la bajaban medio renglon.
+	-->
 	<div
-	class="m-t-20 m-b-20 article-data"
+	class="ficha-datos"
 	v-if="article_to_show">
+		<condition></condition>
+		<brand
+		:article="article_to_show"></brand>
+
 		<name-heart></name-heart>
 
 		<price></price>
 		<vinoteca></vinoteca>
-		
+
 		<payment-methods-info></payment-methods-info>
 
-		<condition></condition>	
+		<!--
+			Envío por correo (Zipnova): el comprador ve cuánto sale y cuánto tarda con su código
+			postal antes de agregar al carrito. Solo si el comercio lo tiene conectado. Se ve
+			también en el modal de agregar al carrito (mismo componente).
+			Va por `articulos_extra` y no por `articulos`: con cosas ya en el carrito el envio es
+			UNO SOLO, asi que lo que se muestra aca es cuanto MAS sale por sumar este articulo, no
+			otro envio entero. Y la cantidad sale del store —la misma que leen el desplegable de la
+			ficha y el modal—, porque 3 unidades no pagan el mismo envio que 1.
+
+			Lo que va es la cantidad PEDIDA, el total del selector, sin mirar el carrito: el
+			descuento de lo que este articulo ya tiene adentro lo hace el cotizador, que es el
+			unico que lee el carrito. Meter esa cuenta aca seria poner logica de carrito en el
+			template de la ficha, y ademas el selector arranca justamente con la cantidad que ya
+			esta en el carrito (por eso la caja de compra dice "Actualizar carrito").
+		-->
+		<cotizador-envio
+		v-if="commerce.envios_zipnova"
+		:articulos_extra="[{ id: article_to_show.id, amount: $store.state.articles.amount }]"></cotizador-envio>
+
+		<variants></variants>
+
+		<saber-del-producto></saber-del-producto>
 
 		<!-- <notes></notes> -->
 
-		<add-to-cart
-		:article="article_to_show"></add-to-cart>
-
-		<div class="article-data__actions">
+		<div class="ficha-datos__actions">
 			<compartir
 			:article="article_to_show"></compartir>
 
@@ -40,9 +77,9 @@ import PaymentMethodsInfo from '@/components/article/components/data/PaymentMeth
 import Price from '@/components/article/components/data/Price'
 import Condition from '@/components/article/components/data/Condition'
 // import Notes from '@/components/article/components/data/Notes'
-import AddToCart from '@/components/article/components/data/add-to-cart/Index'
 import Compartir from '@/components/article/components/data/Compartir'
 import WhatsappLink from '@/components/article/components/data/WhatsappLink'
+import CotizadorEnvio from '@/components/common/envio/Cotizador'
 
 import BtnLoader from '@/components/common/BtnLoader'
 export default {
@@ -53,10 +90,13 @@ export default {
 		PaymentMethodsInfo,
 		Price,
 		Condition,
+		Brand: () => import('@/components/common/article-card/body/Brand'),
 		// Notes,
-		AddToCart,
 		Compartir,
 		WhatsappLink,
+		CotizadorEnvio,
+		Variants: () => import('@/components/article/components/data/Variants'),
+		SaberDelProducto: () => import('@/components/article/components/data/SaberDelProducto'),
 
 		BtnLoader,
 	},
@@ -68,21 +108,62 @@ export default {
 }
 </script>
 <style lang="sass">
-.article-data
-	background: #FFF
-	border-radius: 10px
-	border: 2px solid #DDDDDD
-	padding: 25px
-	/* Anula text-align: center de #app en la tarjeta del producto. */
+.ficha-datos
+	/* Anula text-align: center de #app en la columna de datos del producto. */
 	text-align: left
 
+	.payment-methods-info
+		margin-top: .75rem
+
+	.article-variants
+		margin-top: 1rem
+
+	.saber-del-producto
+		margin-top: 1.25rem
+
+	// El separador del cotizador de envio. Lo declaraba `common/envio/Cotizador.vue` como
+	// `.article-data .envio-cotizador`, y esa cadena quedo muerta al renombrar la columna. Se
+	// repone aca, con la clase nueva, para que el bloque siga leyendose separado del resto.
+	.envio-cotizador
+		padding-top: .85rem
+		border-top: 1px solid rgba(0, 0, 0, .08)
+		margin-bottom: .25rem
+
 /* Acciones secundarias del artículo (compartir y WhatsApp). */
-.article-data__actions
-	margin-top: 0.75rem
+//
+// 🔴 Una sola fila y no una columna (17/9/2026, pedido de Lucas). Son dos acciones cortas y
+// secundarias; apiladas a lo ancho de la columna ocupaban dos renglones enteros y pesaban mas que
+// la caja de compra. Reparten el ancho en partes iguales con `flex: 1 1 0`, que le gana al
+// `width: 100%` que trae `.article-action-link` de su parcial.
+//
+// El `min-width: 0` es lo unico que hace que esto sobreviva a 360px: sin el, el ancho minimo de
+// contenido de cada boton manda y la fila desborda la columna en vez de achicarse. El texto se
+// acorto a "Consultar" en el mismo cambio, por lo mismo.
+.ficha-datos__actions
+	margin-top: 1rem
 	display: flex
-	flex-direction: column
+	flex-direction: row
 	align-items: stretch
 	gap: 0.5rem
 	width: 100%
-</style>
 
+	> *
+		flex: 1 1 0
+		min-width: 0
+
+// El nombre del producto con los tamaños de la captura: 22px y peso 600.
+//
+// 🔴 La cadena arranca en `.ficha-ml__datos` (la columna que arma `article-view/Index.vue`) y
+// no en `.ficha-datos` a proposito: el estilo de `NameHeart.vue` es `scoped`, o sea
+// `.cont-name .product-name[data-v-hash]`, que vale (0,3,0) — lo mismo que valdria esta regla
+// con un nivel menos. En un empate gana el que va despues en la hoja, y eso depende del orden
+// de compilacion: con el nivel de mas queda (0,4,0) y gana siempre.
+.ficha-ml__datos .ficha-datos .cont-name .product-name
+	font-size: 22px
+	font-weight: 600
+	line-height: 1.3
+	letter-spacing: -.01em
+	color: rgba(0, 0, 0, .9)
+	@media screen and (max-width: 576px)
+		font-size: 20px
+</style>

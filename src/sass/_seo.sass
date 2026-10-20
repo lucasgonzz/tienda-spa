@@ -1,0 +1,26 @@
+// Links rastreables (mision seo-tiendas, 23/9/2026).
+//
+// Las tarjetas de articulo, los menus de categorias/marcas/bodegas/cepas, las categorias de la
+// home y el footer navegaban solo con $router.push: Google no encontraba ni un <a href> a una
+// ficha. Ahora son <a :href> reales con @click.prevent (el click hace lo mismo que antes) y esta
+// clase hace que visualmente no cambie NADA: el link toma el color y la decoracion del contexto
+// en vez del azul y el subrayado de Bootstrap. Las reglas de cada componente que fijan su propio
+// color (y su :hover) siguen ganando por especificidad.
+a.seo-link
+	color: inherit
+	text-decoration: none
+	&:hover, &:focus, &:active
+		color: inherit
+		text-decoration: none
+
+// Variante para envolver un bloque (la imagen de la tarjeta): ocupa todo el alto del contenedor,
+// porque en la plantilla ComercioCity .vue-load-image mide height: 100% y el link queda en el medio.
+a.seo-link--bloque
+	display: block
+	width: 100%
+	height: 100%
+
+// Un titulo visible que paso de <p> a <h1> para ser el h1 de la pagina: el reboot de Bootstrap le
+// pone line-height 1.2 a los h1 y el <p> heredaba el del contenedor. Con esto se ve igual que antes.
+h1.seo-titulo
+	line-height: inherit

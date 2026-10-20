@@ -32,12 +32,17 @@
 					class="nav-categories__toggle-spacer"
 					aria-hidden="true"></span>
 
-					<button
-					type="button"
-					class="nav-categories__name"
-					@click.stop="setCategory(category)">
+					<!--
+						<a> y no <button> (mision seo-tiendas): link real a la categoria para los
+						buscadores. El click hace lo mismo que antes (navega o despliega las
+						subcategorias segun la config); .seo-link le saca el subrayado.
+					-->
+					<a
+					class="nav-categories__name seo-link"
+					:href="href_categoria(category)"
+					@click.stop.prevent="on_click_category_name(category)">
 						{{ category.name }}
-					</button>
+					</a>
 
 					<button
 					v-if="subcategories_count(category) > 0"
@@ -90,6 +95,13 @@ export default {
 		 */
 		categories() {
 			return this.$store.state.categories.categories
+		},
+		/**
+		 * Config global: tocar el nombre de una categoría despliega sus subcategorías en vez de navegar directo.
+		 * @returns {boolean}
+		 */
+		mostrar_subcategorias_al_click_categoria() {
+			return Number(this.commerce.online_configuration.mostrar_subcategorias_al_click_categoria) == 1
 		},
 		/**
 		 * Visibilidad del sidebar sincronizada con el store auth.
@@ -182,6 +194,17 @@ export default {
 		 */
 		setCategory(category) {
 			this.setSelectedCategory(category)
+		},
+		/**
+		 * Click en el nombre: navega directo, o despliega subcategorías si la config global lo pide.
+		 * @param {object} category
+		 */
+		on_click_category_name(category) {
+			if (this.mostrar_subcategorias_al_click_categoria && this.subcategories_count(category) > 0) {
+				this.show_sub_categories(category)
+			} else {
+				this.setCategory(category)
+			}
 		},
 		/**
 		 * Abre o cierra el bloque de subcategorías para esta categoría.

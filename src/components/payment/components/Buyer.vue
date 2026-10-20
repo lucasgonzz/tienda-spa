@@ -1,54 +1,106 @@
 <template>
-	<div class="background">
-		<h5>
-			Identificación
-		</h5>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.name"
-		placeholder="Nombre y apellido"></b-form-input>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.phone"
-		placeholder="Telefono sin 0 ni 15. Ej: 3444622139"></b-form-input>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.email"
-		@blur="buscar_direccion_guardada"
-		@keyup.enter="buscar_direccion_guardada"
-		placeholder="Correo electronico"></b-form-input>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.ciudad"
-		placeholder="Ciudad"></b-form-input>
-		<b-form-input
-		v-if="flag_activo(commerce.online_configuration.pedir_barrio_al_registrarse)"
-		class="m-b-15"
-		v-model="buyer.barrio"
-		placeholder="Barrio"></b-form-input>
-		<b-form-input
-		class="m-b-15"
-		v-model="buyer.address"
-		@input="direccion_autocompletada = false"
-		placeholder="Direccion"></b-form-input>
-		<div
-		v-if="buscando_direccion"
-		class="text-muted"
-		style="font-size: 0.85rem; margin-top: -10px; margin-bottom: 15px;">
-			Buscando tus datos...
+	<div class="checkout-section">
+		<h2 class="checkout-section__title">
+			<i class="bi bi-person"></i>
+			¿Quién hace la compra?
+		</h2>
+
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Nombre y apellido
+			</label>
+			<b-form-input
+			v-model="buyer.name"
+			placeholder="Nombre y apellido"></b-form-input>
 		</div>
+
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Teléfono
+			</label>
+			<b-form-input
+			v-model="buyer.phone"
+			placeholder="Sin 0 ni 15. Ej: 3444622139"></b-form-input>
+		</div>
+
+		<div class="checkout-field">
+			<label class="checkout-field__label">
+				Correo electrónico
+			</label>
+			<p class="checkout-field__hint">
+				Ahí te mandamos la confirmación del pedido.
+			</p>
+			<b-form-input
+			v-model="buyer.email"
+			@blur="buscar_direccion_guardada"
+			@keyup.enter="buscar_direccion_guardada"
+			placeholder="tunombre@correo.com"></b-form-input>
+		</div>
+
+		<!--
+			Con las direcciones de envio nuevas y envio a domicilio, la ciudad sale de la direccion que
+			elige en "¿A dónde te lo enviamos?" (ver pide_ciudad): no se la pide dos veces.
+		-->
 		<div
-		v-else-if="direccion_autocompletada"
-		class="text-muted"
-		style="font-size: 0.85rem; margin-top: -10px; margin-bottom: 15px;">
-			Usamos la dirección de tu última compra. Si querés que te lo enviemos a otro lado, cambiala acá.
+		v-if="pide_ciudad"
+		class="checkout-field">
+			<label class="checkout-field__label">
+				Ciudad
+			</label>
+			<b-form-input
+			v-model="buyer.ciudad"
+			placeholder="Ciudad"></b-form-input>
+		</div>
+
+		<div
+		v-if="flag_activo(commerce.online_configuration.pedir_barrio_al_registrarse)"
+		class="checkout-field">
+			<label class="checkout-field__label">
+				Barrio
+			</label>
+			<b-form-input
+			v-model="buyer.barrio"
+			placeholder="Barrio"></b-form-input>
+		</div>
+
+		<!--
+			La direccion solo se pide con envio a domicilio, que es exactamente cuando la valida
+			collect_guest_checkout_errors(). Con retiro por el local se mostraba igual y el comprador
+			no tenia forma de saber que era opcional.
+
+			Con envio por correo (opcion de Zipnova elegida) tampoco: la direccion completa la pide
+			DireccionEnvio.vue, con calle, numero, localidad y provincia por separado. Y con las
+			direcciones de envio nuevas tampoco: la pide DireccionDeEntrega.vue (ver pide_direccion).
+		-->
+		<div
+		v-if="pide_direccion"
+		class="checkout-field">
+			<label class="checkout-field__label">
+				Dirección
+			</label>
+			<b-form-input
+			v-model="buyer.address"
+			@input="direccion_autocompletada = false"
+			placeholder="Calle, número, piso o departamento"></b-form-input>
+
+			<p
+			v-if="buscando_direccion"
+			class="checkout-section__hint m-t-5 m-b-0">
+				Buscando tus datos...
+			</p>
+			<p
+			v-else-if="direccion_autocompletada"
+			class="checkout-section__hint m-t-5 m-b-0">
+				Usamos la dirección de tu última compra. Si querés que te lo enviemos a otro lado, cambiala acá.
+			</p>
 		</div>
 	</div>
 </template>
 <script>
 import payment_set_height from '@/mixins/payment_set_height'
+import cart from '@/mixins/cart'
 export default {
-	mixins: [payment_set_height],
+	mixins: [payment_set_height, cart],
 	data() {
 		return {
 			// Ultimo email consultado contra el endpoint de prefill, para no repetir
@@ -69,6 +121,28 @@ export default {
 		 */
 		buyer() {
 			return this.$store.state.cart.buyer
+		},
+		/**
+		 * Si hay que pedirle la direccion: solo con envio a domicilio (deliver == 1) y si el envio
+		 * NO es por correo (ahi la pide DireccionEnvio.vue, con todos los campos).
+		 *
+		 * Con las direcciones de envio nuevas (19/10/2026) tampoco: la pide el bloque "¿A dónde te
+		 * lo enviamos?" (DireccionDeEntrega.vue), con el buscador de Google.
+		 *
+		 * @returns {boolean}
+		 */
+		pide_direccion() {
+			return this.$store.state.cart.cart.deliver == 1 && !this.envio_zipnova_elegido && !this.direcciones_de_envio_activas
+		},
+		/**
+		 * Si hay que pedirle la ciudad: siempre, salvo con las direcciones de envio nuevas y envio a
+		 * domicilio, donde es la localidad de la direccion elegida (BtnSave la manda como `ciudad`
+		 * al identificar al comprador). Con retiro por el local se pide como siempre.
+		 *
+		 * @returns {boolean}
+		 */
+		pide_ciudad() {
+			return !(this.direcciones_de_envio_activas && this.$store.state.cart.cart.deliver == 1)
 		},
 	},
 	methods: {

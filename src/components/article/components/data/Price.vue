@@ -2,8 +2,10 @@
 	<div
 	v-if="commerce.online_configuration.online_price_type && article_to_show && (flag_activo(article_to_show.precio_pausado) || articlePriceEfectivo(article_to_show))">
 		<template v-if="flag_activo(article_to_show.precio_pausado)">
-			<p class="price">
-				{{ articlePriceEfectivo(article_to_show) }}
+			<p class="precio-ficha">
+				<span class="precio-ficha__valor">
+					{{ articlePriceEfectivo(article_to_show) }}
+				</span>
 			</p>
 		</template>
 		<template v-else>
@@ -13,7 +15,7 @@
 
 			<template
 			v-if="!article_to_show.ranges">
-				<p class="price">
+				<p class="precio-ficha">
 					<!--
 						El precio ORIGINAL tachado, en su propio renglon ARRIBA del precio con
 						los descuentos generales del articulo. Excluyente con precio_tachado (la
@@ -22,10 +24,12 @@
 					-->
 					<span
 					v-if="precio_original_con_descuentos"
-					class="price__original-arriba">
+					class="precio-ficha__tachado-arriba">
 						{{ precio_original_con_descuentos }}
 					</span>
-					{{ precio_mostrado }}
+					<span class="precio-ficha__valor">
+						{{ precio_mostrado }}
+					</span>
 					<!--
 						El precio original, tachado al lado del que se paga. Sale de un computed y
 						no de una llamada al mixin porque el de la oferta por cantidad depende de
@@ -34,20 +38,25 @@
 					-->
 					<span
 					v-if="precio_tachado"
-					class="price__tachado">
+					class="precio-ficha__tachado">
 						{{ precio_tachado }}
 					</span>
 					<!--
-						Un badge por descuento general del articulo, a la derecha del precio.
-						Reemplaza a Discounts.vue, que dibujaba estos mismos badges ARRIBA del
-						precio y sin ninguna relacion con el.
+						Un badge por descuento general del articulo, a la DERECHA del precio
+						grande. En la ficha va a la derecha; en la tarjeta del listado va a la
+						izquierda del tachado. Son dos disposiciones distintas y las dos salen de
+						las capturas de Mercado Libre que paso Lucas.
+					-->
+					<!--
+						Y a continuacion los de los descuentos y recargos del cliente del
+						comprador: verde el descuento, ambar el recargo (decision 3 de Lucas).
 					-->
 					<b-badge
-					v-for="(descuento, index) in badges_de_descuento"
-					:key="'descuento-'+index"
-					variant="danger"
-					class="price__badge-descuento">
-						{{ texto_de_descuento(descuento) }}
+					v-for="badge in badges_de_descuento"
+					:key="badge.clave"
+					class="precio-ficha__badge"
+					:class="{'precio-ficha__badge--recargo': badge.tipo == 'recargo'}">
+						{{ badge.texto }}
 					</b-badge>
 				</p>
 				<!--
@@ -149,19 +158,42 @@ export default {
 			if (!base || base === this.precio_del_tramo) {
 				return null
 			}
+			/* Con un recargo del cliente encima del tramo el precio puede quedar por ENCIMA de la
+			   base: ahi no hay nada que tachar. Se compara en numeros, no en texto formateado. */
+			let base_numero = Number(this.precio_base_de_oferta(this.article_to_show, false))
+			let tramo_numero = Number(this.precio_con_oferta_por_cantidad(this.article_to_show, this.cantidad_elegida, false))
+			if (!isNaN(base_numero) && !isNaN(tramo_numero) && base_numero <= tramo_numero) {
+				return null
+			}
 			return base
 		},
 		/**
-		 * "Llevá 12 o más y pagás 18% menos": a partir de cuantas unidades mejora el precio.
+		 * La linea que explica por que el precio se mueve al cambiar la cantidad. Se muestra
+		 * siempre que haya una oferta por cantidad, tenga o no la cantidad puesta todavia.
 		 *
-		 * La frase la arma el mixin, que es la misma que muestra la tarjeta del mensaje de
-		 * promocion. Se muestra siempre que la oferta por cantidad exista, tenga o no la
-		 * cantidad puesta todavia: es lo que explica por que el precio se mueve al cambiarla.
+		 * Son DOS mecanismos distintos y por eso hay dos frases en el mixin:
+		 *   - La oferta personalizada de tipo 'cantidad' (`client_offer_ranges`), un acuerdo con
+		 *     ESTE comprador: "Llevá 12 o más y pagás 18% menos".
+		 *   - La oferta por cantidad del articulo (`article_price_ranges`), que el comercio carga
+		 *     en el ABM para todo el mundo: "A partir de 10 unidades, 15% de descuento" (mision
+		 *     oferta-por-cantidad-porcentaje, 24/9/2026).
+		 *
+		 * 🔴 Gana la personalizada, y es el MISMO orden de precedencia con el que se cobra
+		 * (`CartHelper::get_price()`: oferta personalizada > tramo por articulo). Anunciar el
+		 * tramo del articulo a un comprador al que se le cobra su oferta seria prometerle un
+		 * descuento que no va a ver.
+		 *
+		 * Se muestra uno solo: la linea va a media voz —gris, chica, pegada al precio— y no es un
+		 * cartel de oferta. Dos renglones ahi ya son un cartel.
 		 *
 		 * @returns {string|null}
 		 */
 		texto_del_tramo() {
-			return this.texto_del_mejor_tramo(this.article_to_show)
+			let de_la_oferta = this.texto_del_mejor_tramo(this.article_to_show)
+			if (de_la_oferta) {
+				return de_la_oferta
+			}
+			return this.texto_de_la_oferta_por_cantidad(this.article_to_show)
 		},
 		/**
 		 * El precio original tachado ARRIBA, por los descuentos generales del articulo.
@@ -181,60 +213,84 @@ export default {
 			return this.precio_sin_descuentos(this.article_to_show)
 		},
 		/**
-		 * Los badges de descuento, atados al tachado de arriba: sin tachado no hay badges.
+		 * Los badges del precio: los descuentos del articulo (atados a su tachado) y los ajustes
+		 * del cliente. Ver badges_de_precio() en el mixin.
 		 *
 		 * @returns {Array}
 		 */
 		badges_de_descuento() {
-			if (!this.precio_original_con_descuentos) {
-				return []
-			}
-			return this.descuentos_visibles(this.article_to_show)
+			return this.badges_de_precio(this.article_to_show)
 		},
 	},
 }
 </script>
 <style scoped lang="sass">
-.price
-	font-size: 2em
-	font-weight: 500
+// 🔴 La clase de este bloque dejo de ser `.price` a proposito (16/9/2026). Habia una regla
+// `.plantilla-comerciocity .article-data .price` en `_plantilla_comerciocity.sass` que clava el
+// precio en 32px con especificidad (0,3,0): con el nombre viejo, los tamanos de la captura de
+// Mercado Libre se aplicaban en todas las plantillas MENOS en la de ComercioCity, en silencio.
+// Con un nombre nuevo esa regla ya no engancha y no hay pelea que ganar.
+.precio-ficha
+	margin: 0
 	text-align: left
-	// El precio original tachado va al lado del descontado, nunca en rojo: es informacion,
-	// no una alarma. Un escalon mas chico y bajado de opacidad, para que el precio con
-	// descuento siga siendo lo unico que grita.
-	.price__tachado
-		font-size: .6em
+	// Los tamanos salen de las capturas: 36px para el precio grande y 16px para el tachado de
+	// arriba. Van en px y no en em porque son medidas tomadas de una pantalla, no una escala.
+	.precio-ficha__valor
+		font-size: 36px
 		font-weight: 400
-		margin-left: .4em
-		opacity: .45
+		line-height: 1.15
+		letter-spacing: -.02em
+		color: rgba(0, 0, 0, .9)
+		@media screen and (max-width: 576px)
+			font-size: 30px
+
+	// El precio ORIGINAL tachado, en el renglon de ARRIBA del precio con descuentos. Nunca en
+	// rojo: es informacion, no una alarma.
+	.precio-ficha__tachado-arriba
+		display: block
+		font-size: 16px
+		font-weight: 400
+		line-height: 1.2
+		color: rgba(0, 0, 0, .55)
 		text-decoration: line-through
 		// El importe no se parte a la mitad; si no entra, cae entero al renglon de abajo.
 		white-space: nowrap
 		@media screen and (max-width: 576px)
-			font-size: .55em
-			margin-left: .3em
-	// El precio ORIGINAL tachado, en el renglon de ARRIBA del precio con descuentos.
-	.price__original-arriba
-		display: block
-		font-size: .5em
+			font-size: 14px
+
+	// El tachado de la oferta personalizada, al lado del precio que se paga.
+	.precio-ficha__tachado
+		font-size: 16px
 		font-weight: 400
-		line-height: 1.15
-		opacity: .5
+		margin-left: .4rem
+		color: rgba(0, 0, 0, .55)
 		text-decoration: line-through
 		white-space: nowrap
 		@media screen and (max-width: 576px)
-			font-size: .55em
-	// Un badge por descuento, a la derecha del precio. Si no entran, bajan de renglon
-	// enteros, nunca se recortan ni se parten.
-	.price__badge-descuento
-		font-size: .34em
+			font-size: 14px
+			margin-left: .3rem
+
+	// El badge verde de la captura, a la DERECHA del precio grande. El fondo se clava en
+	// #00A650 (el unico color que Lucas pidio copiar literal de Mercado Libre) y pisa al
+	// `variant="success"` de BootstrapVue, que compila el verde de Bootstrap.
+	.precio-ficha__badge
+		font-size: 12px
 		font-weight: 600
-		margin-left: .4em
+		line-height: 1.3
+		padding: 2px 5px
+		border-radius: 3px
+		margin-left: .5rem
 		vertical-align: middle
 		white-space: nowrap
-		@media screen and (max-width: 576px)
-			font-size: .4em
-			margin-left: .3em
+		background-color: #00A650
+		color: #FFF
+		// sass/_nav.sass le da `z-index: 100` a todo .badge y este badge es flex item: sin
+		// esto se pinta encima del menu lateral del telefono.
+		z-index: auto
+
+	// El RECARGO del cliente: mismo badge, en ambar (decision 3 de Lucas).
+	.precio-ficha__badge--recargo
+		background-color: #C25E00
 
 // La linea que explica a partir de cuantas unidades mejora el precio. Va a media voz: una
 // sola linea, gris, chica, pegada al precio. No es un cartel de oferta.

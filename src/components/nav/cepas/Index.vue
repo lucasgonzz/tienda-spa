@@ -11,9 +11,11 @@
 		:key="cepa.id"
 		:class="is_active_cepa(cepa) ? 'active-item' : ''"
 		class="item">
-			<div 
-			@click.stop="setCepa(cepa)"
-			class="header">
+			<!-- <a> real a la cepa para los buscadores (mision seo-tiendas); el click es el mismo. -->
+			<a
+			:href="href_filtro('cepa', cepa)"
+			@click.stop.prevent="setCepa(cepa)"
+			class="header seo-link">
 				<span>
 					{{ cepa.name }}
 				</span>
@@ -21,7 +23,7 @@
 				class="j-end">
 					({{ cepa.articles_count }})
 				</div>
-			</div>
+			</a>
 		</div>	
 	</b-sidebar>
 </template>
