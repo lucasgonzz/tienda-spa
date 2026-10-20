@@ -43,6 +43,7 @@
 				@click="setImage(index)">
 			</div>
 			<carousel
+			ref="carrusel_imagenes"
 			loop
 			:navigationEnabled="!is_mobile"
 			navigationNextLabel="<i class='bi bi-chevron-right'></i>"
@@ -74,6 +75,7 @@
 						<vue-load-image>
 							<img
 							class="img-carrousel pinch-zoom-img"
+							@load="actualizar_altura_imagen"
 							slot="image"
 							:style="pinch_zoom_style"
 							:src="image.hosting_url"
@@ -97,6 +99,7 @@
 						<vue-load-image>
 							<img
 							class="img-carrousel"
+							@load="actualizar_altura_imagen"
 							slot="image"
 							:src="image.hosting_url"
 							:alt="article.name">
@@ -242,6 +245,15 @@ export default {
 		},
 	},
 	methods: {
+		actualizar_altura_imagen() {
+			// La foto puede terminar de cargar después de que el carrusel mida el indicador.
+			this.$nextTick(() => {
+				let carrusel = this.$refs.carrusel_imagenes
+				if (!this._isDestroyed && !this._isBeingDestroyed && carrusel) {
+					carrusel.computeCarouselHeight()
+				}
+			})
+		},
 		handleSlideClick(index) {
 			this.$store.commit('articles/setImageIndex', Number(index))
 		},
