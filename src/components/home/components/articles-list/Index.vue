@@ -381,10 +381,6 @@ export default {
 #articles-list
 	.featured-list
 		margin-bottom: 12px
-		.vhl-btn-left
-			margin-left: 0
-		.vhl-btn-right
-			margin-right: 0
 		.vhl-item
 			margin: 0 0 20px !important
 		// Las flechas de vue-horizontal-list traen `margin: -24px` hacia afuera (cuelgan la mitad de
