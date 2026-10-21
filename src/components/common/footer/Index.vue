@@ -77,31 +77,35 @@
 							Comunidad
 						</p>
 						<h3 class="site-footer__title">
-							Buscanos en
+							Sigamos en contacto
 						</h3>
-						<ul class="site-footer__list">
+						<ul class="site-footer__list site-footer__social-list">
 							<li v-if="commerce.online_configuration.instagram">
 								<a
-								class="site-footer__link"
+								class="site-footer__social-link"
+								aria-label="Instagram (abre en una pestaña nueva)"
 								target="_blank"
 								rel="noopener noreferrer"
 								:href="commerce.online_configuration.instagram">
 									<i
-									class="bi bi-instagram site-footer__icon"
+									class="bi bi-instagram site-footer__social-icon"
 									aria-hidden="true"></i>
-									Instagram
+									<span>Instagram</span>
+									<i class="bi bi-arrow-up-right site-footer__social-arrow" aria-hidden="true"></i>
 								</a>
 							</li>
 							<li v-if="commerce.online_configuration.facebook">
 								<a
-								class="site-footer__link"
+								class="site-footer__social-link"
+								aria-label="Facebook (abre en una pestaña nueva)"
 								target="_blank"
 								rel="noopener noreferrer"
 								:href="commerce.online_configuration.facebook">
 									<i
-									class="bi bi-facebook site-footer__icon"
+									class="bi bi-facebook site-footer__social-icon"
 									aria-hidden="true"></i>
-									Facebook
+									<span>Facebook</span>
+									<i class="bi bi-arrow-up-right site-footer__social-arrow" aria-hidden="true"></i>
 								</a>
 							</li>
 						</ul>
@@ -163,123 +167,187 @@ export default {
 
 /* Bloque principal: superficie elevada y borde de acento (misma línea visual que Contacto). */
 .site-footer {
-  font-family: var(--font-family-sans);
-  margin-top: 1.5rem;
+	font-family: var(--font-family-sans);
+	margin-top: 1.5rem;
 
-  &__surface {
-    border-radius: 16px 16px 0 0;
-    padding: 1.75rem 1.25rem 1.5rem;
-    border-top: 3px solid var(--secondary-color);
-    box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.06);
+	&__surface {
+		border-radius: 16px 16px 0 0;
+		padding: 1.75rem 1.25rem 1.5rem;
+		border-top: 3px solid var(--secondary-color);
+		box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.06);
 
-    @if $theme == dark {
-      background: #1a1a1a;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-top: 3px solid var(--secondary-color);
-    } @else if $theme == ligth {
-      background: #fff;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      border-top: 3px solid var(--secondary-color);
-    }
-  }
+		@if $theme == dark {
+			background: #1a1a1a;
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			border-top: 3px solid var(--secondary-color);
+		} @else if $theme == ligth {
+			background: #fff;
+			border: 1px solid rgba(0, 0, 0, 0.06);
+			border-top: 3px solid var(--secondary-color);
+		}
+	}
 
-  &__grid {
-    margin-left: -8px;
-    margin-right: -8px;
-  }
+	&__grid {
+		margin-left: -8px;
+		margin-right: -8px;
+	}
 
-  &__col {
-    padding-left: 12px;
-    padding-right: 12px;
-    margin-bottom: 1.25rem;
+	&__col {
+		padding-left: 12px;
+		padding-right: 12px;
+		margin-bottom: 1.25rem;
 
-    @media (min-width: 768px) {
-      margin-bottom: 0;
-    }
-  }
+		@media (min-width: 768px) {
+			margin-bottom: 0;
+		}
+	}
 
-  &__eyebrow {
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 0.25rem;
-    color: var(--secondary-color);
-    text-align: left;
-  }
+	&__eyebrow {
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		margin-bottom: 0.25rem;
+		// El acento queda en el borde decorativo: los rótulos chicos necesitan contraste de lectura.
+		color: #595963;
+		text-align: left;
+	}
 
-  &__title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin: 0 0 0.85rem;
-    text-align: left;
-    line-height: 1.3;
+	&__title {
+		font-size: 1.15rem;
+		font-weight: 700;
+		margin: 0 0 0.85rem;
+		text-align: left;
+		line-height: 1.3;
 
-    @if $theme == dark {
-      color: #f5f5f5;
-    } @else {
-      color: #1a1a1a;
-    }
-  }
+		@if $theme == dark {
+			color: #f5f5f5;
+		} @else {
+			color: #1a1a1a;
+		}
+	}
 
-  &__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    text-align: left;
-  }
+	&__list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		text-align: left;
+	}
 
-  &__list li {
-    margin-bottom: 0.45rem;
-  }
+	&__list li {
+		margin-bottom: 0.45rem;
+	}
 
-  &__icon {
-    margin-right: 0.45rem;
-    font-size: 1.05rem;
-    vertical-align: -0.1em;
-  }
+	&__icon {
+		margin-right: 0.45rem;
+		font-size: 1.05rem;
+		vertical-align: -0.1em;
+	}
 
-  &__link {
-    display: inline-flex;
-    align-items: center;
-    font-size: 0.95rem;
-    font-weight: 500;
-    text-decoration: none;
-    transition: color 0.15s ease;
+	&__link {
+		display: inline-flex;
+		align-items: center;
+		font-size: 0.95rem;
+		font-weight: 500;
+		text-decoration: none;
+		transition: color 0.15s ease;
 
-    @if $theme == dark {
-      color: rgba(255, 255, 255, 0.88);
-    } @else {
-      color: #333;
-    }
+		@if $theme == dark {
+			color: rgba(255, 255, 255, 0.88);
+		} @else {
+			color: #333;
+		}
 
-    &:hover {
-      color: var(--secondary-color);
-      text-decoration: none;
-    }
-  }
+		&:hover {
+			color: var(--secondary-color);
+			text-decoration: none;
+		}
+	}
 
-  &__cat {
-    display: inline-block;
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.15s ease;
+	&__cat {
+		display: inline-block;
+		font-size: 0.95rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: color 0.15s ease;
 
-    @if $theme == dark {
-      color: rgba(255, 255, 255, 0.88);
-    } @else {
-      color: #333;
-    }
+		@if $theme == dark {
+			color: rgba(255, 255, 255, 0.88);
+		} @else {
+			color: #333;
+		}
 
-    &:hover {
-      color: var(--secondary-color);
-    }
-  }
+		&:hover {
+			color: var(--secondary-color);
+		}
+	}
 
-  /* Compensa el alto del botón flotante / barra en móvil cuando aplica margin_bottom. */
-  &.margin-bottom {
-    margin-bottom: -65px !important;
-  }
+	&__social-list {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0.5rem;
+		width: 100%;
+		max-width: 320px;
+	}
+
+	&__social-list li {
+		width: 100%;
+		margin: 0;
+	}
+
+	&__social-link {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		min-height: 52px;
+		padding: 0.65rem 0.8rem;
+		border: 1px solid #dedee3;
+		border-radius: 12px;
+		background: #f8f8fa;
+		color: #26262b;
+		font-size: 0.95rem;
+		font-weight: 600;
+		text-decoration: none;
+		transition: background-color 0.15s ease, border-color 0.15s ease;
+
+		&:hover {
+			background: #eeeef2;
+			border-color: #a7a7b0;
+			color: #26262b;
+			text-decoration: none;
+		}
+
+		// El acento del comercio puede ser muy claro: el foco usa un tono de contraste estable.
+		&:focus-visible {
+			outline: 3px solid #26262b;
+			outline-offset: 3px;
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			transition: none;
+		}
+	}
+
+	&__social-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 30px;
+		height: 30px;
+		flex-shrink: 0;
+		font-size: 1.3rem;
+	}
+
+	&__social-arrow {
+		margin-left: auto;
+		font-size: 0.85rem;
+	}
+
+	/* Compensa el alto del botón flotante / barra en móvil cuando aplica margin_bottom. */
+	&.margin-bottom {
+		margin-bottom: -65px !important;
+	}
 }
 </style>
