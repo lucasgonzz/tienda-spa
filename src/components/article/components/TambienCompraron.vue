@@ -105,7 +105,9 @@ export default {
 
 		.VueCarousel-navigation-next
 			right: 8px !important
+			transform: translateY(-50%) !important
 
 		.VueCarousel-navigation-prev
 			left: 8px !important
+			transform: translateY(-50%) !important
 </style>

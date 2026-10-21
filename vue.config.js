@@ -68,6 +68,8 @@ module.exports = {
     //     ]
     // },
     chainWebpack: config => {
+        // Cubrir todos los consumidores sin modificar la dependencia instalada.
+        config.resolve.alias.set('vue-horizontal-list$', require('path').resolve(__dirname, 'src/components/common/HorizontalListSegura.js'))
         config.module
         .rule('vue')
         .use('vue-loader')
