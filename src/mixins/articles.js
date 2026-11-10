@@ -1,5 +1,6 @@
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 import { env } from '@/runtime_config'
+import { consultas_de_stock_activas, es_articulo_publicado, linea_a_consultar, stock_es_cero, tiene_marca_consulta_stock, variante_de_linea, variante_visible } from '@/helpers/consultas_de_stock'
 export default {
 	computed: {
 		color() {
@@ -17,7 +18,7 @@ export default {
 			if (confirm('¿Seguro quiere quitar '+article.name+' del carrito?')) {
 				
 				this.$store.commit('cart/removeArticle', {
-					item: article,
+					item: this.get_item_cart(article) || article,
 					remove_only_one_amount: false
 				})
 				/*
@@ -45,7 +46,7 @@ export default {
 				})
 			}
 		},
-		hasStock(article) {
+		hasStock(article, variante = this.selected_article_variant) {
 			/* ignorar_stock (Online Configurations -> Stock): la tienda entera pasa a tratar
 			   TODO articulo como ya se trata hoy uno con stock null -- siempre disponible, sin
 			   tope -- asi que va primero, antes de mirar variantes y stock_null_equal_0 (que
@@ -55,13 +56,50 @@ export default {
 			}
 			if (article.article_variants && article.article_variants.length) {
 				console.log('has_stock variants')
-				return !this.selected_article_variant || this.selected_article_variant.stock === null || this.selected_article_variant.stock > 0
+				return !variante || variante.stock === null || variante.stock > 0
 			}
 			if (this.flag_activo(this.commerce.online_configuration.stock_null_equal_0) && article.stock == null) {
 				console.log('NULL es igual a 0 y el stock de '+article.name+' es null')
 				return false 
 			}
 			return article.stock === null || article.stock > 0
+		},
+		stock_a_consultar_en_ficha(article) {
+			if (!consultas_de_stock_activas(this.commerce) || !es_articulo_publicado(article)) {
+				return false
+			}
+			if ((article.article_variants || []).length) {
+				const variante = this.selected_article_variant
+				return variante
+					? variante_visible(variante) && stock_es_cero(variante.stock)
+					: this.stock_a_consultar_en_catalogo(article)
+			}
+			return stock_es_cero(article.stock)
+		},
+		stock_a_consultar_en_catalogo(article) {
+			if (!consultas_de_stock_activas(this.commerce) || !es_articulo_publicado(article)) {
+				return false
+			}
+			const variantes = article.article_variants || []
+			if (variantes.length) {
+				const visibles = variantes.filter(variante_visible)
+				return visibles.some(variante => stock_es_cero(variante.stock))
+					&& !visibles.some(variante => variante.stock === null || variante.stock > 0)
+			}
+			return stock_es_cero(article.stock)
+		},
+		estado_stock_tarjeta(article) {
+			if (this.$route.name === 'Orders' && tiene_marca_consulta_stock(article)) {
+				return 'Consultar'
+			}
+			if (!consultas_de_stock_activas(this.commerce)) {
+				return this.hasStock(article) ? '' : 'Agotado'
+			}
+			const en_carrito = this.$route.name === 'Cart'
+			if (en_carrito ? linea_a_consultar(article, this.commerce) : this.stock_a_consultar_en_catalogo(article)) {
+				return 'Consultar'
+			}
+			return this.hasStock(article, en_carrito ? variante_de_linea(article) : null) ? '' : 'Agotado'
 		},
 		toArticle(article) {
 			this.$store.commit('articles/setArticleToShow', article)
@@ -97,25 +135,26 @@ export default {
 		// 	// this.checkColorsImages()
 		// },
 		checkCartArticle() {
-			this.checkCartArticleVariant()
-			this.checkCartArticleAmount()
-			this.checkCartArticleNotes()
+			const articulos = this.$store.state.cart.cart.articles
+			const ficha = this.article_to_show
+			const variante = ficha.pivot && ficha.pivot.variant_id
+			const linea = articulos.find(articulo => articulo.id == ficha.id
+				&& (!variante || articulo.pivot.variant_id == variante))
+			this.checkCartArticleVariant(linea)
+			this.checkCartArticleAmount(linea)
+			this.checkCartArticleNotes(linea)
 		},
-		checkCartArticleVariant() {
-			let articles = this.$store.state.cart.cart.articles
-			let article_cart = articles.find(art => {
-				return art.id == this.article_to_show.id
-			})
-			if (article_cart != undefined && article_cart.selected_variant) {
-				// let color = this.article_to_show.colors.find(c => {
-				// 	return c.id == article_cart.pivot.color_id
-				// })
-				// this.article_to_show.color = color
-
+		checkCartArticleVariant(article_cart) {
+			if (article_cart && article_cart.selected_variant && this.article_to_show.selected_article_properties) {
 				article_cart.selected_variant.article_property_values.forEach(article_property_value => {
-					this.article_to_show.selected_article_properties[article_property_value.article_property_type_id] = article_property_value.id
+					this.$set(
+						this.article_to_show.selected_article_properties,
+						article_property_value.article_property_type.name,
+						article_property_value.name
+					)
 				})
 				this.$store.commit('articles/setSelectedArticleVariant', article_cart.selected_variant)
+				this.$set(this.article_to_show, 'variant_id', article_cart.selected_variant.id)
 				this.setVariantImage()
 			}
 		},
@@ -143,12 +182,7 @@ export default {
 				this.article_to_show.size = size
 			}
 		},
-		checkCartArticleAmount() {
-			let articles = this.$store.state.cart.cart.articles
-			let article_cart = articles.find(art => {
-				return art.id == this.article_to_show.id
-			})
-
+		checkCartArticleAmount(article_cart) {
 			if (article_cart != undefined) {
 				console.log('checkCartArticleAmount, article_cart:')
 				console.log(article_cart)
@@ -171,11 +205,7 @@ export default {
 
 			}
 		},
-		checkCartArticleNotes() {
-			let articles = this.$store.state.cart.cart.articles
-			let article_cart = articles.find(art => {
-				return art.id == this.article_to_show.id
-			})
+		checkCartArticleNotes(article_cart) {
 			if (article_cart != undefined) {
 				this.$store.commit('articles/setNotes', article_cart.notes)
 			} else {

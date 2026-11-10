@@ -24,7 +24,7 @@ class="nav-search-result"
 			<span
 			class="nav-search-result__dot"
 			:class="{'nav-search-result__dot--out': !hay_stock}"></span>
-			{{ hay_stock ? 'Disponible' : 'Sin stock' }}
+			{{ estado_stock }}
 		</p>
 	</div>
 	<!-- El precio solo se renderiza cuando hay un unico precio de operacion para este usuario -->
@@ -49,6 +49,12 @@ export default {
 		},
 	},
 	computed: {
+		estado_stock() {
+			if (this.stock_a_consultar_en_catalogo(this.model)) {
+				return 'Consultar'
+			}
+			return this.hay_stock ? 'Disponible' : 'Sin stock'
+		},
 		/* Solo hay un unico precio de operacion cuando el comercio NO usa precios por rango de cantidad. */
 		mostrar_precio() {
 			return this.puede_ver_precios() && !this.commerce_has_extencion('lista_de_precios_por_rango_de_cantidad_vendida')

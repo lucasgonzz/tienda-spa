@@ -15,9 +15,12 @@
 						Listo
 					</p>
 					<h1 class="thanks-page__title">
-						¡Gracias por tu compra!
+						{{ pedido_a_consultar ? 'Recibimos tu pedido' : '¡Gracias por tu compra!' }}
 					</h1>
-					<p class="thanks-page__lead">
+					<p v-if="pedido_a_consultar" class="thanks-page__lead">
+						El comercio tiene que confirmar la disponibilidad. El pago queda a coordinar.
+					</p>
+					<p v-else class="thanks-page__lead">
 						Recibimos tu pedido correctamente. Nos pondremos en contacto con vos por correo o WhatsApp si hace falta.
 					</p>
 				</div>
@@ -58,6 +61,7 @@
 								:key="'art-' + article.id + '-' + idx">
 									<td class="thanks-page__td-name">
 										{{ article.name }}
+										<b-badge v-if="tiene_marca_consulta_stock(article)" variant="warning">Consultar</b-badge>
 									</td>
 									<td class="thanks-page__td-num">
 										{{ article.pivot.amount }}
@@ -86,7 +90,7 @@
 									<td
 									colspan="2"
 									class="thanks-page__td-total-label">
-										Total
+										{{ pedido_a_consultar ? 'Total estimado' : 'Total' }}
 									</td>
 									<td class="thanks-page__td-total-value">
 										{{ price(order.total) }}
@@ -174,6 +178,7 @@
 
 <script>
 import { env } from '@/runtime_config'
+import { tiene_marca_consulta_stock } from '@/helpers/consultas_de_stock'
 /**
  * Pantalla post-compra: agradecimiento, resumen de ítems y enlace opcional al PDF del pedido.
  *
@@ -186,6 +191,9 @@ export default {
 		title: 'Gracias por tu compra',
 	},
 	computed: {
+		pedido_a_consultar() {
+			return this.display_articles.some(tiene_marca_consulta_stock)
+		},
 		/**
 		 * Pedido actual persistido en el store tras confirmar la compra.
 		 * @returns {object|null}
@@ -378,6 +386,7 @@ export default {
 		}
 	},
 	methods: {
+		tiene_marca_consulta_stock,
 		/**
 		 * Importe de una línea (cantidad × precio unitario del pivot).
 		 * @param {object} item artículo o promo con pivot
@@ -431,6 +440,9 @@ export default {
 				this.order.buyer && this.order.buyer.name ? this.order.buyer.name : 'Cliente'
 
 			let message = '*Pedido N° ' + this.order.num + '*\n\n'
+			if (this.pedido_a_consultar) {
+				message += 'Disponibilidad a confirmar. Pago a coordinar.\n\n'
+			}
 
 			message += '*Cliente: ' + buyer_name + '*\n\n'
 
@@ -465,6 +477,7 @@ export default {
 					index +
 					') ' +
 					article.name +
+					(this.tiene_marca_consulta_stock(article) ? ' (Consultar)' : '') +
 					'* \n     Cantidad: ' +
 					article.pivot.amount +
 					' \n     Precio: ' +

@@ -58,6 +58,7 @@
 	</div>
 </template>
 <script>
+import { consultas_de_stock_activas, variante_visible } from '@/helpers/consultas_de_stock'
 import articles from '@/mixins/articles'
 export default {
 	name: 'ArticleProperties',
@@ -166,6 +167,9 @@ export default {
 			// console.log(this.article_to_show.selected_article_properties)
 
 			this.article_to_show.article_variants.find(article_variant => {
+				if (consultas_de_stock_activas(this.commerce) && !variante_visible(article_variant)) {
+					return false
+				}
 				// console.log('variante: '+article_variant.variant_description)
 				article_variant.article_property_values.forEach(article_property_value => {
 					// console.log('article_property_value: '+article_property_value.name)
@@ -185,12 +189,13 @@ export default {
 
 			if (selected_variant) {
 				this.$store.commit('articles/setSelectedArticleVariant', selected_variant)
-				this.article_to_show.variant_id = selected_variant.id
+				this.$set(this.article_to_show, 'variant_id', selected_variant.id)
 				this.setVariantImage()
 				console.log('selected_variant')
 				console.log(selected_variant)
 			} else {
 				this.$store.commit('articles/setSelectedArticleVariant', null)
+				this.$set(this.article_to_show, 'variant_id', null)
 			}
 		},
 		isSelectedPropertyValue(article_property_value) {

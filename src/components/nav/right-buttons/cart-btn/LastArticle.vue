@@ -27,7 +27,9 @@
 			<div class="last-article__product-body">
 				<p class="last-article__name">
 					{{ article.name }}
+					<span v-if="nombre_variante"> · {{ nombre_variante }}</span>
 				</p>
+				<b-badge v-if="stock_a_consultar" variant="warning">Consultar</b-badge>
 				<p class="last-article__qty-price">
 					{{ line_amount }} x {{ line_unit_price }}
 				</p>
@@ -73,6 +75,7 @@
 import cart from '@/mixins/cart'
 import nav from '@/mixins/nav'
 import { imagen_de_combo } from '@/helpers/combo'
+import { linea_a_consultar, variante_de_linea } from '@/helpers/consultas_de_stock'
 
 /**
  * Detalle del último ítem agregado al carrito.
@@ -94,6 +97,13 @@ export default {
 		},
 	},
 	computed: {
+		stock_a_consultar() {
+			return linea_a_consultar(this.article, this.commerce)
+		},
+		nombre_variante() {
+			const variante = variante_de_linea(this.article)
+			return variante && variante.variant_description
+		},
 		/**
 		 * Indica si se renderiza la variante completa del popup.
 		 * @returns {boolean}

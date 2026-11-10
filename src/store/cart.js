@@ -934,6 +934,20 @@ export default {
 			// cuotas queda "Contado" preseleccionado (lo que el comprador paga hoy); si no, null.
 			state.cuotas_elegidas = cuotas_ofrecidas(value).length ? 'contado' : null
 		},
+		limpiar_pago_para_consulta(state) {
+			state.payment_method = null
+			state.cuotas_elegidas = null
+			state.cart.payment_id = null
+			state.cart.payment_card_info_id = null
+			state.cart.payment_status = null
+		},
+		separar_carrito_del_pago(state) {
+			const carrito = { ...state.cart }
+			delete carrito.id
+			delete carrito.order_id
+			delete carrito.preferencia_online_emitida
+			state.cart = carrito
+		},
 		/**
 		 * Elige entre "Contado" y una cantidad de cuotas en el selector de Mercado Pago.
 		 *
@@ -1365,7 +1379,8 @@ export default {
 			} else {
 				console.log('eliminado article')
 				index = state.cart.articles.findIndex(article => {
-					return article.id == item.id
+					const variante = item.pivot ? item.pivot.variant_id : item.variant_id
+					return article.id == item.id && (article.pivot.variant_id || 0) == (variante || 0)
 				})
 			}
 
@@ -1457,6 +1472,7 @@ export default {
 				}
 				state.cart = cart
 				cart.articles.forEach(article => {
+					article.variant_id = article.pivot.variant_id
 					article.amount = article.pivot.amount
 					article.price = article.pivot.price
 					article.notes = article.pivot.notes

@@ -11,11 +11,7 @@
 			<i class="bi bi-x-lg"></i>
 		</div>
 
-		<div 
-		v-if="!hasStock(article)"
-		class="agotado">
-			Agotado
-		</div>
+		<agotado-info :article="article"></agotado-info>
 
 		<div class="cont-images">
 			<!--
@@ -146,6 +142,7 @@
 <script>
 import VueLoadImage from 'vue-load-image'
 import articlesMixin from '@/mixins/articles'
+import AgotadoInfo from '@/components/common/article-card/AgotadoInfo'
 export default {
 	name: 'ArticleCard',
 	mixins: [articlesMixin],
@@ -162,6 +159,7 @@ export default {
 	},
 	components: {
 		VueLoadImage,
+		AgotadoInfo,
 	},
 	computed: {
 		is_cart_view() {
@@ -311,4 +309,3 @@ export default {
 		// esto se pinta encima del menu lateral del telefono.
 		z-index: auto
 </style>
- 

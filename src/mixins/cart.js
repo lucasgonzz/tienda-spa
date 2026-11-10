@@ -2,8 +2,12 @@ import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
 import { direcciones_activas, zona_a_convenir, linea_de_direccion, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
+import { carrito_a_consultar, tiene_marca_consulta_stock } from '@/helpers/consultas_de_stock'
 export default {
 	computed: {
+		pedido_a_consultar() {
+			return carrito_a_consultar(this.cart, this.$store.state.commerce.commerce)
+		},
 		/**
 		 * Si la tienda tiene las direcciones de envío nuevas (misión formas-envio-direcciones-maps,
 		 * 19/10/2026): el bloque "¿A dónde te lo enviamos?" con el buscador de Google y la lista de
@@ -947,7 +951,7 @@ export default {
 		 *                                  `false` (ver arriba).
 		 * @returns {Promise<boolean|null>}
 		 */
-		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false) {
+		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false, aceptar_consulta_stock = false) {
 			if (!this.canMakeOrder()) {
 				return Promise.resolve(null)
 			}
@@ -969,6 +973,10 @@ export default {
 			// Si este llamador frena ante descartes, el aviso lo da cortar_si_el_guardado_descarto
 			// (con el texto de "tu pedido todavia no se envio") y el store no tiene que dar otro.
 			let opciones_del_guardado = frenar_si_hay_descartes ? { avisar_no_disponibles: false } : undefined
+
+			if (aceptar_consulta_stock) {
+				this.$store.commit('cart/limpiar_pago_para_consulta')
+			}
 
 			return this.$store.dispatch('cart/save', opciones_del_guardado)
 			.then(function(descartados) {
@@ -997,7 +1005,10 @@ export default {
 					corte.carrito_sin_guardar = true
 					throw corte
 				}
+				self.verificar_modo_del_pedido(aceptar_consulta_stock)
+				const datos_consulta = aceptar_consulta_stock ? { aceptar_consulta_stock: true } : {}
 				return self.$api.post('/orders', {
+					...datos_consulta,
 					commerce_id 	: env('VUE_APP_COMMERCE_ID'),
 					cart_id         : self.cart.id,
 					dolar_blue      : self.dolar_blue,
@@ -1117,6 +1128,10 @@ export default {
 				if (self.manejar_articulos_no_disponibles(err)) {
 					return false
 				}
+				const consulta_atendida = self.manejar_error_consulta_stock(err, aceptar_consulta_stock)
+				if (consulta_atendida) {
+					return consulta_atendida.then(() => false)
+				}
 				// 422 de la direccion de entrega (direcciones nuevas): mismo `false`, mismo motivo.
 				if (self.manejar_error_de_direccion(err)) {
 					return false
@@ -1129,6 +1144,33 @@ export default {
 				}
 				return null
 			})
+		},
+		verificar_modo_del_pedido(aceptar_consulta_stock) {
+			const confirmada_por_api = this.articles.some(tiene_marca_consulta_stock)
+			if (this.pedido_a_consultar !== aceptar_consulta_stock || (aceptar_consulta_stock && !confirmada_por_api)) {
+				throw new Error('modo_de_pedido_cambio')
+			}
+		},
+		manejar_error_consulta_stock(err, aceptar_consulta_stock = false) {
+			if (!err) {
+				return false
+			}
+			const datos = err.response && err.response.status === 422 && err.response.data
+			if (aceptar_consulta_stock && datos && datos.codigo === 'consulta_stock_carrito_con_pago') {
+				this.$store.commit('cart/separar_carrito_del_pago')
+				return this.$store.dispatch('cart/save')
+					.then(() => this.$toast.warning('Revisá el carrito y volvé a enviar el pedido sin pago.'))
+					.catch(() => this.$toast.error('No pudimos guardar el carrito para enviar el pedido sin pago. Probá de nuevo.'))
+			}
+			if (err.message === 'modo_de_pedido_cambio') {
+				this.$toast.warning('Cambió la disponibilidad de tu carrito. Revisalo antes de volver a enviar el pedido.')
+				return Promise.resolve()
+			}
+			if (datos && datos.codigo === 'consulta_stock') {
+				this.$toast.warning(escapar_html(datos.message || 'Revisá la disponibilidad de tu carrito antes de volver a intentar.'))
+				return this.$store.dispatch('commerce/getCommerce')
+			}
+			return false
 		},
 		// 🔴 NO convertir esto en un porton que devuelva false sin frenar tambien a los
 		// llamadores. Se intento el 31/8/2026 y se revirtio: makeOrder() se alcanza desde

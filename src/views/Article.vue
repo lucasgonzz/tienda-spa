@@ -323,7 +323,9 @@ export default {
 					'@type': 'Offer',
 					price: this.seo_precio_numerico,
 					priceCurrency: 'ARS',
-					availability: this.hasStock(this.article) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+					availability: this.hasStock(this.article) && !this.stock_a_consultar_en_ficha(this.article)
+						? 'https://schema.org/InStock'
+						: 'https://schema.org/OutOfStock',
 					url: this.seo_canonica,
 				}
 			}

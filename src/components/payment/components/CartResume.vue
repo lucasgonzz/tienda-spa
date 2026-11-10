@@ -9,7 +9,7 @@
 			<last-article
 			class="m-b-10"
 			v-for="article in cart.articles"
-			:key="'art-' + article.id"
+			:key="'art-' + article.id + '-' + article.pivot.variant_id"
 			:show_added_info="false"
 			:article="article"></last-article>
 

@@ -13,7 +13,7 @@
 						Confirmá tu pedido
 					</h1>
 					<p class="checkout__subtitle">
-						Revisá los datos y elegí cómo lo recibís y cómo lo pagás.
+						{{ pedido_a_consultar ? 'Revisá los datos y elegí cómo querés recibir el pedido.' : 'Revisá los datos y elegí cómo lo recibís y cómo lo pagás.' }}
 					</p>
 				</div>
 
@@ -91,6 +91,7 @@ import Description from '@/components/payment/components/Description'
 import DireccionDeEntrega from '@/components/payment/components/DireccionDeEntrega'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 import { direcciones_activas } from '@/helpers/direcciones'
+import { carrito_a_consultar } from '@/helpers/consultas_de_stock'
 export default {
 	components: {
 		WhatsAppInfo: () => import('@/components/payment/components/WhatsAppInfo'),
@@ -114,6 +115,9 @@ export default {
 		trackear(TIPOS_EVENTO.CHECKOUT_INICIO)
 	},
 	computed: {
+		pedido_a_consultar() {
+			return carrito_a_consultar(this.$store.state.cart.cart, this.commerce)
+		},
 		/**
 		 * Comprador que está comprando sin cuenta, en una tienda que lo permite: es el único que
 		 * ve el formulario de identificación del checkout.

@@ -19,7 +19,7 @@
 
 		<!-- Total del pedido -->
 		<div class="cart-summary__total-row">
-			<span class="cart-summary__total-label">Total</span>
+			<span class="cart-summary__total-label">{{ pedido_a_consultar ? 'Total estimado' : 'Total' }}</span>
 			<span class="cart-summary__total-value">{{ price(total) }}</span>
 		</div>
 
@@ -52,7 +52,7 @@
 			<i
 			class="bi bi-bag-check cart-summary__btn-icon"
 			aria-hidden="true"></i>
-			Iniciar compra
+			{{ pedido_a_consultar ? 'Continuar con el pedido' : 'Iniciar compra' }}
 		</b-button>
 
 		<!-- Acciones secundarias en una misma fila -->

@@ -3,7 +3,7 @@
 	v-if="authenticated || puede_comprar_sin_login">
 		
 		<div
-		v-if="article && !flag_activo(article.precio_pausado) && articlePriceEfectivo(article) && hasStock(article)"
+		v-if="article && !flag_activo(article.precio_pausado) && articlePriceEfectivo(article) && (hasStock(article) || stock_a_consultar_en_ficha(article))"
 		class="add-to-cart m-b-20">
 			
 			<notes
@@ -71,7 +71,8 @@
 <script>
 import articles from '@/mixins/articles'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
-import { articulo_fue_descartado } from '@/store/cart'
+import { articulo_fue_descartado, escapar_html } from '@/store/cart'
+import { consultas_de_stock_activas } from '@/helpers/consultas_de_stock'
 export default {
 	name: 'AddToCart',
 	mixins: [articles],
@@ -166,12 +167,16 @@ export default {
 			 * actualizar. Por eso lo que vuelve en `res.data.cart` pisa el carrito entero en vez
 			 * de tocar solo el `amount` local.
 			 */
-			this.$api.put('carts/update-article-amount/'+this.cart.id, {
+			const datos = {
 				id: this.article.id,
 				is_promocion_vinoteca: is_promocion_vinoteca,
 				is_combo: is_combo,
 				amount: this.amount
-			})
+			}
+			if (consultas_de_stock_activas(this.commerce) && !is_promocion_vinoteca && !is_combo) {
+				datos.variant_id = this.selected_article_variant ? this.selected_article_variant.id : null
+			}
+			this.$api.put('carts/update-article-amount/'+this.cart.id, datos)
 			.then(res => {
 				this.$store.commit('cart/setCart', res.data.cart)
 				this.$store.commit('auth/setLoading', false)
@@ -179,7 +184,10 @@ export default {
 			})
 			.catch(err => {
 				this.$store.commit('auth/setLoading', false)
-				this.$toast.error(err)
+				const datos = err.response && err.response.data
+				this.$toast.error(datos && datos.codigo === 'consulta_stock'
+					? escapar_html(datos.message)
+					: 'Error al actualizar el carrito')
 			})
 		},
 		/**
@@ -240,15 +248,22 @@ export default {
 				 * redondeo incluidos), que es justo lo que ese helper existe para garantizar.
 				 */
 				let precio_de_rango = this.precio_por_cantidad(this.article, amount, false)
-				this.article.amount = amount
-				this.article.notes = this.notes
-				this.article.pivot = {
-					amount: amount,
+				const variante = this.selected_article_variant
+				const linea = {
+					...this.article,
+					amount,
 					notes: this.notes,
-					variant_id: this.selected_article_variant ? this.selected_article_variant.id : null,
-					price: precio_de_rango !== null ? precio_de_rango : this.articlePriceEfectivo(this.article, false)
+					variant_id: variante ? variante.id : null,
+					selected_variant: variante,
+					key: variante ? this.article.id + '-' + variante.id : this.article.key,
+					pivot: {
+						amount,
+						notes: this.notes,
+						variant_id: variante ? variante.id : null,
+						price: precio_de_rango !== null ? precio_de_rango : this.articlePriceEfectivo(this.article, false),
+					},
 				}
-				this.$store.commit('cart/addItem', this.article)
+				this.$store.commit('cart/addItem', linea)
 				/*
 				 * 🔴 El evento sale del llamador y NO de la mutación. cart/addItem es un
 				 * TOGGLE: si el artículo ya estaba en el carrito lo saca. Emitirlo desde la
@@ -257,7 +272,7 @@ export default {
 				 * que solo se muestra cuando el artículo todavía no está en el carrito.
 				 * Además, meter I/O adentro de una mutación de Vuex es justo lo que no se hace.
 				 */
-				let precio_unitario = this.article.pivot.price
+				let precio_unitario = linea.pivot.price
 				trackear(TIPOS_EVENTO.CARRITO_AGREGAR, {
 					article_id: this.article.id,
 					category_id: this.article.category_id,
@@ -293,7 +308,8 @@ export default {
 							return
 						}
 
-						this.$store.commit('cart/set_added_item', this.article)
+						const guardada = this.get_item_cart(linea)
+						this.$store.commit('cart/set_added_item', guardada || linea)
 
 						this.$store.commit('auth/setLoading', false)
 
@@ -311,13 +327,19 @@ export default {
 					.catch(err => {
 						this.$store.commit('auth/setLoading', false)
 						console.log(err)
+						const datos = err.response && err.response.data
+						if (datos && datos.codigo === 'consulta_stock') {
+							this.$store.commit('cart/removeArticle', { item: linea, remove_only_one_amount: false })
+							this.$toast.error(escapar_html(datos.message))
+							return
+						}
 						this.$toast.error('Error al guardar carrito')
 					})
 
 				} else {
 					// Guest checkout: carrito local sin persistir en API hasta el paso de pago.
 					this.$bvModal.hide('add-to-cart-modal')
-					this.$store.commit('cart/set_added_item', this.article)
+					this.$store.commit('cart/set_added_item', linea)
 
 					/*
 					 * 🔴 Mismo criterio que la rama logueada de arriba: "Comprar ahora" tiene que
@@ -340,6 +362,10 @@ export default {
 			localStorage.cart = JSON.stringify(this.cart) 
 		},
 		checkVariant() {
+			if (consultas_de_stock_activas(this.commerce) && (this.article.article_variants || []).length && !this.selected_article_variant) {
+				this.$toast.error('Elegí una variante para continuar')
+				return false
+			}
 			let ok = true 
 			if (
 				this.article.article_properties

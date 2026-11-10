@@ -15,6 +15,11 @@
 				{{ texto_mientras_procesa }}
 			</span>
 
+			<span v-else-if="pedido_a_consultar">
+				<i class="bi bi-send"></i>
+				Enviar pedido sin pago
+			</span>
+
 			<span v-else-if="is_mp">
 				<i class="bi bi-wallet2"></i>
 				Pagar con Mercado Pago
@@ -83,10 +88,10 @@ export default {
 	},
 	computed: {
 		is_payway() {
-			return this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'Payway'
+			return !this.pedido_a_consultar && this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'Payway'
 		},
 		is_mp() {
-			return this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago'
+			return !this.pedido_a_consultar && this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago'
 		},
 		payment_methods() {
 			return this.$store.state.payment_methods.models
@@ -118,7 +123,7 @@ export default {
 				this.payway()
 				return
 			}
-			this.ready()
+			this.ready(this.pedido_a_consultar)
 		},
 		payway() {
 			if (this.check()) {
@@ -153,7 +158,7 @@ export default {
 			this.$router.push({name: 'Login'})
 			return true
 		},
-		ready() {
+		ready(aceptar_consulta_stock) {
 			if (this.redirect_to_login_if_no_session()) {
 				return
 			}
@@ -202,7 +207,7 @@ export default {
 					// Este bug ya se pago una vez -- un pedido guardado con la direccion vieja de
 					// un cliente del ERP mientras el comprador miraba en pantalla la nueva.
 					self.$store.commit('auth/setUser', res.data.model)
-					return self.confirmar_pedido()
+					return self.confirmar_pedido(aceptar_consulta_stock)
 				})
 				.catch(function(err) {
 					console.log(err)
@@ -223,7 +228,7 @@ export default {
 				// Sin `cart/save` acá: los dos caminos de `confirmar_pedido()` lo hacen igual
 				// (`pagar_con_mercado_pago()` antes de la preferencia, `makeOrder()` antes del
 				// pedido). El que había guardaba el carrito una tercera vez, para nada.
-				this.confirmar_pedido()
+				this.confirmar_pedido(aceptar_consulta_stock)
 				.catch(function(err) {
 					console.log(err)
 					self.procesando = false
@@ -243,8 +248,8 @@ export default {
 		 *
 		 * @returns {Promise}
 		 */
-		confirmar_pedido() {
-			if (this.is_mp) {
+		confirmar_pedido(aceptar_consulta_stock) {
+			if (!aceptar_consulta_stock && this.is_mp) {
 				return this.pagar_con_mercado_pago()
 			}
 
@@ -254,7 +259,7 @@ export default {
 			// completa es justamente lo que se sacó del checkout.
 			// frenar_si_hay_descartes = true: si al guardar el carrito el servidor saca artículos
 			// no disponibles para este comprador, no se crea un pedido distinto del que vio.
-			return this.makeOrder(false, false, true)
+			return this.makeOrder(false, false, true, aceptar_consulta_stock)
 			.then(function(ok) {
 				self.procesando = false
 				// `false`: el PUT /carts rechazo el envio por correo y makeOrder ya le dijo al
@@ -315,6 +320,7 @@ export default {
 			return this.$store.dispatch('cart/save', { avisar_no_disponibles: false })
 			.then(function(descartados) {
 				self.cortar_si_el_guardado_descarto(descartados)
+				self.verificar_modo_del_pedido(false)
 				let cuerpo = {
 					payment_method: self.cart_payment_method,
 					// Hasta el 14/10/2026 viajaba tambien `cupon`: la tienda ya no tiene cupones. La
@@ -392,6 +398,10 @@ export default {
 				// en inglés. Al comprador se le dice qué puede hacer él; el detalle queda en la
 				// consola y en el log de la API, que es donde lo busca quien lo puede arreglar.
 				console.log(err)
+				const consulta_atendida = self.manejar_error_consulta_stock(err)
+				if (consulta_atendida) {
+					return consulta_atendida.finally(() => { self.procesando = false })
+				}
 				// La API rechazó la preferencia con `contado` o `cuotas`: puede ser que la lista de
 				// cuotas que tiene la pantalla ya no sea la vigente. `procesando` queda en true hasta que
 				// se refresque la lista, para que no se reintente con la elección vieja en el medio.
@@ -548,7 +558,7 @@ export default {
 			this.collect_envio_errors().forEach(error => {
 				errors.push(error)
 			})
-			if (!this.cart_payment_method && this.payment_methods.length) {
+			if (!this.pedido_a_consultar && !this.cart_payment_method && this.payment_methods.length) {
 				errors.push('Cómo pagás')
 			}
 			if (this.must_select_delivery_day() && !this.has_selected_delivery_day()) {
@@ -697,7 +707,7 @@ export default {
 			})
 			// Va despues del envio porque en la pantalla "¿Cómo pagás?" esta debajo de las
 			// secciones de envio: el aviso lista lo que falta en el orden en que se ve.
-			if (!this.cart_payment_method && this.payment_methods.length) {
+			if (!this.pedido_a_consultar && !this.cart_payment_method && this.payment_methods.length) {
 				errors.push('Cómo pagás')
 			}
 			// 🔴 Este this.user.seller_id NO lleva guarda a proposito, aunque su hermana de

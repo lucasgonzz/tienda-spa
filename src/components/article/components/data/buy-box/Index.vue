@@ -7,7 +7,12 @@
 		:article="article"></envio>
 
 		<p
-		v-if="puede_comprar && mostrar_stock_disponible"
+		v-if="stock_a_consultar"
+		class="caja-compra__stock">
+			Consultar. El comercio tiene que confirmar la disponibilidad.
+		</p>
+		<p
+		v-else-if="puede_comprar && mostrar_stock_disponible"
 		class="caja-compra__stock">
 			Stock disponible
 		</p>
@@ -20,7 +25,7 @@
 		v-if="puede_comprar"
 		class="caja-compra__botones">
 			<b-button
-			v-if="mostrar_comprar_ahora"
+			v-if="mostrar_comprar_ahora && !stock_a_consultar"
 			class="caja-compra__btn caja-compra__btn--comprar"
 			@click="comprar_ahora">
 				Comprar ahora
@@ -34,7 +39,7 @@
 			<b-button
 			v-if="!is_item_in_cart(article)"
 			class="caja-compra__btn"
-			:class="mostrar_comprar_ahora ? 'caja-compra__btn--carrito' : 'caja-compra__btn--comprar'"
+			:class="mostrar_comprar_ahora && !stock_a_consultar ? 'caja-compra__btn--carrito' : 'caja-compra__btn--comprar'"
 			@click="agregar_al_carrito">
 				Agregar al carrito
 			</b-button>
@@ -84,6 +89,7 @@
  */
 import AddToCart from '@/components/article/components/data/add-to-cart/Index'
 import articles from '@/mixins/articles'
+import { consultas_de_stock_activas } from '@/helpers/consultas_de_stock'
 export default {
 	name: 'CajaDeCompra',
 	mixins: [articles],
@@ -96,6 +102,9 @@ export default {
 		Cantidad: () => import('@/components/article/components/data/buy-box/Cantidad'),
 	},
 	computed: {
+		stock_a_consultar() {
+			return this.stock_a_consultar_en_ficha(this.article)
+		},
 		/**
 		 * Si se dibuja el boton "Comprar ahora".
 		 *
@@ -141,7 +150,7 @@ export default {
 			if (!this.articlePriceEfectivo(this.article)) {
 				return false
 			}
-			return this.hasStock(this.article)
+			return this.hasStock(this.article) || this.stock_a_consultar
 		},
 		/**
 		 * Si la caja dibuja su recuadro.
@@ -179,6 +188,9 @@ export default {
 		 * @returns {boolean}
 		 */
 		mostrar_stock_disponible() {
+			if (consultas_de_stock_activas(this.commerce) && (this.article.article_variants || []).length && !this.selected_article_variant) {
+				return false
+			}
 			return this.commerce.online_configuration.mostrar_stock_disponible !== false
 		},
 		/**

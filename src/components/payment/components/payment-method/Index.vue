@@ -1,6 +1,15 @@
 <template>
+	<div v-if="pedido_a_consultar" class="checkout-section">
+		<h2 class="checkout-section__title">
+			<i class="bi bi-credit-card"></i>
+			Pago a coordinar
+		</h2>
+		<p class="mb-0">
+			Hay artículos con disponibilidad a confirmar. El comercio va a coordinar con vos el pago de todo el pedido.
+		</p>
+	</div>
 	<div
-	v-if="payment_methods.length"
+	v-else-if="payment_methods.length"
 	class="checkout-section">
 		<h2 class="checkout-section__title">
 			<i class="bi bi-credit-card"></i>
@@ -16,6 +25,7 @@
 </template>
 <script>
 import PaymentMethods from '@/components/payment/components/payment-method/PaymentMethods'
+import cart from '@/mixins/cart'
 
 /**
  * Bloque de formas de pago del checkout.
@@ -25,6 +35,7 @@ import PaymentMethods from '@/components/payment/components/payment-method/Payme
  * comprador veía dos veces la misma cuenta en la misma pantalla.
  */
 export default {
+	mixins: [cart],
 	components: {
 		PaymentMethods,
 	},

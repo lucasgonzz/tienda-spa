@@ -6,14 +6,14 @@
 		</p>
 
 		<p
-		v-if="cart_payment_method && cart_payment_method.discount"
+		v-if="!pedido_a_consultar && cart_payment_method && cart_payment_method.discount"
 		class="checkout-summary__line checkout-summary__line--good">
 			Descuento por {{ cart_payment_method.name }} ({{ porcentaje(cart_payment_method.discount) }}%)
 			<span>- {{ price(total - total_with_payment_method_discount) }}</span>
 		</p>
 
 		<p
-		v-if="cart_payment_method && cart_payment_method.surchage"
+		v-if="!pedido_a_consultar && cart_payment_method && cart_payment_method.surchage"
 		class="checkout-summary__line">
 			Recargo por {{ cart_payment_method.name }} ({{ porcentaje(cart_payment_method.surchage) }}%)
 			<span>+ {{ price(total_with_payment_method_surchage - total) }}</span>
@@ -47,7 +47,7 @@
 		</p>
 
 		<p class="checkout-summary__total">
-			Total
+			{{ pedido_a_consultar ? 'Total estimado' : 'Total' }}
 			<span>{{ price(total_a_pagar) }}</span>
 		</p>
 	</div>
@@ -81,6 +81,9 @@ export default {
 		 * @returns {number}
 		 */
 		total_a_pagar() {
+			if (this.pedido_a_consultar) {
+				return this.total + this.envio_precio_elegido
+			}
 			return this.total_with_deliver
 		},
 		/**

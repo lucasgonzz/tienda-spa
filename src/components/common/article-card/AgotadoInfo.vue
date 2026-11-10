@@ -1,8 +1,9 @@
 <template> 
 	<div 
-	v-if="!hasStock(article)"
-	class="agotado">
-		Agotado
+	v-if="estado_stock"
+	class="agotado"
+	:class="{ 'agotado--consultar': estado_stock === 'Consultar' }">
+		{{ estado_stock }}
 	</div>
 </template>
 <script>
@@ -11,6 +12,11 @@ export default {
 	mixins: [articlesMixin],
 	props: {
 		article: Object,
+	},
+	computed: {
+		estado_stock() {
+			return this.estado_stock_tarjeta(this.article)
+		},
 	},
 }
 </script>
@@ -27,5 +33,8 @@ export default {
 	color: #FFF
 	z-index: 10
 	padding: 5px 10px
+
+.article-card .agotado.agotado--consultar
+	background: #ffe2a9
+	color: #422900
 </style>
- 
