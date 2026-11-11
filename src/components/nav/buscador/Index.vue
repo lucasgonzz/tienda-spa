@@ -127,7 +127,7 @@ export default {
 		},
 		search() {
 			console.log('buscando')
-			this.$api.get('articles/search/'+this.query+'/'+env('VUE_APP_COMMERCE_ID'))
+			this.$api.get('articles/search/'+encodeURIComponent(this.query)+'/'+env('VUE_APP_COMMERCE_ID'))
 			.then(res => {
 				this.loading = false
 				this.results = res.data.articles.data

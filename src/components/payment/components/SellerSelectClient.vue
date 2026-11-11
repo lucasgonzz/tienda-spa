@@ -77,7 +77,7 @@ export default {
 			this.$store.commit('cart/set_selected_buyer', null)
 
 
-			this.$api.get('buyer/search/'+this.query+'/'+this.commerce.id) 
+			this.$api.get('buyer/search/'+encodeURIComponent(this.query)+'/'+this.commerce.id) 
 			.then(res => {
 				this.$store.commit('auth/setLoading', false)
 				this.buyers = res.data.buyers 

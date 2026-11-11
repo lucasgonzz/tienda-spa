@@ -336,7 +336,7 @@ export default {
 				} else if (this.selected_cepa) {
 					url += 'from-category/0/0/0/'+this.selected_cepa.id+'/'+this.order_by
 				} else if (this.is_from_search) {
-					url += 'search/'+this.search_query
+					url += 'search/'+encodeURIComponent(this.search_query)
 				} else {
 					url += 'featured-last-uploads'
 				}

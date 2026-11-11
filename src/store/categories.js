@@ -491,7 +491,7 @@ export default {
 			const termino_buscado = state.search_query
 			commit('nuevo_pedido_del_listado')
 			const pedido = state.pedido_del_listado
-			return axios.get(`/api/articles/search/${termino_buscado}/${env('VUE_APP_COMMERCE_ID')}`)
+			return axios.get(`/api/articles/search/${encodeURIComponent(termino_buscado)}/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
 				/* Si llegó tarde (otro pedido del listado ya salió después) no toca ni el loading
 				   ni el listado. La búsqueda igual existió: el servidor ya la registró como última
