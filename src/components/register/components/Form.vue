@@ -283,7 +283,14 @@ export default {
 				.catch(err => {
 					console.log(err)
 					this.loading = false
-					this.$toast.error('No pudimos registrarte. Revisá los datos y probá de nuevo.')
+					let mensaje = 'No pudimos registrarte. Revisá los datos y probá de nuevo.'
+					if (err.response && err.response.status == 422 && err.response.data.errors) {
+						let errores = Object.values(err.response.data.errors)
+						if (errores.length && errores[0].length) {
+							mensaje = errores[0][0]
+						}
+					}
+					this.$toast.error(mensaje)
 				})
 			}
 		},
@@ -320,10 +327,10 @@ export default {
 				this.$toast.error('El email no puede quedar vacio')
 				return false
 			}
-			// if (!this.isEmail(this.register_user.email)) {
-			// 	this.$toast.error('Ingresa un correo valido')
-			// 	return false
-			// }
+			if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.register_user.email.trim())) {
+				this.$toast.error('Ingresá un correo válido')
+				return false
+			}
 			if (this.register_user.password == '') {
 				this.$toast.error('La contraseña no puede quedar vacia')
 				return false
