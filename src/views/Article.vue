@@ -172,6 +172,11 @@ export default {
 			loading: false,
 			data_seted: false,
 			articulo_no_encontrado: false,
+			restauracion_carrito_pendiente: false,
+			articulo_al_abrir: null,
+			variante_al_abrir: null,
+			cantidad_al_abrir: 1,
+			notas_al_abrir: '',
 		}
 	},
 	computed: {
@@ -380,6 +385,8 @@ export default {
 				})
 		},
 		setArticleProps() {
+			this.$store.commit('articles/setCantidadEditadaEnFicha', false)
+			this.restauracion_carrito_pendiente = !this.$store.state.cart.cart.id
 			this.$store.dispatch('articles/getSimilars')
 			/*
 			 * Las dos secciones de recomendacion. Van acá y no en created() por lo mismo que el
@@ -407,7 +414,12 @@ export default {
 			if (cantidad_promo) {
 				this.$store.commit('articles/setAmount', cantidad_promo)
 				this.$store.commit('client_offers/set_cantidad_pendiente', null)
+				this.restauracion_carrito_pendiente = false
 			}
+			this.articulo_al_abrir = this.article
+			this.variante_al_abrir = this.selected_article_variant && this.selected_article_variant.id
+			this.cantidad_al_abrir = Number(this.$store.state.articles.amount) || 1
+			this.notas_al_abrir = this.$store.state.articles.notes
 			this.data_seted = true
 			/*
 			 * Arranca el reloj de la vista de producto. Es el único embudo por el que pasan
@@ -416,12 +428,42 @@ export default {
 			 */
 			abrir_vista_de_producto(this.article)
 		},
+		restaurar_carrito_al_cargar() {
+			if (!this.restauracion_carrito_pendiente) {
+				return
+			}
+			// El artículo y el último carrito llegan por pedidos independientes. Restaurar
+			// una sola vez evita mostrar 1 al recargar una línea guardada con otra cantidad.
+			// Consumimos incluso una respuesta vacía; los siguientes guardados no son carga.
+			this.restauracion_carrito_pendiente = false
+			const variante = this.selected_article_variant && this.selected_article_variant.id
+			if (this.$store.state.articles.cantidad_editada_en_ficha
+				|| this.article !== this.articulo_al_abrir
+				|| variante !== this.variante_al_abrir
+				|| (Number(this.$store.state.articles.amount) || 1) !== this.cantidad_al_abrir
+				|| this.$store.state.articles.notes !== this.notas_al_abrir) {
+				return
+			}
+			this.checkCartArticle()
+		},
 	},
 	created() {
+		// El after de Vuex corre después del setCart de getLastCart, también si no había
+		// carrito. Un watch de amount o de cada setCart pisaría las elecciones del comprador.
+		this.dejar_de_escuchar_carrito = this.$store.subscribeAction({
+			after: accion => {
+				if (accion.type === 'cart/getLastCart') {
+					this.restaurar_carrito_al_cargar()
+				}
+			},
+		})
 		this.getArticleToShow()
 		setTimeout(() => {
 			this.$scrollToTop()
 		}, 300)
+	},
+	beforeDestroy() {
+		this.dejar_de_escuchar_carrito()
 	},
 	watch: {
 		$route(to, from) {

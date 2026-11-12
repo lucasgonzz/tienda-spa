@@ -19,13 +19,21 @@ const cache = new Map()
 const componentes = [
 	'src/components/article/components/data/buy-box/Cantidad.vue',
 	'src/components/article/components/data/buy-box/Index.vue',
+	'src/views/Article.vue',
+	'src/store/articles/articles.js',
 ]
 
 // Se ejecutan los componentes, templates y mutaciones reales. Solo se aísla el envío
 // de tracking para que estas pruebas no importen el store global ni hagan red.
 function cargar(nombre) {
 	if (nombre === '@/utils/tracking') {
-		return { trackear() {}, TIPOS_EVENTO: {} }
+		return { trackear() {}, abrir_vista_de_producto() {}, cerrar_vista() {}, TIPOS_EVENTO: {} }
+	}
+	if (nombre.startsWith('@/components/')
+		&& !nombre.includes('/buy-box/')
+		&& !nombre.includes('/add-to-cart/Index')) {
+		// La vista usa estos bloques visuales, pero no participan en su inicialización.
+		return { default: {} }
 	}
 	if (!nombre.startsWith('@/') && !path.isAbsolute(nombre)) {
 		return require(nombre)
@@ -63,6 +71,10 @@ function cargar(nombre) {
 const Cantidad = cargar('@/components/article/components/data/buy-box/Cantidad').default
 const Caja = cargar('@/components/article/components/data/buy-box/Index').default
 const moduloArticulos = cargar('@/store/articles/articles').default
+const moduloCarrito = cargar('@/store/cart').default
+const VistaArticulo = cargar('@/views/Article.vue').default
+const axios = require('axios')
+Vue.prototype.$scrollToTop = () => {}
 
 function ficha({ stock = 10, variantes = [], variante = null, consultar = false, ignorar = false, cantidad = '' } = {}) {
 	const store = new Vuex.Store({
@@ -197,4 +209,116 @@ test('el cero numérico o textual de una variante queda agotado, o Consultar si 
 		assert.equal(consulta.vm.max, null)
 		consulta.vm.$destroy()
 	}
+})
+
+function fichaConCarrito({ carritoInicial = null, promo = null } = {}) {
+	const articulo = { id: 1577, stock: 10, images: [], article_variants: [], article_properties: [], online: 1, status: 'active' }
+	const store = new Vuex.Store({
+		modules: {
+			articles: {
+				...moduloArticulos,
+				state: { ...moduloArticulos.state, article_to_show: articulo, amount: '', notes: '', selected_article_variant: null },
+				actions: {
+					getSimilars() {}, get_tambien_compraron_vistas() {}, get_tambien_compraron_compras() {},
+				},
+			},
+			cart: { ...moduloCarrito, state: JSON.parse(JSON.stringify(moduloCarrito.state)) },
+			client_offers: {
+				namespaced: true,
+				state: { cantidad_pendiente: promo },
+				mutations: { set_cantidad_pendiente(state, valor) { state.cantidad_pendiente = valor } },
+			},
+		},
+	})
+	if (carritoInicial) store.commit('cart/setCart', carritoInicial)
+	const comercio = { consultas_de_stock: false, online_configuration: { ignorar_stock: false } }
+	const vista = new Vue({ extends: VistaArticulo, store })
+	const selector = new Vue({ extends: Cantidad, store, propsData: { article: articulo }, computed: { commerce() { return comercio } } })
+	selector.$toast = { error() {} }
+	function respuestaCarrito(carrito) {
+		// Ejecuta la action getLastCart y la mutación setCart reales con el transporte
+		// controlado. La carga de artículo y la de carrito pueden terminar en cualquier orden.
+		let resolver
+		const anterior = axios.get
+		axios.get = () => new Promise(resolve => { resolver = resolve })
+		const carga = store.dispatch('cart/getLastCart')
+		axios.get = anterior
+		return { carga, terminar() { resolver({ data: { has_last_cart: !!carrito, last_cart: carrito } }) } }
+	}
+	return { store, vista, selector, respuestaCarrito, cerrar() { vista.$destroy(); selector.$destroy() } }
+}
+
+function carritoConCantidad(cantidad) {
+	return { id: 27, articles: [{ id: 1577, pivot: { amount: cantidad, price: 100, notes: '' } }], promociones_vinoteca: [], combos: [] }
+}
+
+test('restaura tres al llegar tarde el carrito y no vuelve a pisar la ficha en guardados posteriores', async () => {
+	const caso = fichaConCarrito()
+	const pedido = caso.respuestaCarrito(carritoConCantidad(3))
+	assert.equal(caso.store.state.articles.amount, 1)
+	pedido.terminar()
+	await pedido.carga
+	await Vue.nextTick()
+	assert.equal(caso.store.state.articles.amount, 3)
+	assert.equal(caso.selector.texto_unidades, '3 unidades')
+	caso.store.commit('cart/setCart', carritoConCantidad(5))
+	assert.equal(caso.store.state.articles.amount, 3)
+	const siguiente = caso.respuestaCarrito(carritoConCantidad(6))
+	siguiente.terminar()
+	await siguiente.carga
+	assert.equal(caso.store.state.articles.amount, 3)
+	caso.cerrar()
+})
+
+test('si el carrito llegó primero, la ficha conserva su cantidad desde el arranque', () => {
+	const caso = fichaConCarrito({ carritoInicial: carritoConCantidad(3) })
+	assert.equal(caso.store.state.articles.amount, 3)
+	assert.equal(caso.selector.texto_unidades, '3 unidades')
+	caso.cerrar()
+})
+
+test('la elección de una o dos unidades durante la carga gana al carrito tardío', async () => {
+	for (const cantidad of [1, 2]) {
+		const caso = fichaConCarrito()
+		const pedido = caso.respuestaCarrito(carritoConCantidad(3))
+		caso.selector.elegir(cantidad)
+		pedido.terminar()
+		await pedido.carga
+		assert.equal(caso.store.state.articles.amount, cantidad)
+		caso.cerrar()
+	}
+})
+
+test('una promoción pendiente, una variante elegida o notas editadas no son pisadas por la carga', async () => {
+	for (const tipo of ['promo', 'variante', 'notas', 'promo-misma-ficha']) {
+		const caso = fichaConCarrito({ promo: tipo === 'promo' ? 6 : null })
+		const pedido = caso.respuestaCarrito(carritoConCantidad(3))
+		if (tipo === 'variante') caso.store.commit('articles/setSelectedArticleVariant', { id: 4, stock: 5 })
+		if (tipo === 'notas') caso.store.commit('articles/setNotes', 'Entregar por la tarde')
+		if (tipo === 'promo-misma-ficha') {
+			caso.store.commit('articles/setArticleToShow', { ...caso.store.state.articles.article_to_show })
+			caso.store.commit('articles/setAmount', 1)
+		}
+		pedido.terminar()
+		await pedido.carga
+		assert.equal(caso.store.state.articles.amount, tipo === 'promo' ? 6 : 1, tipo)
+		if (tipo === 'variante') assert.equal(caso.store.state.articles.selected_article_variant.id, 4)
+		if (tipo === 'notas') assert.equal(caso.store.state.articles.notes, 'Entregar por la tarde')
+		caso.cerrar()
+	}
+})
+
+test('la respuesta sin carrito consume la restauración y el cierre libera la suscripción', async () => {
+	const caso = fichaConCarrito()
+	const pedido = caso.respuestaCarrito(null)
+	pedido.terminar()
+	await pedido.carga
+	assert.equal(caso.vista.restauracion_carrito_pendiente, false)
+	const siguiente = caso.respuestaCarrito(carritoConCantidad(3))
+	siguiente.terminar()
+	await siguiente.carga
+	assert.equal(caso.store.state.articles.amount, 1)
+	const suscriptores = caso.store._actionSubscribers.length
+	caso.cerrar()
+	assert.equal(caso.store._actionSubscribers.length, suscriptores - 1)
 })

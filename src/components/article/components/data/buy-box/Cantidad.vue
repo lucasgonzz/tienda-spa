@@ -243,6 +243,7 @@ export default {
 		 * @returns {void}
 		 */
 		elegir(opcion) {
+			this.$store.commit('articles/setCantidadEditadaEnFicha', true)
 			this.$store.commit('articles/setAmount', opcion)
 			this.panel_abierto = false
 		},
@@ -255,6 +256,7 @@ export default {
 			if (!this.cantidad_manual_valida) {
 				return
 			}
+			this.$store.commit('articles/setCantidadEditadaEnFicha', true)
 			this.$store.commit('articles/setAmount', Number(this.cantidad_manual))
 			this.panel_abierto = false
 		},

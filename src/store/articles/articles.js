@@ -39,6 +39,8 @@ export default {
 		tambien_compraron_compras: [],
 		article_to_show: null,
 		amount: '',
+		// Elegir 1 puede no cambiar amount: la intención explícita debe ganar a una carga tardía.
+		cantidad_editada_en_ficha: false,
 		// amount: 1,
 		notes: '',
 		selected_article_variant: null,
@@ -141,6 +143,9 @@ export default {
 		},
 		setAmount(state, value) {
 			state.amount = value
+		},
+		setCantidadEditadaEnFicha(state, value) {
+			state.cantidad_editada_en_ficha = value
 		},
 		incrementAmount(state) {
 			state.amount++
