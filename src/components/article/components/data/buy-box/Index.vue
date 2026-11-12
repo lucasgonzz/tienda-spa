@@ -81,13 +81,16 @@
 </template>
 <script>
 /*
- * 🔴 `AddToCart` se importa DERECHO y no con `() => import(...)` como los otros dos. Con la
+ * 🔴 `AddToCart` se importa DERECHO y no con `() => import(...)`. Con la
  * carga diferida, `$refs.add_to_cart` queda en undefined hasta que llega el chunk, y los
  * botones de arriba se dibujan antes que eso: en una conexion lenta el comprador podia apretar
  * "Comprar ahora" y no pasaba nada, sin ningun aviso. La ficha siempre lo necesita, asi que
  * diferirlo no ahorraba nada.
  */
 import AddToCart from '@/components/article/components/data/add-to-cart/Index'
+// La cantidad es parte obligatoria de la compra: un chunk que no llega no puede
+// dejar botones activos comprando una unidad sin que el comprador pueda elegir.
+import Cantidad from '@/components/article/components/data/buy-box/Cantidad'
 import articles from '@/mixins/articles'
 import { consultas_de_stock_activas } from '@/helpers/consultas_de_stock'
 export default {
@@ -99,7 +102,7 @@ export default {
 	components: {
 		AddToCart,
 		Envio: () => import('@/components/article/components/data/Envio'),
-		Cantidad: () => import('@/components/article/components/data/buy-box/Cantidad'),
+		Cantidad,
 	},
 	computed: {
 		stock_a_consultar() {

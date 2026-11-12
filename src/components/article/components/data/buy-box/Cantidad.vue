@@ -65,8 +65,12 @@
 	</div>
 </template>
 <script>
+import articles from '@/mixins/articles'
 export default {
 	name: 'CajaCantidad',
+	// Consultar se resuelve con el mismo criterio del carrito. Sin esta dependencia,
+	// max() falla al renderizar y desaparece el selector aunque la compra siga visible.
+	mixins: [articles],
 	props: {
 		article: Object,
 	},
@@ -131,7 +135,8 @@ export default {
 				&& this.article.article_variants
 				&& this.article.article_variants.length
 				&& this.selected_article_variant
-				&& this.selected_article_variant.stock
+				// Cero también es un límite: no ofrecer unidades de una variante agotada.
+				&& this.selected_article_variant.stock != null
 			) {
 				return Number(this.selected_article_variant.stock)
 			}
