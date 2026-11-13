@@ -45,13 +45,45 @@ function tienda(datos) {
 }
 function respuesta(cart) { return { data: { cart } } }
 function error(status) { return Object.assign(new Error('Fallo controlado'), { response: { status } }) }
+const transportes = new WeakMap()
 function controlar(t, metodos) {
-	for (const [nombre, funcion] of Object.entries(metodos)) {
-		const anterior = axios[nombre]
-		axios[nombre] = funcion
-		t.after(() => { axios[nombre] = anterior })
+	let control = transportes.get(t)
+	if (!control) {
+		control = { metodos: {} }
+		transportes.set(t, control)
+		const anterior = axios.defaults.adapter
+		t.after(() => { axios.defaults.adapter = anterior })
+		// Se aísla sólo la red: request(), los alias, mergeConfig y transformRequest son los
+		// de Axios instalado. Un stub de delete() ocultó que esa versión descartaba el body.
+		axios.defaults.adapter = config => {
+			const funcion = control.metodos[config.method]
+			assert.equal(typeof funcion, 'function', 'Transporte no previsto: ' + config.method)
+			const cuerpo = config.data === undefined ? undefined : JSON.parse(config.data)
+			const argumentos = config.method === 'delete' ? { data: cuerpo } : cuerpo
+			return Promise.resolve(funcion(config.url, argumentos)).then(res => ({ status: 200, statusText: 'OK', headers: {}, config, ...res }))
+		}
 	}
+	Object.assign(control.metodos, metodos)
 }
+
+test('Axios real serializa el cuerpo DELETE con tipo, id y variante', async t => {
+	const anterior = axios.defaults.adapter
+	t.after(() => { axios.defaults.adapter = anterior })
+	let recibida
+	axios.defaults.adapter = config => {
+		recibida = config
+		return Promise.resolve({ data: { cart: carrito([linea(2, 0)]) }, status: 200, statusText: 'OK', headers: {}, config })
+	}
+	const item = linea(1, 4, 22)
+	const store = tienda(carrito([item, linea(2, 0)]))
+	await store.dispatch('cart/quitarItem', item)
+	assert.equal(recibida.method, 'delete')
+	assert.equal(recibida.url, '/api/carts/38/items')
+	assert.equal(typeof recibida.data, 'string')
+	assert.equal(recibida.headers['Content-Type'], 'application/json;charset=utf-8')
+	assert.deepEqual(JSON.parse(recibida.data), { tipo: 'articulo', id: 1, variant_id: 22 })
+	assert.deepEqual(store.state.cart.cart.articles.map(a => a.id), [2])
+})
 
 test('Quitar usa el endpoint específico y conserva el carrito visible hasta confirmar', async t => {
 	const elegida = linea(1, 4, 22)
@@ -61,6 +93,7 @@ test('Quitar usa el endpoint específico y conserva el carrito visible hasta con
 	const llamadas = []
 	controlar(t, { delete(url, opciones) { llamadas.push({ url, opciones }); return new Promise(resolve => { confirmar = resolve }) } })
 	const trabajo = store.dispatch('cart/quitarItem', elegida)
+	await new Promise(resolve => setImmediate(resolve))
 	assert.deepEqual(JSON.parse(JSON.stringify(store.state.cart.cart.articles)).map(a => a.id), [1, 2])
 	assert.deepEqual(llamadas, [{ url: '/api/carts/38/items', opciones: { data: { tipo: 'articulo', id: 1, variant_id: 22 } } }])
 	confirmar(respuesta(carrito([cero])))

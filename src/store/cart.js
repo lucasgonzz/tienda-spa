@@ -1561,7 +1561,9 @@ export default {
 			// una validación, la línea sigue ahí y el comprador puede volver a intentar.
 			let carrito = JSON.parse(JSON.stringify(state.cart))
 			commit('setSaving', true)
-			return axios.delete('/api/carts/' + carrito.id + '/items', { data: datos })
+			// Axios 0.20 pierde config.data en el alias delete(). request() conserva el cuerpo:
+			// sin tipo/id el servidor rechaza la operación aunque la línea sea válida.
+			return axios.request({ method: 'delete', url: '/api/carts/' + carrito.id + '/items', data: datos })
 			.catch(err => {
 				let status = err.response && err.response.status
 				if (status !== 404 && status !== 405) {
