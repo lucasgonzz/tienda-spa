@@ -1547,6 +1547,44 @@ export default {
 		},
 	},
 	actions: {
+		quitarItem({ state, commit }, item) {
+			if (!state.cart.id) {
+				// El invitado todavía tiene un carrito local: quitar no debe crearlo en la API.
+				commit('removeArticle', { item: item, remove_only_one_amount: false })
+				return Promise.resolve()
+			}
+
+			let tipo = item.is_combo ? 'combo' : (item.is_promocion_vinoteca ? 'promocion_vinoteca' : 'articulo')
+			let variante = item.pivot ? item.pivot.variant_id : item.variant_id
+			let datos = { tipo: tipo, id: item.id, variant_id: variante || null }
+			// El estado visible cambia sólo después de confirmar el servidor. Si falla la red o
+			// una validación, la línea sigue ahí y el comprador puede volver a intentar.
+			let carrito = JSON.parse(JSON.stringify(state.cart))
+			commit('setSaving', true)
+			return axios.delete('/api/carts/' + carrito.id + '/items', { data: datos })
+			.catch(err => {
+				let status = err.response && err.response.status
+				if (status !== 404 && status !== 405) {
+					throw err
+				}
+				// API anterior: conserva el PUT conocido. Se filtra una COPIA, así un rechazo
+				// por otra línea vieja no borra la elegida sólo en pantalla ni pierde el carrito.
+				let coleccion = tipo === 'combo' ? 'combos' : (tipo === 'promocion_vinoteca' ? 'promociones_vinoteca' : 'articles')
+				carrito[coleccion] = (carrito[coleccion] || []).filter(linea => {
+					return linea.id != item.id || (tipo === 'articulo'
+						&& ((linea.pivot && linea.pivot.variant_id) || 0) != (variante || 0))
+				})
+				carrito.envio = payload_envio(state)
+				return axios.put('/api/carts', carrito)
+			})
+			.then(res => {
+				commit('setCart', res.data.cart)
+				return descartados_del_guardado(res, true, commit)
+			})
+			.finally(() => {
+				commit('setSaving', false)
+			})
+		},
 		/**
 		 * Guarda el carrito: `POST /api/carts` si todavía no tiene `id`, `PUT` si ya lo tiene, y
 		 * reemplaza el del store con el que devuelve el servidor.

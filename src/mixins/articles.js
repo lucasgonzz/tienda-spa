@@ -17,10 +17,7 @@ export default {
 		remove_cart(article) {
 			if (confirm('¿Seguro quiere quitar '+article.name+' del carrito?')) {
 				
-				this.$store.commit('cart/removeArticle', {
-					item: this.get_item_cart(article) || article,
-					remove_only_one_amount: false
-				})
+				let item = this.get_item_cart(article) || article
 				/*
 				 * Igual que cart_add: el evento sale del llamador, que es el único que sabe
 				 * que la intención era quitar. Este método es el botón "Quitar" y saca la
@@ -35,7 +32,7 @@ export default {
 				})
 				this.$store.commit('auth/setMessage', 'Guardando carrito')
 				this.$store.commit('auth/setLoading', true)
-				this.$store.dispatch('cart/save')
+				this.$store.dispatch('cart/quitarItem', item)
 				.then(() => {
 					this.$store.commit('auth/setLoading', false)
 				})
