@@ -54,7 +54,7 @@
 		-->
 		<cotizador-envio
 		v-if="commerce.envios_zipnova"
-		:articulos_extra="[{ id: article_to_show.id, amount: $store.state.articles.amount }]"></cotizador-envio>
+		:articulos_extra="[{ id: article_to_show.id, type: article_to_show.is_combo ? 'combo' : (article_to_show.is_promocion_vinoteca ? 'promocion_vinoteca' : 'article'), amount: $store.state.articles.amount }]"></cotizador-envio>
 
 		<variants></variants>
 

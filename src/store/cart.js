@@ -122,7 +122,7 @@ function envio_inicial() {
 export function firma_de_lineas(lineas) {
 	let partes = []
 	;(lineas || []).forEach(linea => {
-		partes.push(String(linea.id) + '|' + String(Number(linea.amount) || 0))
+		partes.push((linea.type || 'article') + ':' + String(linea.id) + '|' + String(Number(linea.amount) || 0))
 	})
 	partes.sort()
 	return partes.join(';')
@@ -130,8 +130,7 @@ export function firma_de_lineas(lineas) {
 
 /**
  * Líneas a cotizar a partir de los artículos del carrito, en la forma que pide
- * `POST /api/envios/cotizar` (`articles: [{id, amount}]`). Las promociones de vinoteca quedan
- * afuera: no son artículos y no tienen peso ni medidas propias.
+ * `POST /api/envios/cotizar` (`articles: [{id, amount}]`). Cada promoción y combo representa un paquete completo, con identidad separada.
  *
  * 🔴 Las líneas con cantidad 0 (o negativa, o no numérica) se DESCARTAN, y esto no es una
  * prolijidad: el servidor exige `articles.*.amount >= 1` y una sola línea rara del carrito hacía
@@ -156,21 +155,24 @@ export function firma_de_lineas(lineas) {
  */
 export function lineas_del_carrito(cart) {
 	let lineas = []
-	if (!cart || !cart.articles) {
+	if (!cart) {
 		return lineas
 	}
-	cart.articles.forEach(article => {
-		let amount = article.amount
-		if ((amount === undefined || amount === null) && article.pivot) {
-			amount = article.pivot.amount
-		}
-		amount = Math.floor(Number(amount))
-		if (!isFinite(amount) || amount < 1) {
-			return
-		}
-		lineas.push({
-			id: article.id,
-			amount: amount,
+	;['articles', 'promociones_vinoteca', 'combos'].forEach(coleccion => {
+		;(cart[coleccion] || []).forEach(article => {
+			let amount = article.amount
+			if ((amount === undefined || amount === null) && article.pivot) {
+				amount = article.pivot.amount
+			}
+			amount = Math.floor(Number(amount))
+			if (!isFinite(amount) || amount < 1) {
+				return
+			}
+			lineas.push({
+				id: article.id,
+				amount: amount,
+				type: coleccion === 'combos' ? 'combo' : (coleccion === 'promociones_vinoteca' ? 'promocion_vinoteca' : 'article'),
+			})
 		})
 	})
 	return lineas
@@ -1784,10 +1786,14 @@ export default {
 			let body = {
 				commerce_id: env('VUE_APP_COMMERCE_ID'),
 				zipcode: state.envio.zipcode,
-				articles: articles,
+				articles: articles.filter(linea => !linea.type || linea.type === 'article'),
+				promociones_vinoteca: articles.filter(linea => linea.type === 'promocion_vinoteca'),
+				combos: articles.filter(linea => linea.type === 'combo'),
 			}
 			if (articles_extra.length) {
-				body.articles_extra = articles_extra
+				body.articles_extra = articles_extra.filter(linea => !linea.type || linea.type === 'article')
+				body.promociones_vinoteca_extra = articles_extra.filter(linea => linea.type === 'promocion_vinoteca')
+				body.combos_extra = articles_extra.filter(linea => linea.type === 'combo')
 			}
 			if (state.envio.city) {
 				body.city = state.envio.city

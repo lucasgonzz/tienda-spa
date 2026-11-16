@@ -418,7 +418,8 @@ export default {
 		cantidades_en_el_carrito() {
 			let cantidades = {}
 			this.lineas_del_carrito_actual.forEach(function(linea) {
-				cantidades[linea.id] = (cantidades[linea.id] || 0) + linea.amount
+				let clave = (linea.type || 'article') + ':' + linea.id
+				cantidades[clave] = (cantidades[clave] || 0) + linea.amount
 			})
 			return cantidades
 		},
@@ -450,9 +451,9 @@ export default {
 			let cantidades = this.cantidades_en_el_carrito
 			let lineas = []
 			this.lineas_pedidas_en_la_ficha.forEach(function(linea) {
-				let falta = linea.amount - (cantidades[linea.id] || 0)
+				let falta = linea.amount - (cantidades[(linea.type || 'article') + ':' + linea.id] || 0)
 				if (falta > 0) {
-					lineas.push({ id: linea.id, amount: falta })
+					lineas.push({ id: linea.id, amount: falta, type: linea.type })
 				}
 			})
 			return lineas
@@ -534,7 +535,7 @@ export default {
 			}
 			let ids = []
 			this.lineas_de_la_prop.concat(this.lineas_pedidas_en_la_ficha).forEach(function(linea) {
-				ids.push(String(linea.id))
+				ids.push((linea.type || 'article') + ':' + String(linea.id))
 			})
 			return ids.join(',')
 		},
@@ -875,7 +876,7 @@ export default {
 				if (!amount || isNaN(amount) || amount < 1) {
 					amount = 1
 				}
-				lineas.push({ id: linea.id, amount: amount })
+				lineas.push({ id: linea.id, amount: amount, type: linea.type || 'article' })
 			})
 			return lineas
 		},
