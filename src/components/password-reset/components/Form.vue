@@ -251,6 +251,7 @@ export default {
 	methods: {
 		sendCode() {
 			if (this.checkForm()) {
+				this.register_user.email = this.register_user.email.trim()
 				this.loading = true
 				this.$axios.post('password-reset/send-verification-code', {
 					email       : this.register_user.email.trim(),
@@ -267,7 +268,6 @@ export default {
 					}
 				})
 				.catch(err => {
-					console.log(err)
 					this.loading = false
 					// 429: demasiados intentos desde esta IP. Se avisa y se queda en el paso 1.
 					if (this.show_too_many_attempts(err)) {
@@ -288,6 +288,7 @@ export default {
 				this.loading_verification_code = true
 				this.$axios.post('/password-reset/check-verification-code', {
 					...this.register_user,
+					email : this.register_user.email.trim(),
 					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(res => {
@@ -301,12 +302,12 @@ export default {
 				})
 				.catch(err => {
 					this.loading_verification_code = false
-					console.log(err)
 					// 429: demasiados intentos desde esta IP. Se avisa y se queda en el paso 2 con el codigo escrito.
 					if (this.show_too_many_attempts(err)) {
 						return
 					}
-					this.$toast.error('No pudimos verificar el código. Probá de nuevo en unos minutos.')
+					let message = err && err.response && err.response.status == 422 && err.response.data && err.response.data.message
+					this.$toast.error(message || 'No pudimos verificar el código. Probá de nuevo en unos minutos.')
 				})
 			}
 		},
@@ -315,6 +316,7 @@ export default {
 				this.loading_update_password = true
 				this.$axios.post('password-reset/update-password', {
 					...this.register_user,
+					email : this.register_user.email.trim(),
 					commerce_id : env('VUE_APP_COMMERCE_ID')
 				})
 				.then(() => {
@@ -327,7 +329,6 @@ export default {
 					})
 					.catch(err => {
 						// La contraseña ya se cambio: si no se pudo leer la sesion, que entre con ella.
-						console.log(err)
 						this.$store.commit('auth/setLoading', false)
 						this.loading_update_password = false
 						this.$toast.success('Cambiamos tu contraseña. Ingresá con la nueva.')
@@ -336,7 +337,6 @@ export default {
 				})
 				.catch(err => {
 					this.loading_update_password = false
-					console.log(err)
 					// 429: demasiados intentos desde esta IP. Se avisa y se queda en el paso 3: el codigo sigue
 					// vigente (no se gasto), asi que NO se manda a pedir uno nuevo.
 					if (this.show_too_many_attempts(err)) {
@@ -347,7 +347,7 @@ export default {
 					let message = err && err.response && err.response.status == 422 && err.response.data && err.response.data.message
 					this.$toast.error(message || 'No pudimos cambiar la contraseña. Probá de nuevo en unos minutos.')
 					// El codigo ya no sirve (vencio o se agoto): hay que pedir uno nuevo desde el paso 1.
-					if (err && err.response && err.response.status == 422) {
+					if (err && err.response && err.response.status == 422 && (!err.response.data || err.response.data.error_code != 'password_reset_storage_unavailable')) {
 						this.ask_for_new_code()
 					}
 				})
