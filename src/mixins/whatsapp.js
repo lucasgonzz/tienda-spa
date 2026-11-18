@@ -1,5 +1,14 @@
+import { whatsappContacts } from '@/helpers/whatsapp_contacts'
+
 export default {
 	computed: {
+		storefront_whatsapp_contacts() {
+			let contacts = whatsappContacts(this.commerce && this.commerce.online_configuration)
+			if (contacts.length || !this.commerce_whatsapp_phone) {
+				return contacts
+			}
+			return [{ key: 'general', name: 'WhatsApp', phone: this.commerce_whatsapp_phone, link: 'https://api.whatsapp.com/send?phone=' + this.commerce_whatsapp_phone }]
+		},
 		/**
 		 * Telefono del comercio normalizado para wa.me (solo digitos, formato internacional).
 		 * Devuelve '' si no se puede normalizar a un numero valido.

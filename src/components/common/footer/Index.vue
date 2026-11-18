@@ -33,7 +33,7 @@
 						</ul>
 					</b-col>
 					<b-col
-					v-if="commerce.phone || commerce.email"
+					v-if="footer_whatsapp_contacts.length || commerce.email"
 					cols="12"
 					md="4"
 					class="site-footer__col">
@@ -54,16 +54,17 @@
 									{{ commerce.email }}
 								</a>
 							</li>
-							<li v-if="commerce.phone">
+							<li v-for="contact in footer_whatsapp_contacts" :key="contact.key">
 								<a
 								class="site-footer__link"
-								:href="'https://api.whatsapp.com/send?phone=' + commerce.phone"
+								:href="contact.link"
+								:aria-label="contact.name + ' (abre en una pestaña nueva)'"
 								target="_blank"
 								rel="noopener noreferrer">
 									<i
 									class="bi bi-whatsapp site-footer__icon"
 									aria-hidden="true"></i>
-									{{ commerce.phone }}
+									{{ contact.key == 'general' ? commerce.phone : contact.name }}
 								</a>
 							</li>
 						</ul>
@@ -129,6 +130,13 @@ export default {
 		CopyrightComponent: () => import('@/components/common/footer/Copyright'),
 	},
 	computed: {
+		footer_whatsapp_contacts() {
+			let contacts = this.storefront_whatsapp_contacts.filter(contact => contact.key != 'general')
+			if (!contacts.length && this.commerce.phone) {
+				return [{ key: 'general', name: 'WhatsApp', link: 'https://api.whatsapp.com/send?phone=' + this.commerce.phone }]
+			}
+			return contacts
+		},
 		/**
 		 * Oculta el footer en vistas de mensajes o mapas donde el layout es distinto.
 		 * @returns {boolean}

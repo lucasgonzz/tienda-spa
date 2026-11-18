@@ -29,9 +29,13 @@ export default {
 		items() {
 			let items = []
 			let configuration = this.commerce.online_configuration || {}
-			if (this.commerce.phone) {
+			let contacts = this.storefront_whatsapp_contacts.filter(contact => contact.key != 'general')
+			if (!contacts.length && this.commerce.phone) {
 				items.push({ name: 'WhatsApp', icon: 'whatsapp', description: 'Abrir chat', link: 'https://api.whatsapp.com/send?phone=' + this.commerce.phone, external: true })
 			}
+			contacts.forEach(contact => {
+				items.push({ name: contact.name, icon: 'whatsapp', description: 'Abrir chat', link: contact.link, external: true })
+			})
 			// Las redes pertenecen al comercio: la demo corrige sus datos en la fuente, sin reemplazar las de clientes.
 			if (configuration.instagram) {
 				items.push({ name: 'Instagram', icon: 'instagram', description: 'Ver perfil', link: configuration.instagram, external: true })
