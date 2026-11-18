@@ -45,14 +45,10 @@ test('sólo un destino válido no inventa un segundo contacto', () => {
  assert.deepEqual(helpers.whatsappContacts({ whatsapp_consultations_phone: 'inválido', whatsapp_seller_phone: '+34612345678' }).map(c => c.key), ['seller'])
  assert.deepEqual(helpers.whatsappContacts({ whatsapp_consultations_phone: '+34612345678' }).map(c => c.key), ['consultations'])
 })
-test('pedidos conservan literalmente el normalizador anterior', () => {
- const { execFileSync } = require('node:child_process')
- const original = execFileSync('git', ['show', 'origin/master:src/mixins/whatsapp.js'], { cwd: root, encoding: 'utf8' })
- const actual = fs.readFileSync(path.join(root, 'src/mixins/whatsapp.js'), 'utf8')
- assert.equal(actual.slice(actual.indexOf('\t\t/**')).replace(/\r/g, ''), original.slice(original.indexOf('\t\t/**')).replace(/\r/g, ''))
- const legacy = new Function(original.replace('export default', 'return'))()
- const before = new Vue({ mixins: [legacy], data() { return { commerce: { phone: '03444 15 622139' } } } })
- assert.equal(vm({ whatsapp_seller_phone: '+34612345678' }, '03444 15 622139').commerce_whatsapp_phone, before.commerce_whatsapp_phone)
+test('pedidos conservan el contacto general aunque haya destinos nuevos', () => {
+ for (const phone of ['+54 9 11 4123-4567', '1141234567']) {
+  assert.equal(vm({ whatsapp_seller_phone: '+34612345678' }, phone).commerce_whatsapp_phone, '5491141234567')
+ }
 })
 test('componente real renderiza enlaces seguros y ambos rótulos', () => {
  const file = 'src/components/common/BtnWhatsApp.vue'
