@@ -1,6 +1,6 @@
 <template>
 	<div
-	v-if="storefront_whatsapp_contacts.length && route_name == 'Home'"
+	v-if="storefront_whatsapp_contacts.length && route_name == 'Home' && !(custom_contacts && contact_section_visible)"
 	:class="{ 'btn-whats-app-active': scroll_bottom, 'btn-whats-app-custom': custom_contacts }"
 	class="btn-whats-app-group">
 		<a
@@ -22,6 +22,7 @@ export default {
 		return {
 			scroll: 0,
 			scroll_bottom: false,
+			contact_section_visible: false,
 		}
 	},
 	computed: {
@@ -31,14 +32,30 @@ export default {
 	},
 	mounted() {
 		window.addEventListener('scroll', this.trackScroll, { passive: true })
+		window.addEventListener('resize', this.updateContactVisibility)
+		this.$nextTick(this.updateContactVisibility)
 	},
 	beforeDestroy() {
 		window.removeEventListener('scroll', this.trackScroll)
+		window.removeEventListener('resize', this.updateContactVisibility)
 	},
 	methods: {
 		trackScroll() {
 			this.scroll_bottom = window.scrollY >= 30 && this.scroll < window.scrollY
 			this.scroll = window.scrollY
+			this.updateContactVisibility()
+		},
+		updateContactVisibility() {
+			// Los accesos ya están en Contacto y en el pie: evitamos taparlos con sus duplicados flotantes.
+			// La guarda conserva el comportamiento histórico del único WhatsApp general.
+			if (!this.custom_contacts) {
+				this.contact_section_visible = false
+				return
+			}
+			this.contact_section_visible = Array.from(document.querySelectorAll('.contact-info, .site-footer')).some(section => {
+				let box = section.getBoundingClientRect()
+				return box.bottom > 0 && box.top < window.innerHeight
+			})
 		},
 	},
 }

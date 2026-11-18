@@ -87,3 +87,36 @@ test('el pie conserva su URL legada y comparte los dos destinos configurados', (
  view.commerce.online_configuration = { whatsapp_consultations_phone: '+5491141234567', whatsapp_seller_phone: '+34612345678' }
  assert.deepEqual(component.computed.footer_whatsapp_contacts.call(view).map(c => c.name), ['Consultas', 'Hablar con un vendedor'])
 })
+
+test('los flotantes nuevos se ocultan al entrar Contacto o pie y reaparecen al salir', t => {
+ const component = load('src/components/common/BtnWhatsApp.vue').default
+ const previousDocument = global.document
+ const previousWindow = global.window
+ t.after(() => { global.document = previousDocument; global.window = previousWindow })
+ global.window = { innerHeight: 900, scrollY: 200 }
+ let boxes = [{ top: 950, bottom: 1200 }, { top: 1300, bottom: 1500 }]
+ global.document = { querySelectorAll(selector) { assert.equal(selector, '.contact-info, .site-footer'); return boxes.map(box => ({ getBoundingClientRect: () => box })) } }
+ const view = { custom_contacts: true, contact_section_visible: false, scroll: 0, scroll_bottom: false }
+ view.updateContactVisibility = component.methods.updateContactVisibility.bind(view)
+ component.methods.trackScroll.call(view)
+ assert.equal(view.scroll_bottom, true)
+ assert.equal(view.contact_section_visible, false)
+ boxes = [{ top: 899, bottom: 1200 }]
+ view.updateContactVisibility()
+ assert.equal(view.contact_section_visible, true)
+ boxes = [{ top: -100, bottom: 0 }, { top: 900, bottom: 1200 }]
+ view.updateContactVisibility()
+ assert.equal(view.contact_section_visible, false)
+ boxes = []
+ view.updateContactVisibility()
+ assert.equal(view.contact_section_visible, false)
+ boxes = [{ top: -200, bottom: 0 }, { top: 800, bottom: 1100 }]
+ view.updateContactVisibility()
+ assert.equal(view.contact_section_visible, true)
+ boxes = [{ top: -100, bottom: 100 }]
+ view.updateContactVisibility()
+ assert.equal(view.contact_section_visible, true)
+ view.custom_contacts = false
+ view.updateContactVisibility()
+ assert.equal(view.contact_section_visible, false)
+})
