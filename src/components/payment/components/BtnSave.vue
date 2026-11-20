@@ -49,6 +49,7 @@
 </template>
 <script>
 import cart from '@/mixins/cart'
+import { capturar_checkout, checkout_vigente, captura_identificacion_checkout } from '@/store/checkout_session'
 import CheckoutCaptcha from './CheckoutCaptcha.vue'
 import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
 
@@ -191,10 +192,17 @@ export default {
 					}
 				}
 
+				// Captura previa al HTTP y al watcher del candado; nunca adoptar otra sesión.
+				let sesion = capturar_checkout(this.$store.state)
+				const vigente = function() {
+					return !self._isDestroyed && !self._isBeingDestroyed && checkout_vigente(self.$store.state, sesion)
+				}
 				this.procesando = true
+				if (!vigente()) return
 
 				return this.$api.post('buyer', datos_buyer)
 				.then(function(res) {
+					if (!vigente()) return
 					// El modelo que devuelve POST buyer viene con la direccion ya actualizada
 					// (el backend la persiste al reconocer el email, prompt 400). Aun asi, la
 					// direccion del pedido se manda explicita desde order_address (prompt 402):
@@ -203,14 +211,17 @@ export default {
 					// un cliente del ERP mientras el comprador miraba en pantalla la nueva.
 					const model = res && res.data && res.data.model
 					if (!model || !model.id) throw new Error('comprador_incompleto')
-					if (self._isDestroyed) return
+					// Sólo la transición propia prevista puede habilitar pedido o tarjeta.
+					sesion = captura_identificacion_checkout(self.$store.state, model)
 					self.$store.commit('auth/setUser', model)
+					if (!vigente()) return
 					return self.continuar_checkout(aceptar_consulta_stock, ir_a_tarjeta)
 				})
 				.catch(function() {
+					if (!vigente()) return
 					// El error HTTP puede contener datos sensibles; no se registra.
 					self.procesando = false
-					self.$toast.error('Hubo un error al identificar el comprador')
+					if (vigente()) self.$toast.error('Hubo un error al identificar el comprador')
 				})
 
 			} else {

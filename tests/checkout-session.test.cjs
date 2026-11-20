@@ -495,3 +495,119 @@ for (const cambio of ['comprador', 'comercio', 'cliente', 'logout']) {
 		if (cambio === 'cliente') assert.equal(store.state.cart.selected_buyer.id, 99)
 	})
 }
+
+// QA3: ready/check/confirmar y observer reales; sólo transporte y navegación sintéticos.
+const BtnIdentificacion = load('components/payment/components/BtnSave.vue').default
+function identificacionQA3() {
+ const { store, vm } = caso(), requests = [], routes = [], errors = []
+ Object.assign(vm, BtnIdentificacion.methods, { procesando: false, captcha_listo: true,
+  puede_comprar_sin_login: true, payment_methods: [{}], cart_payment_method: { id: 1 },
+  direcciones_de_envio_activas: false, envio_zipnova_elegido: false, pedido_a_consultar: false,
+  is_mp: false, is_payway: true, flag_activo() { return false },
+  $toast: { error(m) { errors.push(m) } },
+  $router: { push(r) { routes.push(r.name); return Promise.resolve() } },
+ })
+ for (const key of ['user', 'authenticated']) Object.defineProperty(vm, key, { configurable: true, get: () => store.state.auth[key] })
+ Object.defineProperty(vm, 'commerce', { get: () => ({ ...store.state.commerce.commerce, online_configuration: {} }) })
+ store.state.delivery_day = { models: [] }
+ store.commit('cart/setCart', { ...store.state.cart.cart, deliver: 0 })
+ for (const [field, value] of Object.entries({ name: 'Invitado', phone: '123', ciudad: 'Córdoba' })) store.commit('cart/set_buyer_field', { field, value })
+ let resolve, reject
+ vm.$api.post = (url, body) => { requests.push({ url, body }); return url === 'buyer' ? new Promise((r, j) => { resolve = r; reject = j }) : Promise.resolve({ data: { order_id: 30 } }) }
+ return { store, vm, requests, routes, errors, ok(model = { id: 7, email: 'prueba@example.test' }) { resolve({ data: { model } }) }, fail() { reject(new Error('HTTP sintético')) } }
+}
+function interponerQA3(f, tipo) {
+ const s = f.store, original = s.state.commerce.commerce
+ if (tipo === 'comercio') s.commit('commerce/setCommerce', { id: 2, owner_id: 20 })
+ if (tipo === 'owner') s.commit('commerce/setCommerce', { id: 1, owner_id: 20 })
+ if (tipo === 'B' || tipo === 'ABA') {
+  s.commit('auth/setUser', { id: 99, email: 'b@example.test' })
+  s.commit('auth/setAuthenticated', true)
+ }
+ if (tipo === 'ABA') {
+  s.commit('auth/setAuthenticated', false)
+  s.commit('auth/setUser', null)
+  s.commit('commerce/setCommerce', original)
+ }
+ if (tipo === 'reset') s.commit('cart/reset_checkout')
+ if (tipo === 'email') s.commit('cart/set_buyer_field', { field: 'email', value: 'otro@example.test' })
+ s.commit('cart/set_buyer_field', { field: 'address', value: 'Borrador B' })
+ s.commit('buyer_addresses/set_models', [{ id: 999 }])
+ s.commit('buyer_addresses/set_cargada_para', 99)
+ s.state.auth.message = 'Mensaje B'
+}
+const snapshotQA3 = f => JSON.stringify(f.store.state)
+for (const tipo of ['B', 'comercio', 'owner', 'reset', 'ABA', 'email']) {
+ for (const resultado of ['ok', 'error', 'incompleto']) test(`QA3 buyer diferido ${tipo} ${resultado}: sin efectos sobre contexto nuevo`, async () => {
+  const f = identificacionQA3(), pending = f.vm.payway()
+  interponerQA3(f, tipo)
+  const before = snapshotQA3(f), commits = []
+  f.store.subscribe(m => commits.push(m.type))
+  if (resultado === 'error') f.fail()
+  else f.ok(resultado === 'incompleto' ? {} : undefined)
+  await pending
+  assert.equal(snapshotQA3(f), before)
+  assert.deepEqual(commits, [])
+  assert.deepEqual(f.routes, [])
+  assert.deepEqual(f.errors, [])
+  assert.deepEqual(f.requests.map(r => r.url), ['buyer'])
+ })
+}
+for (const tipo of ['B', 'ABA', 'reset', 'comercio']) test(`QA3 subscriber síncrono setUser ${tipo}: no adopta estado posterior`, async () => {
+ const f = identificacionQA3(), pending = f.vm.payway()
+ let before, armed = true
+ const commits = []
+ f.store.subscribe(m => {
+  if (armed && m.type === 'auth/setUser' && m.payload.id === 7) {
+   armed = false
+   interponerQA3(f, tipo)
+   if (tipo === 'ABA') {
+    // Volver exactamente a la identidad/email previstos, pero con generación nueva.
+    f.store.commit('cart/set_buyer_field', { field: 'email', value: 'prueba@example.test' })
+    f.store.commit('auth/setUser', { id: 7, email: 'prueba@example.test' })
+   }
+   before = snapshotQA3(f)
+  } else if (before) commits.push(m.type)
+ })
+ f.ok(); await pending
+ assert.ok(before)
+ assert.equal(snapshotQA3(f), before)
+ assert.deepEqual(commits, [])
+ assert.deepEqual(f.routes, [])
+ assert.deepEqual(f.errors, [])
+ assert.deepEqual(f.requests.map(r => r.url), ['buyer'])
+})
+test('QA3 identificación legítima desde null conserva generación/dirección y navega Payway', async () => {
+ const f = identificacionQA3(), before = f.store.state.cart.checkout_generation
+ const pending = f.vm.payway()
+ f.vm.payway()
+ assert.equal(f.requests.length, 1)
+ f.ok(); await pending
+ assert.equal(f.store.state.auth.user.id, 7)
+ assert.equal(f.store.state.auth.authenticated, false)
+ assert.equal(f.store.state.cart.checkout_generation, before)
+ assert.equal(f.store.state.cart.buyer.address, 'Borrador')
+ assert.deepEqual(f.routes, ['PaymentCard'])
+ assert.equal(f.vm.procesando, false)
+})
+test('QA3 identificación legítima continúa pedido común con makeOrder real y token CAPTCHA', async () => {
+ const f = identificacionQA3()
+ load('store/cart').recibir_token_captcha(f.store.state, load('store/cart').contexto_captcha(f.store.state), 'token-sintetico')
+ const pending = f.vm.ready(false)
+ f.ok(); await pending
+ assert.deepEqual(f.requests.map(r => r.url), ['buyer', '/orders'])
+ assert.equal(f.requests[1].body.buyer.id, 7)
+ assert.equal(f.requests[1].body.captcha_token, 'token-sintetico')
+ assert.deepEqual(f.routes, ['Thanks'])
+ assert.equal(f.store.state.cart.buyer.address, '')
+})
+test('QA3 error estable conserva datos y habilita reintento real sin identificación duplicada', async () => {
+ const f = identificacionQA3(), before = snapshotQA3(f)
+ let pending = f.vm.payway(); f.fail(); await pending
+ assert.equal(snapshotQA3(f), before)
+ assert.equal(f.vm.procesando, false)
+ assert.equal(f.errors.length, 1)
+ pending = f.vm.payway(); f.vm.payway(); f.ok(); await pending
+ assert.equal(f.requests.length, 2)
+ assert.deepEqual(f.routes, ['PaymentCard'])
+})

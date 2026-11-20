@@ -33,6 +33,12 @@ export function captura_reset_checkout(state, opciones = {}) {
 		buyer: comprador_vacio(), selected_buyer: opciones.conservar_cliente ? state.cart.selected_buyer : null } })
 }
 
+// La identificación propia sólo puede cambiar user: nunca abrir otro borrador.
+// Calcular antes del commit evita adoptar resets/ABA de subscribers síncronos.
+export function captura_identificacion_checkout(state, model) {
+	return capturar_checkout({ ...state, auth: { ...state.auth, user: model } })
+}
+
 // Una sola frontera para logout, cambio de comprador, cliente del vendedor y comercio.
 export function observar_checkout(store) {
 	let identidad = identidad_checkout(store.state)

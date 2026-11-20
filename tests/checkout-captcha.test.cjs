@@ -513,3 +513,23 @@ test('QA1 Payment guest: error/incompleto buyer conserva borrador, libera candad
   })
  }
 })
+
+for (const resultado of ['ok', 'error', 'incompleto']) test(`QA3 componente destruido durante buyer ${resultado}: sin commits/toast/navegación tardíos`, async t => {
+ const f = montarFlujo(t, enabled, true)
+ await f.router.push({ name: 'Payment' }); await tick()
+ f.callbacks[0].callback('payment-fake'); await Vue.nextTick()
+ const btn = f.find('confirmar')
+ const pending = btn.payway()
+ btn.$destroy(); await tick()
+ const before = JSON.stringify(f.s.state), commits = []
+ f.s.subscribe(m => commits.push(m.type))
+ if (resultado === 'error') f.rechazarBuyer()
+ else f.identificar(resultado === 'incompleto' ? { data: { model: {} } } : undefined)
+ await pending; await tick()
+ assert.equal(JSON.stringify(f.s.state), before)
+ assert.deepEqual(commits, [])
+ assert.deepEqual(f.messages, [])
+ assert.equal(f.router.currentRoute.name, 'Payment')
+ assert.equal(f.sdk.length, 0)
+ assert.deepEqual(f.requests.map(r => r.url), ['buyer'])
+})
