@@ -1,9 +1,11 @@
+import { consumir_token_captcha } from '@/store/cart'
 import { capturar_checkout, checkout_vigente } from '@/store/checkout_session'
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
 import { direcciones_activas, zona_a_convenir, linea_de_direccion, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
 import { carrito_a_consultar, tiene_marca_consulta_stock } from '@/helpers/consultas_de_stock'
+const pedidos_en_curso = new WeakSet()
 export default {
 	computed: {
 		pedido_a_consultar() {
@@ -953,11 +955,13 @@ export default {
 		 * @returns {Promise<boolean|null>}
 		 */
 		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false, aceptar_consulta_stock = false) {
-			if (!this.canMakeOrder()) {
+			if (pedidos_en_curso.has(this.$store.state.cart) || !this.canMakeOrder()) {
 				return Promise.resolve(null)
 			}
 
 			let self = this
+			const estado_pedido = this.$store.state.cart
+			pedidos_en_curso.add(estado_pedido)
 			const sesion = capturar_checkout(this.$store.state)
 			let pedido_creado = false
 			let resumen_enviado = null
@@ -1016,7 +1020,9 @@ export default {
 					cart_id: self.cart.id, total: self.total,
 					payment_id: self.cart.payment_id, payment_status: self.cart.payment_status,
 				}
+				const captcha_token = consumir_token_captcha(self.$store.state)
 				return self.$api.post('/orders', {
+					...(captcha_token ? { captcha_token } : {}),
 					...datos_consulta,
 					commerce_id 	: env('VUE_APP_COMMERCE_ID'),
 					cart_id         : self.cart.id,
@@ -1075,7 +1081,8 @@ export default {
 			.catch(function(err) {
 				apagar_overlay()
 				if (pedido_creado) return true
-				console.log(err)
+				// No registrar errores HTTP: pueden incluir el comprobante en config.data.
+				if (checkout_vigente(self.$store.state, sesion)) self.$store.commit('cart/renovar_captcha')
 				// El guardado descarto articulos no disponibles y se freno antes de crear el
 				// pedido: el aviso ya salio en cortar_si_el_guardado_descarto.
 				if (self.es_corte_por_articulos_no_disponibles(err)) {
@@ -1107,6 +1114,7 @@ export default {
 				}
 				return null
 			})
+			.finally(function() { pedidos_en_curso.delete(estado_pedido) })
 		},
 		verificar_modo_del_pedido(aceptar_consulta_stock) {
 			const confirmada_por_api = this.articles.some(tiene_marca_consulta_stock)

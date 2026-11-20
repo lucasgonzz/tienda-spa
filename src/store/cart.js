@@ -788,6 +788,29 @@ export function calcular_cuota(base, fila) {
 	}
 }
 
+// El comprobante vive sólo en memoria; nunca entra al carrito, Vuex ni almacenamiento.
+const tokens_checkout = new WeakMap()
+export function contexto_captcha(state) {
+	const comercio = state.commerce && state.commerce.commerce
+	const auth = state.auth || {}
+	return JSON.stringify([state.cart.checkout_generation, comercio && comercio.id, comercio && comercio.owner_id,
+		!!auth.authenticated, auth.authenticated && auth.user && auth.user.id,
+		state.cart.selected_buyer && state.cart.selected_buyer.id])
+}
+export function limpiar_token_captcha(state) {
+	tokens_checkout.delete(state.cart)
+}
+export function recibir_token_captcha(state, contexto, token) {
+	if (contexto !== contexto_captcha(state) || typeof token !== 'string' || !token.trim()) return false
+	tokens_checkout.set(state.cart, { contexto, token })
+	return true
+}
+export function consumir_token_captcha(state) {
+	const comprobante = tokens_checkout.get(state.cart)
+	limpiar_token_captcha(state)
+	return comprobante && comprobante.contexto === contexto_captcha(state) ? comprobante.token : null
+}
+
 export default {
 	namespaced: true,
 	state: {
@@ -813,6 +836,7 @@ export default {
 		envio: envio_inicial(),
 		buyer: comprador_vacio(),
 		checkout_generation: 0,
+		captcha_revision: 0,
 		checkout_completado: null,
 		buyer_id: null,
 		selected_buyer: null,
@@ -856,12 +880,18 @@ export default {
 		added_item_popup_visible: false,
 	},
 	mutations: {
+		renovar_captcha(state) {
+			limpiar_token_captcha({ cart: state })
+			state.captcha_revision++
+		},
 		reset_checkout(state, opciones = {}) {
 			const lineas = opciones.conservar_lineas ? {
 				articles: state.cart.articles,
 				promociones_vinoteca: state.cart.promociones_vinoteca,
 				combos: state.cart.combos,
 			} : {}
+			limpiar_token_captcha({ cart: state })
+			state.captcha_revision++
 			state.checkout_generation++
 			state.checkout_completado = opciones.completado || (opciones.conservar_resumen ? state.checkout_completado : null)
 			state.buyer = comprador_vacio()

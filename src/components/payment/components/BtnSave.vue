@@ -1,5 +1,7 @@
 <template>
 	<div class="checkout-confirm">
+		<checkout-captcha @ready="captcha_listo = $event" />
+		<fieldset :disabled="!captcha_listo" class="border-0 p-0 m-0">
 		<b-button
 		block
 		size="lg"
@@ -36,6 +38,7 @@
 				Finalizar compra
 			</span>
 		</b-button>
+		</fieldset>
 
 		<p
 		v-if="is_mp"
@@ -46,6 +49,7 @@
 </template>
 <script>
 import cart from '@/mixins/cart'
+import CheckoutCaptcha from './CheckoutCaptcha.vue'
 import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
 
 /**
@@ -64,10 +68,12 @@ import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo, codigo_p
  */
 export default {
 	mixins: [cart],
+	components: { CheckoutCaptcha },
 	data() {
 		return {
 			/** Hay un checkout en curso: el botón queda deshabilitado y muestra el estado. */
 			procesando: false,
+			captcha_listo: false,
 		}
 	},
 	watch: {
@@ -80,6 +86,7 @@ export default {
 		 */
 		procesando(valor) {
 			this.$store.commit('cart/set_cuotas_bloqueadas', valor)
+			if (!valor) this.$store.commit('cart/renovar_captcha')
 		},
 	},
 	beforeDestroy() {
@@ -117,7 +124,7 @@ export default {
 		 * Punto de entrada del botón. Reparte según la forma de pago elegida.
 		 */
 		confirmar() {
-			if (this.procesando) {
+			if (this.procesando || !this.captcha_listo) {
 				return
 			}
 			if (this.is_payway) {
@@ -210,8 +217,8 @@ export default {
 					self.$store.commit('auth/setUser', res.data.model)
 					return self.confirmar_pedido(aceptar_consulta_stock)
 				})
-				.catch(function(err) {
-					console.log(err)
+				.catch(function() {
+					// El error HTTP puede contener datos sensibles; no se registra.
 					self.procesando = false
 					self.$toast.error('Hubo un error al identificar el comprador')
 				})
@@ -231,7 +238,7 @@ export default {
 				// pedido). El que había guardaba el carrito una tercera vez, para nada.
 				this.confirmar_pedido(aceptar_consulta_stock)
 				.catch(function(err) {
-					console.log(err)
+					// El error HTTP puede contener datos sensibles; no se registra.
 					self.procesando = false
 					if (self.manejar_error_de_direccion(err)) {
 						return
@@ -398,7 +405,7 @@ export default {
 				// puede resolver ni entender— y el detalle crudo que devuelve Mercado Pago, que viene
 				// en inglés. Al comprador se le dice qué puede hacer él; el detalle queda en la
 				// consola y en el log de la API, que es donde lo busca quien lo puede arreglar.
-				console.log(err)
+				// El error HTTP puede contener datos sensibles; no se registra.
 				const consulta_atendida = self.manejar_error_consulta_stock(err)
 				if (consulta_atendida) {
 					return consulta_atendida.finally(() => { self.procesando = false })
@@ -472,8 +479,7 @@ export default {
 				}
 				terminar(!sigue_vigente)
 			})
-			.catch(function(err) {
-				console.log(err)
+			.catch(function() {
 				terminar(false)
 			})
 		},
