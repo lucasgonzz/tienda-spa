@@ -134,9 +134,7 @@ export default {
 			this.ready(this.pedido_a_consultar)
 		},
 		payway() {
-			if (this.check()) {
-				this.$router.push({name: 'PaymentCard'})
-			}
+			return this.ready(false, true)
 		},
 		/**
 		 * Manda al login al comprador que no tiene sesion en una tienda que exige registro,
@@ -166,25 +164,14 @@ export default {
 			this.$router.push({name: 'Login'})
 			return true
 		},
-		ready(aceptar_consulta_stock) {
-			if (this.redirect_to_login_if_no_session()) {
-				return
-			}
-			if (this.avisar_direccion_sin_confirmar()) {
-				return
-			}
+		ready(aceptar_consulta_stock, ir_a_tarjeta = false) {
+			// Todos los pagos validan la misma política antes de identificar o navegar.
+			if (this.procesando || !this.check()) return
 
 			let self = this
 
 			// Flujo guest: identificar comprador antes de crear el pedido
 			if (!this.authenticated && this.puede_comprar_sin_login) {
-				// Errores de validación acumulados del checkout invitado
-				const checkout_errors = this.collect_guest_checkout_errors()
-				if (checkout_errors.length) {
-					this.show_checkout_validation_errors(checkout_errors)
-					return
-				}
-
 				// Datos del comprador invitado a enviar al endpoint de identificación
 				const buyer = this.$store.state.cart.buyer
 
@@ -206,7 +193,7 @@ export default {
 
 				this.procesando = true
 
-				this.$api.post('buyer', datos_buyer)
+				return this.$api.post('buyer', datos_buyer)
 				.then(function(res) {
 					// El modelo que devuelve POST buyer viene con la direccion ya actualizada
 					// (el backend la persiste al reconocer el email, prompt 400). Aun asi, la
@@ -214,8 +201,11 @@ export default {
 					// es lo que el comprador VIO en pantalla, y esa es la unica fuente de verdad.
 					// Este bug ya se pago una vez -- un pedido guardado con la direccion vieja de
 					// un cliente del ERP mientras el comprador miraba en pantalla la nueva.
-					self.$store.commit('auth/setUser', res.data.model)
-					return self.confirmar_pedido(aceptar_consulta_stock)
+					const model = res && res.data && res.data.model
+					if (!model || !model.id) throw new Error('comprador_incompleto')
+					if (self._isDestroyed) return
+					self.$store.commit('auth/setUser', model)
+					return self.continuar_checkout(aceptar_consulta_stock, ir_a_tarjeta)
 				})
 				.catch(function() {
 					// El error HTTP puede contener datos sensibles; no se registra.
@@ -224,19 +214,12 @@ export default {
 				})
 
 			} else {
-				// Flujo autenticado: comportamiento original sin cambios
-				const checkout_errors = this.collect_authenticated_checkout_errors()
-				if (checkout_errors.length) {
-					this.show_checkout_validation_errors(checkout_errors)
-					return
-				}
-
 				this.procesando = true
 
 				// Sin `cart/save` acá: los dos caminos de `confirmar_pedido()` lo hacen igual
 				// (`pagar_con_mercado_pago()` antes de la preferencia, `makeOrder()` antes del
 				// pedido). El que había guardaba el carrito una tercera vez, para nada.
-				this.confirmar_pedido(aceptar_consulta_stock)
+				return this.continuar_checkout(aceptar_consulta_stock, ir_a_tarjeta)
 				.catch(function(err) {
 					// El error HTTP puede contener datos sensibles; no se registra.
 					self.procesando = false
@@ -249,6 +232,13 @@ export default {
 					self.$toast.error('No pudimos guardar tu pedido. Probá de nuevo.')
 				})
 			}
+		},
+		continuar_checkout(aceptar_consulta_stock, ir_a_tarjeta) {
+			if (!ir_a_tarjeta) return this.confirmar_pedido(aceptar_consulta_stock)
+			let self = this
+			// La tarjeta se tokeniza recién en la otra pantalla, con un CAPTCHA nuevo.
+			return Promise.resolve(this.$router.push({name: 'PaymentCard'}))
+			.finally(function() { self.procesando = false })
 		},
 		/**
 		 * Con los datos ya validados y el comprador identificado: crea el pedido, o arranca el
@@ -717,17 +707,7 @@ export default {
 			if (!this.pedido_a_consultar && !this.cart_payment_method && this.payment_methods.length) {
 				errors.push('Cómo pagás')
 			}
-			// 🔴 Este this.user.seller_id NO lleva guarda a proposito, aunque su hermana de
-			// la Direccion de entrega si la tenga. Se le puso el 31/8/2026 y se revirtio:
-			// sin sesion, esta linea es lo unico que frena a un invitado de una tienda
-			// register_to_buy=0 que elige Payway. Guardandola, check() devuelve true,
-			// payway() navega a /pagar, el comprador TOKENIZA LA TARJETA y recien ahi falla,
-			// en una pantalla donde no existe ningun formulario para completar sus datos.
-			// El caso "sin sesion y con registro obligatorio" -- el que dejaba el boton mudo
-			// -- ya lo cortan ready() y check() antes de llegar aca, con
-			// redirect_to_login_if_no_session(). Sacar esta nota solo cuando el checkout de
-			// invitado valide sus propios datos en check(), como ya hace ready().
-			if (this.user.seller_id && !this.buyer_id) {
+			if (this.user && this.user.seller_id && !this.buyer_id) {
 				errors.push('Cliente de este pedido')
 			}
 			if (this.must_select_delivery_day() && !this.has_selected_delivery_day()) {
@@ -787,16 +767,17 @@ export default {
 			this.$toast.error('Te falta completar: ' + errors.join(', '))
 		},
 		check() {
-			// Payway entra por aca, no por ready(). Sin esto, un comprador sin sesion en una
-			// tienda con registro obligatorio navegaba a /pagar y terminaba llamando a
-			// makeOrder() desde Payway.vue.
+			// Política común para pedido y Payway: validar en Payment, donde todavía están
+			// los datos del comprador, antes de identificar, tokenizar o crear un pedido.
 			if (this.redirect_to_login_if_no_session()) {
 				return false
 			}
 			if (this.avisar_direccion_sin_confirmar()) {
 				return false
 			}
-			const checkout_errors = this.collect_authenticated_checkout_errors()
+			const checkout_errors = !this.authenticated && this.puede_comprar_sin_login
+				? this.collect_guest_checkout_errors()
+				: this.collect_authenticated_checkout_errors()
 			if (checkout_errors.length) {
 				this.show_checkout_validation_errors(checkout_errors)
 				return false

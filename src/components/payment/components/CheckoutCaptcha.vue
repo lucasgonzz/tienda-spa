@@ -91,7 +91,7 @@ export default {
 					self.$emit('ready', true)
 					return
 				}
-				if (config.state !== 'enabled' || config.required !== true || typeof config.site_key !== 'string' || !config.site_key.trim() || config.action !== 'checkout') {
+				if (config.state !== 'enabled' || config.required !== true || typeof config.site_key !== 'string' || !config.site_key.trim() || (typeof config.action !== 'string' || !/^[a-zA-Z0-9_-]{1,32}$/.test(config.action))) {
 					// Una configuración incompleta nunca equivale a protección apagada.
 					self.configuracion = null
 					throw new Error('configuracion_incompleta')
@@ -111,7 +111,7 @@ export default {
 					self.mensaje = 'Completá la verificación para enviar tu pedido.'
 					let recibido = false
 					self.widgetId = window.turnstile.render(self.$refs.widget, {
-						sitekey: config.site_key, action: 'checkout', 'response-field': false,
+						sitekey: config.site_key, action: config.action, 'response-field': false,
 						retry: 'never', 'refresh-expired': 'never',
 						callback: function(token) {
 							if (!self.vigente(ciclo, contexto) || recibido) return

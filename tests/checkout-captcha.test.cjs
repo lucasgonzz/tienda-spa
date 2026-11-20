@@ -31,7 +31,7 @@ function store() {
 		cart: { ...Cart.default, state: JSON.parse(JSON.stringify(Cart.default.state)), actions: { save() { return [] } } },
 		commerce: { state: { commerce: { id: 1, owner_id: 10 } }, mutations: { owner(s, id) { s.commerce.owner_id = id } } },
 		orders: { namespaced: true, state: { order: null }, actions: { getCurrentOrder() {} } },
-		auth: { namespaced: true, state: { user: null, authenticated: false }, mutations: { setLoading() {}, setMessage() {}, user(s, u) { s.user = u } } },
+		auth: { namespaced: true, state: { user: null, authenticated: false }, mutations: { setLoading() {}, setMessage() {}, setUser(s, u) { s.user = u }, user(s, u) { s.user = u } } },
 	} })
 }
 function widget(t, get = () => Promise.resolve({ data: { captcha: enabled } })) {
@@ -217,15 +217,19 @@ function parche(old, vnode) {
 	return vnode.elm
 }
 function descendientes(vm) { return [vm, ...vm.$children.flatMap(descendientes)] }
-function montarFlujo(t, config = enabled) {
+function montarFlujo(t, config = enabled, guest = false) {
 	const s = store(), callbacks = [], requests = [], sdk = [], messages = []
-	let rejectOrder = true
+	let rejectOrder = true, identificar, rechazarBuyer
+	if (guest) {
+		s.state.delivery_day = { models: [] }
+	}
 	global.window = { turnstile: { render(el, opts) { callbacks.push(opts); return callbacks.length }, remove() {} }, Decidir: function() {
 		this.setPublishableKey = function() {}; this.setTimeout = function() {}
 		this.createToken = function(form, callback) { sdk.push(callback) }
 	} }
 	const api = { get() { return Promise.resolve({ data: { captcha: config } }) }, post(url, body) {
 		requests.push({ url, body })
+		if (url === 'buyer') return new Promise((resolve, reject) => { identificar = resolve; rechazarBuyer = reject })
 		if (url === 'payment-card-info') return Promise.resolve({ data: { model: { id: 80 } } })
 		if (rejectOrder) return Promise.reject({ response: { status: 422, data: { codigo: 'captcha_invalid' } } })
 		return Promise.resolve({ data: { order_id: 90 } })
@@ -233,10 +237,19 @@ function montarFlujo(t, config = enabled) {
 	const transient = { render(h) { return h('div', this.$slots.default) } }
 	const componentes = { 'b-button': transient, 'b-row': transient, 'b-col': transient }
 	const BtnTest = { ...BtnRender, components: { ...componentes, CheckoutCaptcha: CaptchaRender },
-		computed: { is_payway() { return true }, pedido_a_consultar() { return false }, is_mp() { return false } },
-		methods: { ...Btn.methods, check() { return true } } }
+		computed: { ...Btn.computed, is_payway() { return true }, pedido_a_consultar() { return false }, is_mp() { return false } },
+		methods: { ...Btn.methods, check() { return true } },
+		...(guest ? {
+			computed: { ...Btn.computed, is_payway() { return true }, pedido_a_consultar() { return false }, is_mp() { return false },
+				cart() { return s.state.cart.cart }, authenticated() { return false }, puede_comprar_sin_login() { return true },
+				user() { return s.state.auth.user }, commerce() { return { id: 1, online_configuration: {} } },
+				payment_methods() { return [{}] }, cart_payment_method() { return { id: 1 } },
+				direcciones_de_envio_activas() { return false }, envio_zipnova_elegido() { return false } },
+			methods: { ...Btn.methods, flag_activo() { return false } },
+		} : {}),
+	}
 	const PayTest = { ...Payway, components: { ...componentes, CheckoutCaptcha: CaptchaRender },
-		computed: { cart() { return s.state.cart.cart }, installments() { return [] }, payment_methods() { return [] }, total() { return 50 }, user() { return { id: 3 } } },
+		computed: { cart() { return s.state.cart.cart }, installments() { return [] }, payment_methods() { return [] }, total() { return 50 }, user() { return guest ? s.state.auth.user : { id: 3 } } },
 		methods: { ...Payway.methods, canMakeOrder() { return true }, verificar_modo_del_pedido() {},
 			manejar_articulos_no_disponibles() { return false }, manejar_error_consulta_stock() { return false },
 			manejar_error_de_direccion() { return false }, manejar_error_de_envio() { return false },
@@ -258,8 +271,12 @@ function montarFlujo(t, config = enabled) {
 	app.$mount()
 	s.commit('cart/setCart', { id: 1, articles: [{ id: 1, pivot: { amount: 1 } }], promociones_vinoteca: [] })
 	s.commit('cart/set_buyer_field', { field: 'address', value: 'Borrador' })
+	if (guest) {
+		s.state.cart.cart.deliver = 0
+		for (const [field, value] of Object.entries({ name: 'Invitado', email: 'guest@example.test', phone: '123', ciudad: 'Córdoba' })) s.commit('cart/set_buyer_field', { field, value })
+	}
 	t.after(() => { app.$destroy(); Vue.prototype.__patch__ = previousPatch; Vue.prototype.$api = previousApi; Vue.prototype.$toast = previousToast; delete global.window })
-	return { s, app, router, callbacks, requests, sdk, messages, find: name => descendientes(app).find(vm => vm.$options.methods && vm.$options.methods[name]), success() { rejectOrder = false } }
+	return { s, app, router, callbacks, requests, sdk, messages, find: name => descendientes(app).find(vm => vm.$options.methods && vm.$options.methods[name]), success() { rejectOrder = false }, identificar(response = { data: { model: { id: 7 } } }) { identificar(response) }, rechazarBuyer() { rechazarBuyer(new Error('HTTP fake')) } }
 }
 test('Payment → PaymentCard con Vue/Router y Payway reales: desmonta token, bloquea invitado, renueva y reintenta sin duplicar tarjeta/pedido', async t => {
 	const f = montarFlujo(t)
@@ -361,4 +378,138 @@ test('Payway real: error SDK libera botón y renueva sin guardar ni vaciar formu
 	assert.equal(f.s.state.cart.buyer.address, 'Borrador')
 	assert.equal(pay.selected_installments, 1)
 	assert.equal(f.callbacks.length, 2)
+})
+
+// QA1: métodos reales, sin sustituir check/ready ni los validadores del invitado.
+function botonGuest(post) {
+ const s = store(), navigations = [], errors = []
+ const vm = { ...Btn.methods, $store: s, procesando: false, captcha_listo: true,
+  authenticated: false, puede_comprar_sin_login: true, user: null,
+  commerce: { id: 1, online_configuration: {} }, payment_methods: [{}], cart_payment_method: { id: 1 },
+  direcciones_de_envio_activas: false, envio_zipnova_elegido: false, pedido_a_consultar: false,
+  flag_activo() { return false }, $api: { post },
+  $router: { push(route) { navigations.push(route.name); return Promise.resolve() } },
+  $toast: { error(message) { errors.push(message) } },
+ }
+ s.state.delivery_day = { models: [] }
+ s.commit('cart/setCart', { id: 1, deliver: 0, articles: [], promociones_vinoteca: [] })
+ Object.defineProperty(vm, 'cart', { get: () => s.state.cart.cart })
+ for (const [field, value] of Object.entries({ name: 'Invitado', email: 'guest@example.test', phone: '123', ciudad: 'Córdoba', address: 'Borrador' })) s.commit('cart/set_buyer_field', { field, value })
+ return { vm, s, navigations, errors }
+}
+test('QA1 guest null: check valida sus datos y Payway identifica una sola vez antes de navegar', async () => {
+ let resolve, calls = 0
+ const f = botonGuest((url) => { assert.equal(url, 'buyer'); calls++; return new Promise(r => { resolve = r }) })
+ assert.equal(f.vm.check(), true)
+ f.vm.payway(); f.vm.payway()
+ assert.equal(calls, 1)
+ assert.equal(f.vm.procesando, true)
+ assert.deepEqual(f.navigations, [])
+ resolve({ data: { model: { id: 7 } } }); await tick()
+ assert.deepEqual(f.navigations, ['PaymentCard'])
+ assert.equal(f.vm.procesando, false)
+ assert.equal(f.s.state.auth.user.id, 7)
+})
+test('QA1 guest incompleto no navega ni identifica ni borra borrador', () => {
+ let calls = 0
+ const f = botonGuest(() => { calls++ })
+ f.s.commit('cart/set_buyer_field', { field: 'name', value: '' })
+ assert.equal(f.vm.check(), false)
+ f.vm.payway()
+ assert.equal(calls, 0)
+ assert.deepEqual(f.navigations, [])
+ assert.equal(f.vm.procesando, false)
+ assert.equal(f.s.state.cart.buyer.address, 'Borrador')
+ assert.match(f.errors[0], /Nombre/)
+})
+test('QA1 buyer error o respuesta incompleta libera y conserva, sin navegación ni pedido', async () => {
+ for (const response of [null, {}, { data: { model: {} } }]) {
+  const f = botonGuest(() => response ? Promise.resolve(response) : Promise.reject(new Error('HTTP fake')))
+  f.vm.payway(); await tick()
+  assert.equal(f.vm.procesando, false)
+  assert.deepEqual(f.navigations, [])
+  assert.equal(f.s.state.cart.buyer.address, 'Borrador')
+  assert.equal(f.s.state.auth.user, null)
+  assert.match(f.errors[0], /identificar/)
+ }
+})
+test('QA1 action publicada válida distinta checkout se pasa al proveedor', async t => {
+ const w = widget(t, () => Promise.resolve({ data: { captcha: { ...enabled, action: 'compra' } } }))
+ await tick()
+ assert.equal(w.callbacks.length, 1)
+ assert.equal(w.callbacks[0].action, 'compra')
+ w.callbacks[0].callback('compra-fake')
+ assert.equal(w.ready(), true)
+})
+test('QA1 action malformada falla cerrado sin proveedor ni borrar borrador', async t => {
+ for (const action of [undefined, null, '', ' ', 'compra inválida', 'compra/pago', 'compra\n', 'a'.repeat(33), {}, 7]) {
+  await t.test(String(action), async t => {
+   const w = widget(t, () => Promise.resolve({ data: { captcha: { ...enabled, action } } }))
+   w.s.commit('cart/set_buyer_field', { field: 'address', value: 'Borrador' })
+   await tick()
+   assert.equal(w.ready(), false)
+   assert.equal(w.vm.error, true)
+   assert.equal(w.callbacks.length, 0)
+   assert.equal(w.s.state.cart.buyer.address, 'Borrador')
+  })
+ }
+})
+
+test('QA1 guest user=null → buyer → PaymentCard → CAPTCHA nuevo → un único pedido real', async t => {
+ const f = montarFlujo(t, enabled, true)
+ await f.router.push({ name: 'Payment' }); await tick()
+ assert.equal(f.s.state.auth.user, null)
+ f.callbacks[0].callback('payment-viejo'); await Vue.nextTick()
+ const btn = f.find('confirmar')
+ btn.confirmar(); btn.confirmar(); await tick()
+ assert.equal(f.router.currentRoute.name, 'Payment')
+ assert.equal(f.sdk.length, 0)
+ assert.deepEqual(f.requests.map(r => r.url), ['buyer'])
+ assert.equal(f.s.state.cart.cuotas_bloqueadas, true)
+ f.identificar(); await tick()
+ assert.equal(f.router.currentRoute.name, 'PaymentCard')
+ assert.equal(btn._isDestroyed, true)
+ assert.equal(f.s.state.auth.user.id, 7)
+ assert.equal(f.s.state.cart.cuotas_bloqueadas, false)
+ assert.equal(Cart.consumir_token_captcha(f.s.state), null)
+ const pay = f.find('sendForm')
+ pay.selected_installments = 1
+ assert.equal(await pay.sendForm(), null)
+ assert.equal(f.sdk.length, 0)
+ f.callbacks.at(-1).callback('tarjeta-nuevo'); await Vue.nextTick()
+ f.success()
+ const pending = pay.sendForm()
+ assert.equal(await pay.sendForm(), null)
+ await tick()
+ assert.equal(f.sdk.length, 1)
+ f.sdk[0](200, { id: 'sdk-fake', bin: 'fake' })
+ f.sdk[0](200, { id: 'duplicado', bin: 'fake' })
+ assert.equal(await pending, true); await tick()
+ assert.deepEqual(f.requests.map(r => r.url), ['buyer', 'payment-card-info', '/orders'])
+ assert.equal(f.requests.at(-1).body.captcha_token, 'tarjeta-nuevo')
+ assert.equal(f.router.currentRoute.name, 'Thanks')
+ assert.equal(f.s.state.cart.buyer.address, '')
+})
+
+test('QA1 Payment guest: error/incompleto buyer conserva borrador, libera candado y no tokeniza', async t => {
+ for (const modo of ['http', 'incompleto']) {
+  await t.test(modo, async t => {
+   const f = montarFlujo(t, enabled, true)
+   await f.router.push({ name: 'Payment' }); await tick()
+   f.callbacks[0].callback('payment-fake'); await Vue.nextTick()
+   const btn = f.find('confirmar')
+   btn.confirmar(); await tick()
+   if (modo === 'http') f.rechazarBuyer()
+   else f.identificar({ data: { model: {} } })
+   await tick()
+   assert.equal(btn.procesando, false)
+   assert.equal(f.s.state.cart.cuotas_bloqueadas, false)
+   assert.equal(f.s.state.cart.buyer.address, 'Borrador')
+   assert.equal(f.router.currentRoute.name, 'Payment')
+   assert.equal(f.s.state.auth.user, null)
+   assert.equal(f.sdk.length, 0)
+   assert.deepEqual(f.requests.map(r => r.url), ['buyer'])
+   assert.match(f.messages[0], /identificar/)
+  })
+ }
 })
