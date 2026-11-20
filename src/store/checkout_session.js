@@ -1,3 +1,6 @@
+// Contexto efímero: sólo el observer del commit propio puede conservar el resumen.
+const cierres_propios = new WeakMap()
+
 // La generación identifica un borrador, aunque el usuario siga autenticado.
 export function comprador_vacio() {
 	return { name: '', email: '', phone: '', ciudad: '', barrio: '', address: '' }
@@ -23,6 +26,13 @@ export function checkout_vigente(state, token) {
 	return capturar_checkout(state) === token
 }
 
+// Calcula la transición antes del commit; nunca captura el estado que dejó un subscriber.
+export function captura_reset_checkout(state) {
+	return capturar_checkout({ ...state, cart: { ...state.cart,
+		checkout_generation: state.cart.checkout_generation + 1,
+		buyer: comprador_vacio(), selected_buyer: null } })
+}
+
 // Una sola frontera para logout, cambio de comprador, cliente del vendedor y comercio.
 export function observar_checkout(store) {
 	let identidad = identidad_checkout(store.state)
@@ -45,7 +55,12 @@ export function observar_checkout(store) {
 		usuario = actual
 		comercio = nuevo_comercio
 		if (invitado_identificado || primera_carga) return
-		store.commit('cart/reset_checkout', { conservar_lineas: !cambio_comercio, conservar_cliente: mutation.type === 'cart/set_selected_buyer', conservar_resumen: mutation.type === 'auth/setUser' && !actual })
+		const cierre = cierres_propios.get(store)
+		const conservar_resumen = !!(cierre && cierre.tipo === mutation.type &&
+			cierre.valor === mutation.payload && checkout_vigente(store.state, cierre.esperada))
+		// Consumir antes del reset: un commit anidado no puede reutilizar la excepción.
+		cierres_propios.delete(store)
+		store.commit('cart/reset_checkout', { conservar_lineas: !cambio_comercio, conservar_cliente: mutation.type === 'cart/set_selected_buyer', conservar_resumen })
 		store.commit('buyer_addresses/limpiar')
 		identidad = identidad_checkout(store.state)
 	})
@@ -65,10 +80,20 @@ function captura_logout(state, cambios) {
 export function cerrar_invitado_checkout(store, continuacion) {
 	if (!checkout_vigente(store.state, continuacion.sesion)) return
 	const sin_auth = captura_logout(store.state, { authenticated: false })
-	store.commit('auth/setAuthenticated', false)
+	commit_cierre(store, 'auth/setAuthenticated', false, { authenticated: false })
 	if (!checkout_vigente(store.state, sin_auth)) return
 	const sin_usuario = captura_logout(store.state, { user: null })
-	store.commit('auth/setUser', null)
+	commit_cierre(store, 'auth/setUser', null, { user: null })
 	// Sólo el logout propio esperado puede renovar la continuación hacia Gracias.
 	if (checkout_vigente(store.state, sin_usuario)) continuacion.sesion = sin_usuario
+}
+
+function commit_cierre(store, tipo, valor, cambios) {
+	const siguiente = { ...store.state, auth: { ...store.state.auth, ...cambios } }
+	cierres_propios.set(store, { tipo, valor, esperada: capturar_checkout(siguiente) })
+	try {
+		store.commit(tipo, valor)
+	} finally {
+		cierres_propios.delete(store)
+	}
 }

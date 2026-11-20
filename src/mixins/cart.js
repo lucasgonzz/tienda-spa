@@ -1,5 +1,5 @@
 import { consumir_token_captcha } from '@/store/cart'
-import { capturar_checkout, checkout_vigente, cerrar_invitado_checkout } from '@/store/checkout_session'
+import { capturar_checkout, captura_reset_checkout, checkout_vigente, cerrar_invitado_checkout } from '@/store/checkout_session'
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
@@ -975,7 +975,7 @@ export default {
 			let apagar_overlay = function() {
 				if (mostrar_overlay && checkout_vigente(self.$store.state, continuacion ? continuacion.sesion : sesion)) {
 					self.$store.commit('auth/setLoading', false)
-					self.$store.commit('auth/setMessage', '')
+					if (checkout_vigente(self.$store.state, continuacion ? continuacion.sesion : sesion)) self.$store.commit('auth/setMessage', '')
 				}
 			}
 
@@ -1052,9 +1052,9 @@ export default {
 					apagar_overlay()
 					return true
 				}
+				// Sólo se admite el resultado exacto del reset propio, calculado antes de sus subscribers.
+				continuacion = { sesion: captura_reset_checkout(self.$store.state) }
 				self.$store.commit('cart/reset_checkout', { completado: resumen })
-				// El reset exitoso inicia una continuación distinta del borrador enviado.
-				continuacion = { sesion: capturar_checkout(self.$store.state) }
 				const vigente = () => checkout_vigente(self.$store.state, continuacion.sesion)
 				const trackear_pedido = function() {
 					if (!vigente()) return

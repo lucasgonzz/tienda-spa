@@ -325,3 +325,99 @@ test('QA2 fallos delete y logout estables conservan éxito y navegación única'
 	assert.equal(store.state.cart.checkout_completado.order_id, 30)
 	assert.deepEqual(llamadas, ['/orders', 'resumen', 'delete', 'buyer/logout', 'Thanks'])
 })
+
+// QA2 síncrono: configuración de comercio independiente del estado autenticado.
+function postOrdenSync(t, autenticado = false, guest = true) {
+	const caso = postOrden(t)
+	const { store, vm, llamadas } = caso
+	store.commit('auth/setAuthenticated', autenticado)
+	store.commit('cart/setCart', { id: 20, articles: [{ id: 1, pivot: { amount: 1, price: 50 } }], promociones_vinoteca: [] })
+	store.commit('commerce/setCommerce', { id: 1, owner_id: 10, online_configuration: { register_to_buy: guest ? 0 : 1 } })
+	const Generals = load('mixins/generals').default
+	Object.defineProperty(vm, 'puede_comprar_sin_login', { get: () => Generals.computed.puede_comprar_sin_login.call({ commerce: store.state.commerce.commerce }) })
+	const Router = require('vue-router')
+	Vue.use(Router)
+	const router = new Router({ mode: 'abstract', routes: [{ name: 'Thanks', path: '/gracias', component: {} }] })
+	vm.$router = router
+	router.afterEach(() => llamadas.push('Thanks'))
+	store.hotUpdate({ modules: { auth: { namespaced: true, mutations: {
+		setUser(s, u) { s.user = u }, setAuthenticated(s, v) { s.authenticated = v },
+		setLoading(s, v) { Vue.set(s, 'loading', v) }, setMessage(s, v) { Vue.set(s, 'message', v) },
+	} } } })
+	return caso
+}
+for (const cambio of ['auth', 'ida-vuelta', 'generacion']) {
+	test(`QA2 sync reset exitoso no adopta sesión interpuesta: ${cambio}`, async t => {
+		const { store, vm, llamadas } = postOrdenSync(t)
+		let tokenB, efectosB
+		const posteriores = []
+		store.subscribe(m => {
+			if (tokenB) posteriores.push(m.type)
+			if (m.type !== 'cart/reset_checkout' || !m.payload || !m.payload.completado) return
+			sesionB(store, cambio)
+			tokenB = Session.capturar_checkout(store.state)
+			efectosB = JSON.stringify(store.state.cart)
+		})
+		assert.equal(await vm.makeOrder(), true)
+		assert.deepEqual(llamadas, ['/orders'])
+		assert.equal(Session.capturar_checkout(store.state), tokenB)
+		assert.equal(JSON.stringify(store.state.cart), efectosB)
+		assert.deepEqual(posteriores, [])
+	})
+}
+test('QA2 sync overlay revalida antes de borrar mensaje de B', async t => {
+	const { store, vm, llamadas } = postOrdenSync(t)
+	let abierta = false
+	const posteriores = []
+	store.subscribe(m => {
+		if (abierta) posteriores.push(m.type)
+		if (m.type !== 'auth/setLoading' || m.payload !== false || abierta) return
+		sesionB(store)
+		store.commit('auth/setMessage', 'Mensaje privado B')
+		abierta = true
+	})
+	assert.equal(await vm.makeOrder(), true)
+	assert.equal(store.state.auth.message, 'Mensaje privado B')
+	assert.deepEqual(posteriores, [])
+	assert.ok(!llamadas.includes('Thanks'))
+	assert.equal(store.state.cart.buyer.address, 'B')
+})
+for (const autenticado of [true, false]) for (const guest of [true, false]) {
+	test(`QA2 sync matriz auth=${autenticado} config guest=${guest} conserva resumen legítimo`, async t => {
+		const { store, vm, llamadas } = postOrdenSync(t, autenticado, guest)
+		assert.equal(await vm.makeOrder(), true)
+		assert.equal(store.state.cart.checkout_completado.order_id, 30)
+		assert.equal(store.state.orders.order.id, 30)
+		assert.equal(llamadas.includes('buyer/logout'), guest)
+		assert.ok(llamadas.includes('Thanks'))
+		assert.equal(store.state.auth.user === null, guest)
+	})
+}
+for (const tipo of ['auth/setAuthenticated', 'auth/setUser']) {
+	test(`QA2 sync logout propio interrumpido por B en ${tipo} no preserva resumen privado`, async t => {
+		const { store, vm, llamadas } = postOrdenSync(t, true, true)
+		let abierta = false, tokenB, borradorB
+		store.subscribe(m => {
+			if (abierta || m.type !== tipo || m.payload) return
+			abierta = true
+			sesionB(store)
+			tokenB = Session.capturar_checkout(store.state)
+			borradorB = JSON.stringify(store.state.cart)
+		})
+		assert.equal(await vm.makeOrder(), true)
+		assert.equal(Session.capturar_checkout(store.state), tokenB)
+		assert.equal(JSON.stringify(store.state.cart), borradorB)
+		assert.equal(store.state.cart.checkout_completado, null)
+		assert.equal(store.state.auth.user.id, 99)
+		assert.ok(!llamadas.includes('Thanks'))
+	})
+}
+for (const tipo of ['auth/setAuthenticated', 'auth/setUser']) {
+	test(`QA2 sync cierre externo ${tipo} no conserva resumen fuera de la excepción propia`, async t => {
+		const { store, vm } = postOrdenSync(t, true, false)
+		assert.equal(await vm.makeOrder(), true)
+		assert.equal(store.state.cart.checkout_completado.order_id, 30)
+		store.commit(tipo, tipo === 'auth/setUser' ? null : false)
+		assert.equal(store.state.cart.checkout_completado, null)
+	})
+}
