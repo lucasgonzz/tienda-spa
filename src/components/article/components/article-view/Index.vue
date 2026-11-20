@@ -30,6 +30,15 @@
 				</div>
 			</div>
 
+			<!-- La descripción va después de imagen/datos y antes de cualquier recomendación.
+				El modal no publica el ancla de la ficha que puede estar abierta detrás. -->
+			<section
+			v-if="tiene_descripcion"
+			:id="es_ficha ? 'descripcion-completa' : null"
+			class="ficha-ml__descripcion">
+				<description></description>
+			</section>
+
 			<!--
 				Los relacionados van ADENTRO de la tarjeta, al final y separados por una linea.
 				En el modal de agregar al carrito no van: ahi el comprador esta a un click de
@@ -38,16 +47,11 @@
 			<relacionados v-if="es_ficha"></relacionados>
 		</div>
 
-		<!--
-			En el modal de agregar al carrito la descripcion completa vive ACA: no hay una
-			`views/Article.vue` alrededor que la dibuje en su propia seccion (esa es la
-			pagina entera, y no envuelve al modal). En la ficha real no se repite: ya la
-			dibuja `views/Article.vue`, en su seccion con el ancla `#descripcion-completa`.
-		-->
-		<description v-if="!es_ficha"></description>
 	</div>
 </template>
 <script>
+import { tiene_descripcion } from '@/helpers/descripcion_articulo'
+
 export default {
 	name: 'Article',
 	components: {
@@ -59,6 +63,9 @@ export default {
 		Description: () => import('@/components/article/components/Description'),
 	},
 	computed: {
+		tiene_descripcion() {
+			return tiene_descripcion(this.article_to_show)
+		},
 		/**
 		 * El articulo de la ficha.
 		 *
@@ -119,6 +126,10 @@ export default {
 	max-width: 1180px
 	margin-left: auto
 	margin-right: auto
+
+	.ficha-ml__descripcion
+		margin-top: 1.5rem
+		scroll-margin-top: 1rem
 
 	.ficha-ml__tarjeta
 		background: #FFF

@@ -46,18 +46,6 @@
 			</div>
 
 			<!--
-				La descripcion completa, fuera de la tarjeta blanca. El id es el ancla a la que
-				scrollea el "Ver caracteristicas" de "Lo que tenes que saber de este producto":
-				si se cambia, hay que cambiarlo tambien en `data/SaberDelProducto.vue`.
-			-->
-			<section
-			v-if="tiene_descripcion"
-			id="descripcion-completa"
-			class="article-page__section article-page__section--descripcion">
-				<description></description>
-			</section>
-
-			<!--
 				Las dos secciones de recomendacion, cada una en su propio bloque. Sin datos no
 				se dibuja nada, ni el titulo: el componente tiene el v-if adentro, por eso no
 				van envueltas en un <section> propio (quedaria un bloque vacio con su linea).
@@ -88,13 +76,11 @@ import CategoryInfo from '@/components/article/components/CategoryInfo'
 import ArticleImage from '@/components/article/components/ArticleImage'
 import ArticleData from '@/components/article/components/data/Index'
 import Variants from '@/components/article/components/data/Variants'
-import Description from '@/components/article/components/Description'
 import Questions from '@/components/article/components/questions/Index'
 import Preguntar from '@/components/article/components/Preguntar'
 import Categories from '@/components/categories/components/Categories'
 import Platelets from '@/components/home/components/platelets/Index'
 import articles from '@/mixins/articles'
-import { tiene_descripcion as tiene_descripcion_del_articulo } from '@/helpers/descripcion_articulo'
 import { abrir_vista_de_producto, cerrar_vista } from '@/utils/tracking'
 import { seo_servidor } from '@/utils/seo_servidor'
 import { env } from '@/runtime_config'
@@ -156,7 +142,6 @@ export default {
 		ArticleImage,
 		ArticleData,
 		Variants,
-		Description,
 		Questions,
 		Preguntar,
 		Categories,
@@ -182,18 +167,6 @@ export default {
 	computed: {
 		article() {
 			return this.$store.state.articles.article_to_show
-		},
-		/**
-		 * Si hay algo que mostrar en la descripcion completa. Mismo criterio que el "show"
-		 * de `Description.vue`, que es lo que dibuja adentro (los dos leen de
-		 * `helpers/descripcion_articulo.js`): la seccion se armaba igual sin esto -sin v-if
-		 * propio- y un articulo sin descripcion dejaba una raya horizontal y aire en blanco
-		 * antes del contacto.
-		 *
-		 * @returns {boolean}
-		 */
-		tiene_descripcion() {
-			return tiene_descripcion_del_articulo(this.article)
 		},
 		title() {
 			if (this.article) {
@@ -551,12 +524,4 @@ export default {
   }
 }
 
-/*
- * La descripción completa del artículo. Es el ancla del botón "Ver características" de
- * "Lo que tenés que saber de este producto", así que el scroll tiene que llegar a una
- * sección que se vea: el margen de arriba lo da .article-page__section.
- */
-.article-page__section--descripcion {
-  scroll-margin-top: 1rem;
-}
 </style>

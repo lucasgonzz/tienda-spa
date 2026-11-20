@@ -38,14 +38,8 @@ export default {
 			return this.$store.state.articles.article_to_show
 		},
 		/**
-		 * Si esta instancia esta montada adentro del modal de agregar al carrito, donde NO
-		 * existe el ancla `#descripcion-completa` -esa la pone `views/Article.vue`, que no
-		 * envuelve al modal-. Mismo mecanismo que ya usa `article-view/Index.vue` para la
-		 * misma pregunta (subir por $parent hasta encontrar el BModal de BootstrapVue).
-		 *
-		 * Sin esto "Ver caracteristicas" quedaba visible en el modal: abierto desde Home
-		 * no hacia nada (no hay ancla en el DOM) y abierto desde la ficha scrolleaba la
-		 * pagina de atras con el modal encima.
+		 * El modal comparte el layout de la ficha, pero no publica su ancla.
+		 * No debe desplazar la página de atrás aunque esté abierto desde un artículo.
 		 *
 		 * @returns {boolean}
 		 */
@@ -134,13 +128,16 @@ export default {
 		/**
 		 * Lleva a la descripcion completa, mas abajo en la misma pagina.
 		 *
-		 * El ancla la pone `views/Article.vue` alrededor del bloque de descripcion. Si no
+		 * El ancla la pone `article-view/Index.vue` alrededor del bloque de descripcion. Si no
 		 * existe —por ejemplo si este componente se monta adentro del modal de agregar al
-		 * carrito, donde no hay descripcion completa— no hace nada y no rompe.
+		 * carrito, donde no se publica el ancla de la ficha— no hace nada y no rompe.
 		 *
 		 * @returns {void}
 		 */
 		ver_caracteristicas() {
+			if (this.esta_en_modal) {
+				return
+			}
 			let ancla = document.getElementById('descripcion-completa')
 			if (!ancla) {
 				return
