@@ -421,3 +421,77 @@ for (const tipo of ['auth/setAuthenticated', 'auth/setUser']) {
 		assert.equal(store.state.cart.checkout_completado, null)
 	})
 }
+
+// QA2 direcciones: interposición dentro del reset del observer, no después del logout.
+function direccionesQA2(store, id = 999, comprador = 99) {
+	store.commit('buyer_addresses/set_models', [{ id }])
+	store.commit('buyer_addresses/set_cargada_para', comprador)
+}
+for (const autenticado of [true, false]) for (const cambio of ['auth', 'ida-vuelta', 'generacion']) {
+	test(`QA2 direcciones reset anidado auth=${autenticado} cambio=${cambio} no limpia contexto interpuesto`, async t => {
+		const { store, vm, llamadas } = postOrdenSync(t, autenticado, true)
+		let interpuesto = false, foto, token, direccion, mensaje
+		const tardios = []
+		store.subscribe(m => {
+			if (foto && ['buyer_addresses/limpiar', 'cart/reset_checkout'].includes(m.type)) tardios.push(m.type)
+			if (interpuesto || m.type !== 'cart/reset_checkout' || !m.payload || !m.payload.conservar_resumen) return
+			interpuesto = true
+			if (cambio === 'auth') sesionB(store)
+			if (cambio === 'ida-vuelta') sesionB(store, 'ida-vuelta')
+			if (cambio === 'generacion') sesionB(store, 'generacion')
+			store.commit('auth/setMessage', 'Mensaje privado interpuesto')
+			direccionesQA2(store)
+			token = Session.capturar_checkout(store.state)
+			foto = JSON.stringify({ auth: store.state.auth, cart: store.state.cart })
+			direccion = JSON.stringify(store.state.buyer_addresses)
+			mensaje = store.state.auth.message
+		})
+		assert.equal(await vm.makeOrder(), true)
+		assert.equal(interpuesto, true)
+		assert.equal(Session.capturar_checkout(store.state), token)
+		assert.equal(JSON.stringify({ auth: store.state.auth, cart: store.state.cart }), foto)
+		assert.equal(JSON.stringify(store.state.buyer_addresses), direccion)
+		assert.deepEqual(store.state.buyer_addresses.models.map(m => ({ ...m })), [{ id: 999 }])
+		assert.equal(store.state.buyer_addresses.cargada_para, 99)
+		assert.equal(store.state.auth.message, mensaje)
+		assert.equal(store.state.cart.checkout_completado, null)
+		assert.equal(store.state.cart.buyer.address, 'B')
+		if (cambio === 'auth') {
+			assert.equal(store.state.auth.user.id, 99)
+			assert.equal(store.state.auth.authenticated, true)
+		}
+		assert.ok(!llamadas.includes('Thanks'))
+		assert.deepEqual(tardios, [])
+	})
+}
+for (const autenticado of [true, false]) for (const guest of [true, false]) {
+	test(`QA2 direcciones matriz estable auth=${autenticado} guest=${guest} conserva limpieza legítima`, async t => {
+		const { store, vm, llamadas } = postOrdenSync(t, autenticado, guest)
+		direccionesQA2(store, 444, 4)
+		assert.equal(await vm.makeOrder(), true)
+		assert.equal(store.state.cart.checkout_completado.order_id, 30)
+		assert.equal(store.state.orders.order.id, 30)
+		assert.equal(llamadas.includes('buyer/logout'), guest)
+		assert.equal(llamadas.filter(x => x === 'Thanks').length, 1)
+		assert.equal(store.state.auth.user === null, guest)
+		assert.deepEqual(store.state.buyer_addresses.models.map(m => ({ ...m })), guest ? [] : [{ id: 444 }])
+		assert.equal(store.state.buyer_addresses.cargada_para, guest ? null : 4)
+	})
+}
+for (const cambio of ['comprador', 'comercio', 'cliente', 'logout']) {
+	test(`QA2 direcciones cambio externo ${cambio} limpia datos privados`, async t => {
+		const { store, vm } = postOrdenSync(t, true, false)
+		assert.equal(await vm.makeOrder(), true)
+		direccionesQA2(store, 444, 4)
+		store.commit('cart/set_buyer_field', { field: 'address', value: 'Privada A' })
+		if (cambio === 'comprador') store.commit('auth/setUser', { id: 99 })
+		if (cambio === 'comercio') store.commit('commerce/setCommerce', { id: 2, owner_id: 90 })
+		if (cambio === 'cliente') store.commit('cart/set_selected_buyer', { id: 99 })
+		if (cambio === 'logout') store.commit('auth/setAuthenticated', false)
+		assert.deepEqual(store.state.buyer_addresses.models, [])
+		assert.equal(store.state.buyer_addresses.cargada_para, null)
+		assert.equal(store.state.cart.buyer.address, '')
+		assert.equal(store.state.cart.checkout_completado, null)
+		if (cambio === 'cliente') assert.equal(store.state.cart.selected_buyer.id, 99)
+	})
+}

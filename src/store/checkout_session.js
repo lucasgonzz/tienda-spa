@@ -27,10 +27,10 @@ export function checkout_vigente(state, token) {
 }
 
 // Calcula la transición antes del commit; nunca captura el estado que dejó un subscriber.
-export function captura_reset_checkout(state) {
+export function captura_reset_checkout(state, opciones = {}) {
 	return capturar_checkout({ ...state, cart: { ...state.cart,
 		checkout_generation: state.cart.checkout_generation + 1,
-		buyer: comprador_vacio(), selected_buyer: null } })
+		buyer: comprador_vacio(), selected_buyer: opciones.conservar_cliente ? state.cart.selected_buyer : null } })
 }
 
 // Una sola frontera para logout, cambio de comprador, cliente del vendedor y comercio.
@@ -60,8 +60,11 @@ export function observar_checkout(store) {
 			cierre.valor === mutation.payload && checkout_vigente(store.state, cierre.esperada))
 		// Consumir antes del reset: un commit anidado no puede reutilizar la excepción.
 		cierres_propios.delete(store)
-		store.commit('cart/reset_checkout', { conservar_lineas: !cambio_comercio, conservar_cliente: mutation.type === 'cart/set_selected_buyer', conservar_resumen })
-		store.commit('buyer_addresses/limpiar')
+		const opciones = { conservar_lineas: !cambio_comercio, conservar_cliente: mutation.type === 'cart/set_selected_buyer', conservar_resumen }
+		// Predecir antes del reset: sus subscribers pueden abrir otro borrador (incluso ABA).
+		const esperada = captura_reset_checkout(store.state, opciones)
+		store.commit('cart/reset_checkout', opciones)
+		if (checkout_vigente(store.state, esperada)) store.commit('buyer_addresses/limpiar')
 		identidad = identidad_checkout(store.state)
 	})
 }
