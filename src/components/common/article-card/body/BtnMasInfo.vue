@@ -8,7 +8,7 @@
 		<b-button
 		class="btn-ver-mas"
 		:class="(authenticated || puede_comprar_sin_login) ? 'btn-mas-info' : 'w-100'"
-		@click="toArticle(article)"
+		@click.stop="toArticle(article)"
 		variant="primary">
 			<span
 			class="d-sm-none">
@@ -26,7 +26,7 @@
 			v-if="!is_item_in_cart(article)"
 			class="btn-add-to-cart"
 			@click.stop="add_to_cart"
-			:disabled="flag_activo(article.precio_pausado)"
+			:disabled="comprando || flag_activo(article.precio_pausado)"
 			variant="outline-primary">
 				<i class="bi bi-cart-plus"></i>
 				<span class="btn-cart-label">Agregar</span>
@@ -34,27 +34,35 @@
 			<b-button
 			v-else
 			class="btn-add-to-cart"
-			@click.stop="remove_cart(article)"
+			@click.stop="quitar"
+			:disabled="comprando"
 			variant="danger">
 				<i class="bi bi-cart-plus"></i>
 				<span class="btn-cart-label">Quitar</span>
 			</b-button>
  		</template>
 
+		<selector-compra v-if="comprando" :article="article" @terminar="comprando = false" />
 	</div>
 </template>
 <script>
 import articlesMixin from '@/mixins/articles'
+import { tomar_compra } from '@/helpers/compra_desde_tarjeta'
+import SelectorCompra from '@/components/common/article-card/SelectorCompra'
 export default {
 	mixins: [articlesMixin],
+	components: { SelectorCompra },
+	data() { return { comprando: false } },
 	props: {
 		article: Object,
 	},
 	methods: {
 		add_to_cart() {
-			this.$store.commit('articles/setArticleToShow', this.article)
-			this.set_amount_add_to_cart()
-			this.$bvModal.show('add-to-cart-modal')
+			if (this.comprando || (!this.authenticated && !this.puede_comprar_sin_login)) return
+			if (tomar_compra(this.$store)) this.comprando = true
+		},
+		quitar() {
+			if (!this.comprando) this.remove_cart(this.article)
 		}
 	}
 }
