@@ -25,7 +25,8 @@ import payment_methods from './payment_methods'
 import delivery_zones from './delivery_zones'
 import delivery_day from './delivery_day'
 // Direcciones guardadas del comprador (misión formas-envio-direcciones-maps, 19/10/2026).
-import buyer_addresses, { limpiar_al_cambiar_de_comprador } from './buyer_addresses'
+import buyer_addresses from './buyer_addresses'
+import { observar_checkout } from './checkout_session'
 
 import client_offers from './client_offers'
 
@@ -76,6 +77,6 @@ export default new Vuex.Store({
 	},
 	plugins: [
 		// Logout o cambio de comprador: limpia sus direcciones guardadas y la elegida en el carrito.
-		limpiar_al_cambiar_de_comprador,
+		observar_checkout,
 	],
 })

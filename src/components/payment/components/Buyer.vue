@@ -97,6 +97,7 @@
 	</div>
 </template>
 <script>
+import { capturar_checkout, checkout_vigente } from '@/store/checkout_session'
 import payment_set_height from '@/mixins/payment_set_height'
 import cart from '@/mixins/cart'
 export default {
@@ -145,6 +146,13 @@ export default {
 			return !(this.direcciones_de_envio_activas && this.$store.state.cart.cart.deliver == 1)
 		},
 	},
+	watch: {
+		'$store.state.cart.checkout_generation'() {
+			this.ultimo_email_consultado = ''
+			this.buscando_direccion = false
+			this.direccion_autocompletada = false
+		},
+	},
 	methods: {
 		/**
 		 * Al terminar de escribir el email, consulta si ese comprador ya existe en la
@@ -165,10 +173,11 @@ export default {
 			if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
 				return
 			}
-			if (email === this.ultimo_email_consultado) {
+			const token = capturar_checkout(this.$store.state)
+			if (token === this.ultimo_email_consultado) {
 				return
 			}
-			this.ultimo_email_consultado = email
+			this.ultimo_email_consultado = token
 			
 			this.buscando_direccion = true
 			this.$api.post('buyer/checkout-address', {
@@ -176,6 +185,7 @@ export default {
 				commerce_id : this.commerce.id,
 			})
 			.then(res => {
+				if (!checkout_vigente(this.$store.state, token)) return
 				this.buscando_direccion = false
 				
 				if (!res.data.found) {
@@ -201,6 +211,8 @@ export default {
 				}
 			})
 			.catch(() => {
+				if (!checkout_vigente(this.$store.state, token)) return
+				this.ultimo_email_consultado = ''
 				this.buscando_direccion = false
 				// Silencioso a proposito: que la tienda no responda esta consulta
 				// interna nunca puede convertirse en un obstaculo para comprar.
