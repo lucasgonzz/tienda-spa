@@ -10,6 +10,9 @@
 <script>
 import { contexto_captcha, limpiar_token_captcha, recibir_token_captcha } from '@/store/cart'
 
+// Marca interna (comparada por identidad) de "API anterior sin endpoint": un cuerpo del servidor no puede imitarla.
+const API_ANTERIOR = Object.freeze({})
+
 export default {
 	data() {
 		return { mensaje: 'Preparando verificación…', error: false }
@@ -72,6 +75,21 @@ export default {
 		reintentar() {
 			this.iniciar()
 		},
+		/**
+		 * Indica si un rechazo de la consulta de configuración es el de una tienda-api ANTERIOR,
+		 * que todavía no tiene GET buyer/checkout-captcha (ruta inexistente => 404).
+		 * Se exige respuesta HTTP 404 y que el cuerpo NO traiga el campo `captcha`: la API nueva
+		 * siempre responde esa clave y nunca 404 en esta ruta. Red caída, timeout, 401/403/419/429,
+		 * 5xx o cualquier otro fallo NO cuentan: siguen bloqueando para no dejar el checkout
+		 * desprotegido ante un error real (no simplificar a "cualquier error => permitir").
+		 * @param {*} err Rechazo de axios (o cualquier valor rechazado).
+		 * @returns {boolean}
+		 */
+		es_api_anterior(err) {
+			if (!err || !err.response || err.response.status !== 404) return false
+			const data = err.response.data
+			return !(data && typeof data === 'object' && 'captcha' in data)
+		},
 		iniciar() {
 			this.limpiar()
 			this.error = false
@@ -81,9 +99,19 @@ export default {
 			let self = this
 			// Una consulta por ciclo de sesión. Renovar el widget no vuelve a consultar la API.
 			const consulta = this.configuracion ? Promise.resolve(this.configuracion) : this.$api.get('buyer/checkout-captcha')
-				.then(function(res) { return res.data && res.data.captcha })
+				.then(function(res) { return res.data && res.data.captcha }, function(err) {
+					// API anterior sin el endpoint: la compra sigue como antes, sin token. No se cachea:
+					// cada ciclo vuelve a consultar y, si la API ya es nueva, se protege.
+					if (self.es_api_anterior(err)) return API_ANTERIOR
+					throw err
+				})
 			consulta.then(function(config) {
 				if (!self.vigente(ciclo, contexto)) return
+				if (config === API_ANTERIOR) {
+					self.mensaje = ''
+					self.$emit('ready', true)
+					return
+				}
 				if (!config || config.provider !== 'turnstile') throw new Error('configuracion_invalida')
 				self.configuracion = config
 				if (config.state === 'disabled' && config.required === false) {
