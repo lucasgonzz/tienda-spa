@@ -163,3 +163,165 @@ test('U2-09 éxito tardío no borra el nuevo borrador', async () => {
 	assert.equal(await pendiente, true)
 	assert.equal(store.state.cart.buyer.address, 'Nuevo')
 })
+
+// QA2: auxiliares productivos, HTTP diferido y store con la frontera real de sesión.
+function diferida() {
+	let resolve, reject
+	const promise = new Promise((r, j) => { resolve = r; reject = j })
+	return { promise, resolve, reject }
+}
+const turno = () => new Promise(r => setImmediate(r))
+function postOrden(t, { invitado = true, resumen = null, borrado = null, logout = null } = {}) {
+	const { store, vm } = caso()
+	const Orders = load('store/orders').default
+	store.hotUpdate({ modules: { orders: Orders } })
+	store.commit('auth/setUser', { id: 4, email: 'prueba@example.test' })
+	if (!invitado) store.commit('auth/setAuthenticated', true)
+	// Preparar pedido después de los cambios iniciales de identidad.
+	store.commit('cart/setCart', { id: 20, articles: [{ id: 1, pivot: { amount: 1, price: 50 } }], promociones_vinoteca: [] })
+	const llamadas = [], efectos = []
+	store.subscribe(m => { if (['auth/setLoading', 'auth/setMessage', 'orders/setOrder'].includes(m.type)) efectos.push(m.type) })
+	const anterior = axios.defaults.adapter
+	t.after(() => { axios.defaults.adapter = anterior })
+	axios.defaults.adapter = config => {
+		llamadas.push('resumen')
+		return (resumen ? resumen.promise : Promise.resolve({ id: 30 })).then(order => ({ data: { order }, status: 200, headers: {}, config }))
+	}
+	vm.puede_comprar_sin_login = invitado
+	vm.deleteCartAfterOrder = methods.deleteCartAfterOrder
+	vm.logoutGuestAfterOrder = methods.logoutGuestAfterOrder
+	vm.$router.push = () => llamadas.push('Thanks')
+	vm.$api = {
+		post(url) {
+			llamadas.push(url)
+			return url === '/orders' ? Promise.resolve({ data: { order_id: 30 } }) : logout ? logout.promise : Promise.resolve()
+		},
+		delete() { llamadas.push('delete'); return borrado ? borrado.promise : Promise.resolve() },
+	}
+	return { store, vm, llamadas, efectos }
+}
+function sesionB(store, cambio = 'auth') {
+	if (cambio === 'auth') { store.commit('auth/setAuthenticated', true); store.commit('auth/setUser', { id: 99 }) }
+	if (cambio === 'comercio') store.commit('commerce/setCommerce', { id: 2, owner_id: 90 })
+	if (cambio === 'owner') store.commit('commerce/setCommerce', { id: 1, owner_id: 90 })
+	if (cambio === 'generacion') store.commit('cart/reset_checkout')
+	if (cambio === 'ida-vuelta') { const a = store.state.auth.user; store.commit('auth/setUser', { id: 99 }); store.commit('auth/setUser', a) }
+	store.commit('cart/set_buyer_field', { field: 'address', value: 'B' })
+	store.commit('cart/set_buyer_field', { field: 'email', value: 'b@example.test' })
+}
+for (const cambio of ['auth', 'comercio', 'owner', 'generacion', 'ida-vuelta']) {
+	test(`QA2 resumen tardío no publica ni continúa sobre B: ${cambio}`, async t => {
+		const resumen = diferida()
+		const { store, vm, llamadas, efectos } = postOrden(t, { resumen })
+		const p = vm.makeOrder()
+		await turno()
+		assert.deepEqual(llamadas, ['/orders', 'resumen'])
+		sesionB(store, cambio)
+		const tokenB = Session.capturar_checkout(store.state), n = efectos.length
+		resumen.resolve({ id: 30 })
+		assert.equal(await p, true)
+		assert.equal(store.state.orders.order, null)
+		assert.deepEqual(llamadas, ['/orders', 'resumen'])
+		assert.equal(Session.capturar_checkout(store.state), tokenB)
+		assert.equal(store.state.cart.buyer.address, 'B')
+		assert.equal(efectos.length, n)
+	})
+}
+for (const rechazo of [false, true]) {
+	test(`QA2 logout tardío conserva auth y borrador B: rechazo=${rechazo}`, async t => {
+		const logout = diferida()
+		const { store, vm, llamadas, efectos } = postOrden(t, { logout })
+		const p = vm.makeOrder()
+		await turno()
+		assert.ok(llamadas.includes('buyer/logout'))
+		sesionB(store)
+		const tokenB = Session.capturar_checkout(store.state), n = efectos.length
+		if (rechazo) logout.reject(new Error('logout falló')); else logout.resolve()
+		assert.equal(await p, true)
+		assert.equal(store.state.auth.user.id, 99)
+		assert.equal(store.state.auth.authenticated, true)
+		assert.equal(store.state.cart.buyer.address, 'B')
+		assert.equal(Session.capturar_checkout(store.state), tokenB)
+		assert.ok(!llamadas.includes('Thanks'))
+		assert.equal(efectos.length, n)
+	})
+}
+test('QA2 cambio durante delete no envía logout con B', async t => {
+	const borrado = diferida()
+	const { store, vm, llamadas } = postOrden(t, { borrado })
+	const p = vm.makeOrder()
+	await turno()
+	assert.ok(llamadas.includes('delete'))
+	sesionB(store)
+	borrado.resolve()
+	assert.equal(await p, true)
+	assert.ok(!llamadas.includes('buyer/logout'))
+	assert.ok(!llamadas.includes('Thanks'))
+	assert.equal(store.state.cart.buyer.address, 'B')
+})
+for (const invitado of [true, false]) {
+	test(`QA2 estable conserva resumen y Thanks, invitado=${invitado}`, async t => {
+		const { store, vm, llamadas } = postOrden(t, { invitado })
+		assert.equal(await vm.makeOrder(), true)
+		assert.equal(store.state.orders.order.id, 30)
+		assert.equal(llamadas.filter(x => x === '/orders').length, 1)
+		assert.equal(llamadas.includes('buyer/logout'), invitado)
+		assert.ok(llamadas.includes('Thanks'))
+		assert.equal(store.state.auth.user === null, invitado)
+		assert.equal(store.state.cart.checkout_completado.order_id, 30)
+	})
+}
+test('QA2 action sin token captura defensivamente y no publica resumen tardío', async t => {
+	const resumen = diferida()
+	const { store, llamadas } = postOrden(t, { resumen })
+	const p = store.dispatch('orders/getCurrentOrder')
+	await turno()
+	sesionB(store)
+	resumen.resolve({ id: 30 })
+	await p
+	assert.deepEqual(llamadas, ['resumen'])
+	assert.equal(store.state.orders.order, null)
+})
+for (const cambio of ['ida-vuelta', 'generacion', 'solo-auth-ida-vuelta']) {
+	test(`QA2 logout pendiente no resucita continuación: ${cambio}`, async t => {
+		const logout = diferida()
+		const { store, vm, llamadas } = postOrden(t, { logout })
+		const p = vm.makeOrder()
+		await turno()
+		if (cambio === 'solo-auth-ida-vuelta') {
+			store.commit('auth/setAuthenticated', true)
+			store.commit('auth/setAuthenticated', false)
+			sesionB(store, 'sin-cambio')
+		} else sesionB(store, cambio)
+		const tokenB = Session.capturar_checkout(store.state)
+		logout.resolve()
+		assert.equal(await p, true)
+		assert.equal(Session.capturar_checkout(store.state), tokenB)
+		assert.equal(store.state.auth.user.id, 4)
+		assert.equal(store.state.cart.buyer.address, 'B')
+		assert.ok(!llamadas.includes('Thanks'))
+	})
+}
+test('QA2 auxiliares con captura obsoleta no inician HTTP', async t => {
+	const { store, vm, llamadas } = postOrden(t)
+	const sesion = Session.capturar_checkout(store.state)
+	sesionB(store)
+	await store.dispatch('orders/getCurrentOrder', sesion)
+	await vm.deleteCartAfterOrder(20, { sesion })
+	await vm.logoutGuestAfterOrder({ sesion })
+	assert.deepEqual(llamadas, [])
+	assert.equal(store.state.cart.buyer.address, 'B')
+})
+test('QA2 fallos delete y logout estables conservan éxito y navegación única', async t => {
+	const borrado = diferida(), logout = diferida()
+	const { store, vm, llamadas } = postOrden(t, { borrado, logout })
+	const p = vm.makeOrder()
+	await turno()
+	borrado.reject(new Error('borrado falló'))
+	await turno()
+	logout.reject(new Error('logout falló'))
+	assert.equal(await p, true)
+	assert.equal(store.state.auth.user, null)
+	assert.equal(store.state.cart.checkout_completado.order_id, 30)
+	assert.deepEqual(llamadas, ['/orders', 'resumen', 'delete', 'buyer/logout', 'Thanks'])
+})

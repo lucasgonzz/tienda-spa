@@ -1,5 +1,5 @@
 import { consumir_token_captcha } from '@/store/cart'
-import { capturar_checkout, checkout_vigente } from '@/store/checkout_session'
+import { capturar_checkout, checkout_vigente, cerrar_invitado_checkout } from '@/store/checkout_session'
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
@@ -963,6 +963,7 @@ export default {
 			const estado_pedido = this.$store.state.cart
 			pedidos_en_curso.add(estado_pedido)
 			const sesion = capturar_checkout(this.$store.state)
+			let continuacion = null
 			let pedido_creado = false
 			let resumen_enviado = null
 
@@ -972,7 +973,7 @@ export default {
 			}
 
 			let apagar_overlay = function() {
-				if (mostrar_overlay) {
+				if (mostrar_overlay && checkout_vigente(self.$store.state, continuacion ? continuacion.sesion : sesion)) {
 					self.$store.commit('auth/setLoading', false)
 					self.$store.commit('auth/setMessage', '')
 				}
@@ -1052,7 +1053,11 @@ export default {
 					return true
 				}
 				self.$store.commit('cart/reset_checkout', { completado: resumen })
+				// El reset exitoso inicia una continuación distinta del borrador enviado.
+				continuacion = { sesion: capturar_checkout(self.$store.state) }
+				const vigente = () => checkout_vigente(self.$store.state, continuacion.sesion)
 				const trackear_pedido = function() {
+					if (!vigente()) return
 					const pedido = !from_mercadopago && self.$store.state.orders.order
 					trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, { order_id: order_id || (pedido && pedido.id) || null, amount: total })
 					enviar_cola()
@@ -1064,17 +1069,17 @@ export default {
 				}
 				// Recuperar el resumen antes del logout: la API anterior necesita el guard.
 				return Promise.resolve()
-				.then(() => self.$store.dispatch('orders/getCurrentOrder'))
+				.then(() => vigente() && self.$store.dispatch('orders/getCurrentOrder', continuacion.sesion))
 				.catch(() => {})
 				.then(() => { trackear_pedido() })
 				.catch(() => {})
-				.then(() => self.deleteCartAfterOrder(cart_id))
+				.then(() => vigente() && self.deleteCartAfterOrder(cart_id, continuacion))
 				.catch(() => {})
-				.then(() => self.logoutGuestAfterOrder())
+				.then(() => vigente() && self.logoutGuestAfterOrder(continuacion))
 				.catch(() => {})
 				.then(() => {
 					apagar_overlay()
-					self.$router.push({ name: 'Thanks' })
+					if (vigente()) self.$router.push({ name: 'Thanks' })
 					return true
 				})
 			})
@@ -1164,8 +1169,8 @@ export default {
 		 * @param {number|null} cart_id id del carrito que origino el pedido
 		 * @returns {Promise}
 		 */
-		deleteCartAfterOrder(cart_id) {
-			if (!cart_id) {
+		deleteCartAfterOrder(cart_id, continuacion = { sesion: capturar_checkout(this.$store.state) }) {
+			if (!checkout_vigente(this.$store.state, continuacion.sesion) || !cart_id) {
 				return Promise.resolve()
 			}
 			return this.$api.delete('carts/' + cart_id)
@@ -1181,15 +1186,14 @@ export default {
 		 *
 		 * @returns {Promise}
 		 */
-		logoutGuestAfterOrder() {
-			if (!this.puede_comprar_sin_login) {
+		logoutGuestAfterOrder(continuacion = { sesion: capturar_checkout(this.$store.state) }) {
+			if (!checkout_vigente(this.$store.state, continuacion.sesion) || !this.puede_comprar_sin_login) {
 				return Promise.resolve()
 			}
 			return this.$api.post('buyer/logout')
 			.catch(() => {})
 			.then(() => {
-				this.$store.commit('auth/setAuthenticated', false)
-				this.$store.commit('auth/setUser', null)
+				cerrar_invitado_checkout(this.$store, continuacion)
 			})
 		},
 	}
