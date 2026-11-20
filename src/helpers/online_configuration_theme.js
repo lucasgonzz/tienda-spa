@@ -194,6 +194,46 @@ function resolve_buy_box_button_colors(online_configuration, primary_color) {
 	return { color: valid_own_color, text_color: best_text_on(valid_own_color) }
 }
 
+/** Mezcla opaca: el contraste se calcula sobre el mismo color que se publica. */
+function mix_checkout_color(color, target, weight) {
+	let expanded = color.length == 4 ? '#' + color.slice(1).split('').map(c => c + c).join('') : color
+	let channels = [1, 3, 5].map(function(index) {
+		let source = parseInt(expanded.slice(index, index + 2), 16)
+		let destination = parseInt(target.slice(index, index + 2), 16)
+		return Math.round(source * (1 - weight) + destination * weight).toString(16).padStart(2, '0')
+	})
+	return '#' + channels.join('')
+}
+
+/** Conserva el texto configurado sólo si cumple AA, incluso en colores intermedios. */
+function checkout_text(background, preferred) {
+	if (contrast_ratio(background, preferred) >= 4.5) return preferred
+	let candidate = best_text_on(background)
+	return contrast_ratio(background, candidate) >= 4.5 ? candidate : '#000000'
+}
+
+/** Paleta de acciones independiente del comercio y de la plantilla. */
+export function resolve_checkout_colors(configuration) {
+	let config = configuration || {}
+	let primary = normalize_hex_color(config.primary_color, '#245269')
+	let preferred = normalize_hex_color(config.text_color, '#FFFFFF')
+	let hover_preferred = normalize_hex_color(config.hover_text_color, preferred)
+	let text = checkout_text(primary, preferred)
+	let target = best_text_on(primary) == '#FFFFFF' ? '#FFFFFF' : '#000000'
+	let hover = mix_checkout_color(primary, target, .16)
+	let processing = mix_checkout_color(primary, target, .32)
+	let secondary_hover = mix_checkout_color(primary, '#FFFFFF', .9)
+	return {
+		normal: { background: primary, text },
+		hover: { background: hover, text: checkout_text(hover, hover_preferred) },
+		focus: { background: primary, text },
+		processing: { background: processing, text: checkout_text(processing, preferred) },
+		disabled: { background: '#E0E0E0', text: '#454545' },
+		secondary: { background: '#FFFFFF', text: checkout_text('#FFFFFF', primary) },
+		'secondary-hover': { background: secondary_hover, text: checkout_text(secondary_hover, primary) },
+	}
+}
+
 /**
  * Aplica la paleta y variables de tema de online_configuration en :root.
  *
@@ -201,6 +241,12 @@ function resolve_buy_box_button_colors(online_configuration, primary_color) {
  * @returns {void}
  */
 export function apply_online_configuration_theme(online_configuration) {
+	/* También publica un fallback genérico cuando la configuración todavía no llegó. */
+	let checkout_colors = resolve_checkout_colors(online_configuration)
+	Object.keys(checkout_colors).forEach(function(state) {
+		document.documentElement.style.setProperty('--checkout-' + state + '-background', checkout_colors[state].background)
+		document.documentElement.style.setProperty('--checkout-' + state + '-text', checkout_colors[state].text)
+	})
 	if (!online_configuration) {
 		return
 	}

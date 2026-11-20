@@ -4,11 +4,12 @@
 		block
 		size="lg"
 		:disabled="procesando"
-		:class="{'checkout-confirm__btn--mp': is_mp}"
+		:aria-busy="procesando ? 'true' : 'false'"
+		:class="{'checkout-confirm__btn--processing': procesando}"
 		class="checkout-confirm__btn"
 		@click="confirmar">
 
-			<span v-if="procesando">
+			<span v-if="procesando" role="status">
 				<b-spinner
 				small
 				class="m-r-10"></b-spinner>
