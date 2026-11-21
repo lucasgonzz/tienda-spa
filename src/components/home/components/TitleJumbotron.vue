@@ -169,6 +169,9 @@ export default {
 		display: block
 		color: inherit
 		text-decoration: none
+		// Las reglas globales .tarjetas-*-N a le ponen ancho en porcentaje a TODO <a>: el banner enlazado ocupa el ancho completo
+		width: 100%
+		max-width: 100%
 		&:focus-visible
 			outline: 3px solid #26262b
 			outline-offset: -5px

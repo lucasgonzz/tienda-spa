@@ -2,7 +2,7 @@
 	<section aria-label="Verificación de compra" class="mb-3">
 		<p v-if="mensaje" role="status" aria-live="polite">{{ mensaje }}</p>
 		<div ref="widget"></div>
-		<b-button v-if="error" variant="outline-secondary" size="sm" @click="reintentar">
+		<b-button v-if="error" class="checkout-captcha__reintentar" variant="outline-secondary" @click="reintentar">
 			Reintentar verificación
 		</b-button>
 	</section>
@@ -168,3 +168,11 @@ export default {
 	},
 }
 </script>
+<style lang="sass">
+.checkout-captcha__reintentar
+	// Objetivo táctil mínimo de 44 px (con size="sm" medía 31 px)
+	min-height: 44px
+	display: inline-flex
+	align-items: center
+	justify-content: center
+</style>

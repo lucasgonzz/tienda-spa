@@ -249,6 +249,7 @@ export default {
 		margin: 0 0 0.85rem;
 		text-align: left;
 		line-height: 1.3;
+		overflow-wrap: anywhere;
 
 		@if $theme == dark {
 			color: #f5f5f5;
@@ -286,6 +287,10 @@ export default {
 	}
 
 	&__link {
+		// Las reglas globales .tarjetas-*-N a le ponen ancho en porcentaje a TODO <a>: sin esto el correo se parte en una caja angosta
+		width: auto;
+		max-width: 100%;
+		overflow-wrap: anywhere;
 		display: inline-flex;
 		align-items: center;
 		font-size: 0.95rem;
