@@ -23,6 +23,11 @@
 				Enviar pedido sin pago
 			</span>
 
+			<span v-else-if="es_tarjeta_mp">
+				<i class="bi bi-credit-card-2-front"></i>
+				{{ texto_pagar_con_tarjeta }}
+			</span>
+
 			<span v-else-if="is_mp">
 				<i class="bi bi-wallet2"></i>
 				Pagar con Mercado Pago
@@ -49,6 +54,7 @@
 </template>
 <script>
 import cart from '@/mixins/cart'
+import { obtener_datos } from '@/utils/brick_de_tarjeta'
 import { capturar_checkout, checkout_vigente, captura_identificacion_checkout } from '@/store/checkout_session'
 import CheckoutCaptcha from './CheckoutCaptcha.vue'
 import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
@@ -102,6 +108,41 @@ export default {
 		is_mp() {
 			return !this.pedido_a_consultar && this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'MercadoPago'
 		},
+		/**
+		 * Si la forma de pago elegida cobra con tarjeta DENTRO de la página (tipo «Tarjeta Mercado Pago»).
+		 * Con un pedido a consultar no se paga: manda el flujo de «Enviar pedido sin pago».
+		 *
+		 * @returns {boolean}
+		 */
+		es_tarjeta_mp() {
+			return !this.pedido_a_consultar && !!(this.cart_payment_method && this.cart_payment_method.type && this.cart_payment_method.type.name == 'Tarjeta Mercado Pago')
+		},
+		/**
+		 * La opción de cuotas elegida, tal como la calculó el servidor ({cuotas, valor_cuota, total}), o null
+		 * si todavía no hay opciones (cargando, o la API no tiene el pago con tarjeta).
+		 *
+		 * @returns {object|null}
+		 */
+		opcion_de_tarjeta() {
+			let estado = this.$store.state.cart.tarjeta_mp
+			let elegidas = estado.opciones.filter(o => o.cuotas === estado.cuotas)
+			return elegidas.length ? elegidas[0] : null
+		},
+		/**
+		 * Rótulo del botón con tarjeta: «Pagar $X» con 1 pago o «Pagar N cuotas de $X».
+		 *
+		 * @returns {string}
+		 */
+		texto_pagar_con_tarjeta() {
+			let opcion = this.opcion_de_tarjeta
+			if (!opcion) {
+				return 'Pagar con tarjeta'
+			}
+			if (opcion.cuotas === 1) {
+				return 'Pagar ' + this.price(opcion.total)
+			}
+			return 'Pagar ' + opcion.cuotas + ' cuotas de ' + this.price(opcion.valor_cuota)
+		},
 		payment_methods() {
 			return this.$store.state.payment_methods.models
 		},
@@ -117,6 +158,9 @@ export default {
 			if (this.is_mp) {
 				return 'Te llevamos a Mercado Pago...'
 			}
+			if (this.es_tarjeta_mp) {
+				return 'Procesando el pago...'
+			}
 			return 'Enviando tu pedido...'
 		},
 	},
@@ -130,6 +174,11 @@ export default {
 			}
 			if (this.is_payway) {
 				this.payway()
+				return
+			}
+			// Con tarjeta no se paga sin las opciones del servidor: sin ellas no hay monto que cobrar.
+			if (this.es_tarjeta_mp && !this.opcion_de_tarjeta) {
+				this.$toast.error('El pago con tarjeta no está disponible en este momento. Elegí otro medio de pago.')
 				return
 			}
 			this.ready(this.pedido_a_consultar)
@@ -257,9 +306,60 @@ export default {
 		 *
 		 * @returns {Promise}
 		 */
+		/**
+		 * Cobra con la tarjeta cargada en el formulario seguro de Mercado Pago y, SOLO si el pago queda aprobado,
+		 * crea el pedido (todo en un único POST /mercado-pago/tarjeta/pagar).
+		 *
+		 * Del formulario sale únicamente lo que entrega el Brick tokenizado: token, medio de pago, emisor y
+		 * pagador. Nunca el número ni el código de seguridad. Las cuotas y el monto son los de la opción que
+		 * eligió el comprador y que calculó el servidor; el servidor los vuelve a calcular y rechaza si cambiaron.
+		 *
+		 * @returns {Promise<void>}
+		 */
+		pagar_con_tarjeta() {
+			let self = this
+			let opcion = this.opcion_de_tarjeta
+			let metodo = this.cart_payment_method
+
+			return obtener_datos()
+			.then(function(datos) {
+				let cobro = {
+					payment_method_id: metodo.id,
+					cuotas: opcion.cuotas,
+					monto_esperado: opcion.total,
+					tarjeta: {
+						token: datos.token,
+						payment_method_id: datos.payment_method_id,
+						issuer_id: datos.issuer_id,
+						payer: datos.payer,
+					},
+				}
+				// Identificador de dispositivo que deja el SDK de Mercado Pago (antifraude), si existe.
+				if (typeof window !== 'undefined' && window.MP_DEVICE_SESSION_ID) {
+					cobro.device_id = window.MP_DEVICE_SESSION_ID
+				}
+				return self.makeOrder(false, false, true, false, cobro)
+			}, function() {
+				// La tarjeta está incompleta o es inválida: el Brick ya marca los campos. No se cobró nada.
+				self.$toast.error('Revisá los datos de la tarjeta y volvé a intentar.')
+				return false
+			})
+			.then(function(ok) {
+				self.procesando = false
+				if (ok === false) {
+					return
+				}
+				if (!ok) {
+					self.$toast.error('No pudimos procesar el pago. Probá de nuevo.')
+				}
+			})
+		},
 		confirmar_pedido(aceptar_consulta_stock) {
 			if (!aceptar_consulta_stock && this.is_mp) {
 				return this.pagar_con_mercado_pago()
+			}
+			if (!aceptar_consulta_stock && this.es_tarjeta_mp) {
+				return this.pagar_con_tarjeta()
 			}
 
 			let self = this

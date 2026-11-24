@@ -2,21 +2,21 @@
 	<div class="checkout-summary__lines">
 		<p class="checkout-summary__line">
 			Subtotal ({{ cant_articles_text }})
-			<span>{{ price(total) }}</span>
+			<span>{{ price(total_web) }}</span>
 		</p>
 
 		<p
 		v-if="!pedido_a_consultar && cart_payment_method && cart_payment_method.discount"
 		class="checkout-summary__line checkout-summary__line--good">
 			Descuento por {{ cart_payment_method.name }} ({{ porcentaje(cart_payment_method.discount) }}%)
-			<span>- {{ price(total - total_with_payment_method_discount) }}</span>
+			<span>- {{ price(total_web - total_with_payment_method_discount) }}</span>
 		</p>
 
 		<p
 		v-if="!pedido_a_consultar && cart_payment_method && cart_payment_method.surchage"
 		class="checkout-summary__line">
 			Recargo por {{ cart_payment_method.name }} ({{ porcentaje(cart_payment_method.surchage) }}%)
-			<span>+ {{ price(total_with_payment_method_surchage - total) }}</span>
+			<span>+ {{ price(total_with_payment_method_surchage - total_web) }}</span>
 		</p>
 
 		<!--
@@ -48,7 +48,8 @@
 
 		<p class="checkout-summary__total">
 			{{ pedido_a_consultar ? 'Total estimado' : 'Total' }}
-			<span>{{ price(total_a_pagar) }}</span>
+			<span v-if="linea_de_cuotas">{{ linea_de_cuotas }}</span>
+			<span v-else>{{ price(total_a_pagar) }}</span>
 		</p>
 	</div>
 </template>
@@ -85,6 +86,24 @@ export default {
 				return this.total + this.envio_precio_elegido
 			}
 			return this.total_with_deliver
+		},
+		/**
+		 * Con la tarjeta dentro de la página y más de 1 cuota, la línea de total dice «N cuotas de $X» (el valor que
+		 * calculó el servidor). Con 1 pago, o sin tarjeta, es vacío y se muestra el total de siempre.
+		 *
+		 * @returns {string}
+		 */
+		linea_de_cuotas() {
+			let metodo = this.cart_payment_method
+			if (this.pedido_a_consultar || !metodo || !metodo.type || metodo.type.name !== 'Tarjeta Mercado Pago') {
+				return ''
+			}
+			let estado = this.$store.state.cart.tarjeta_mp
+			let elegidas = estado.opciones.filter(o => o.cuotas === estado.cuotas)
+			if (!elegidas.length || elegidas[0].cuotas <= 1) {
+				return ''
+			}
+			return elegidas[0].cuotas + ' cuotas de ' + this.price(elegidas[0].valor_cuota)
 		},
 		/**
 		 * Si la opción de correo elegida sale gratis para el comprador (regla de envío gratis del
