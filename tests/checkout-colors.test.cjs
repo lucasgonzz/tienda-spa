@@ -153,9 +153,13 @@ test('CA1-03 orden de candidatos: primario, botón de agregar, secundario y neut
 	assert.equal(normal_background({ primary_color: '#c5111d', add_to_cart_button_color: '#250237', secondary_color: '#123456' }), '#c5111d')
 })
 test('CA1-04 el reemplazo de U3-03 es más exigente: un primario claro nunca queda como fondo', () => {
-	for (const primary of ['#fff', '#ffff00', '#abcdef', '#E9E7EA']) {
+	for (const primary of ['#fff', '#ffff00', '#E9E7EA']) {
 		assert.notEqual(normal_background({ primary_color: primary }), primary, primary)
 	}
+	// Decisión de Lucas 23/11/2026, adenda B: sólo blancos y grises claros (celeste pastel con tono, se conserva)
+	const pastel = theme.resolve_checkout_colors({ primary_color: '#abcdef' }).normal
+	assert.equal(pastel.background, '#abcdef')
+	assert.ok(ratio(pastel.background, pastel.text) >= 4.5)
 	for (const primary of ['#000', '#123456', '#767676']) {
 		assert.equal(normal_background({ primary_color: primary }), primary, primary)
 	}
