@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { capturar_checkout, checkout_vigente } from './checkout_session'
 import { env } from '@/runtime_config'
 import { normalizar_direccion } from '@/helpers/direcciones'
 axios.defaults.baseURL = env('VUE_APP_API_URL')
@@ -173,6 +174,7 @@ export default {
 		},
 		limpiar(state) {
 			state.models = []
+			state.loading = false
 			state.cargada_para = null
 			state.sin_cuenta_para = null
 		},
@@ -203,9 +205,11 @@ export default {
 		 * @returns {Promise<Array>}
 		 */
 		fetch({ commit, dispatch, rootState }) {
+			const token = capturar_checkout(rootState)
 			commit('set_loading', true)
 			return axios.get('/api/buyer/addresses')
 			.then(res => {
+				if (!checkout_vigente(rootState, token)) return null
 				commit('set_loading', false)
 				let models = res.data && Array.isArray(res.data.models) ? res.data.models : []
 				commit('set_models', models.map(direccion_guardada))
@@ -213,6 +217,7 @@ export default {
 				return rootState.buyer_addresses.models
 			})
 			.catch(err => {
+				if (!checkout_vigente(rootState, token)) return null
 				commit('set_loading', false)
 				return dispatch('anotar_error', err)
 			})
@@ -224,14 +229,16 @@ export default {
 		 * @param {object} direccion
 		 * @returns {Promise<object>} la dirección guardada (con `id`)
 		 */
-		create({ commit, dispatch }, direccion) {
+		create({ commit, dispatch, rootState }, direccion) {
+			const token = capturar_checkout(rootState)
 			return axios.post('/api/buyer/addresses', cuerpo(direccion))
 			.then(res => {
+				if (!checkout_vigente(rootState, token)) return null
 				let guardada = direccion_guardada(res.data.model)
 				commit('guardar', guardada)
 				return guardada
 			})
-			.catch(err => dispatch('anotar_error', err))
+			.catch(err => checkout_vigente(rootState, token) ? dispatch('anotar_error', err) : null)
 		},
 		/**
 		 * Edita una dirección guardada (todos los campos).
@@ -240,14 +247,16 @@ export default {
 		 * @param {object} direccion Con `id`.
 		 * @returns {Promise<object>}
 		 */
-		update({ commit, dispatch }, direccion) {
+		update({ commit, dispatch, rootState }, direccion) {
+			const token = capturar_checkout(rootState)
 			return axios.put('/api/buyer/addresses/' + direccion.id, cuerpo(direccion))
 			.then(res => {
+				if (!checkout_vigente(rootState, token)) return null
 				let guardada = direccion_guardada(res.data.model)
 				commit('guardar', guardada)
 				return guardada
 			})
-			.catch(err => dispatch('anotar_error', err))
+			.catch(err => checkout_vigente(rootState, token) ? dispatch('anotar_error', err) : null)
 		},
 		/**
 		 * Borra una dirección. Si era la principal, el servidor elige otra, y la pantalla tiene que
@@ -259,8 +268,10 @@ export default {
 		 * @returns {Promise}
 		 */
 		delete({ commit, dispatch, rootState }, id) {
+			const token = capturar_checkout(rootState)
 			return axios.delete('/api/buyer/addresses/' + id)
 			.then(res => {
+				if (!checkout_vigente(rootState, token)) return null
 				// Si era la elegida en el carrito, se suelta: el checkout vuelve a elegir la principal
 				// en vez de mandar el id de una dirección que ya no existe (422 `direccion`).
 				let elegida = rootState.cart ? rootState.cart.direccion_envio : null
@@ -273,7 +284,7 @@ export default {
 				}
 				return dispatch('fetch')
 			})
-			.catch(err => dispatch('anotar_error', err))
+			.catch(err => checkout_vigente(rootState, token) ? dispatch('anotar_error', err) : null)
 		},
 		/**
 		 * Marca una dirección como la principal (la que el checkout elige solo).

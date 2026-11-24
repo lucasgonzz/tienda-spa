@@ -92,8 +92,9 @@ $checkout-tenue: rgba(0, 0, 0, .55)
 		border-color: var(--secondary-color, #0d6efd)
 
 	&:focus
-		outline: none
-		box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary-color, #0d6efd) 25%, transparent)
+		outline: 2px solid #000
+		outline-offset: 2px
+		box-shadow: 0 0 0 2px #FFF
 
 .checkout-option--selected
 	border-color: var(--secondary-color, #0d6efd)
@@ -406,29 +407,60 @@ $checkout-tenue: rgba(0, 0, 0, .55)
 .checkout-confirm
 	margin-top: 1rem
 
+// Acciones opacas: no usar filtros ni opacidad que alteren el contraste calculado.
+.checkout-confirm__btn,
+.payment-result__actions .payment-result__action--primary
+	color: var(--checkout-normal-text, #FFFFFF) !important
+	background: var(--checkout-normal-background, #245269) !important
+	border: 2px solid currentColor !important
+	opacity: 1 !important
+	filter: none !important
+	transition: background-color .15s ease, color .15s ease
+
+	&:hover:not(:disabled):not(.disabled)
+		background: var(--checkout-hover-background, #477184) !important
+		color: var(--checkout-hover-text, #FFFFFF) !important
+
+	// Desactivado: relleno blanco con contorno punteado gris; se distingue del activo (relleno oscuro) por forma y no sólo por color
+	&:disabled,
+	&.disabled
+		background: var(--checkout-disabled-background, #FFFFFF) !important
+		color: var(--checkout-disabled-text, #6B6B6B) !important
+		border: 2px dashed #8A8A8A !important
+		cursor: not-allowed
+
+	&.checkout-confirm__btn--processing:disabled
+		background: var(--checkout-processing-background, #6a8999) !important
+		color: var(--checkout-processing-text, #000000) !important
+		border: 2px dashed currentColor !important
+		border-style: dashed !important
+		cursor: progress
+
 .checkout-confirm__btn
 	border-radius: 12px !important
 	padding: .85rem 1rem !important
 	font-size: 1.05rem !important
 	font-weight: 700 !important
-	border: none !important
-	color: #FFF !important
-	background: var(--primary-color, #269e24) !important
-	transition: filter .15s ease
-
-	&:hover:not(:disabled)
-		filter: brightness(.94)
-
-	&:disabled
-		opacity: .75
 
 	i
 		margin-right: .4rem
 
-// Mercado Pago cobra con su propia identidad: el comprador tiene que reconocer a dónde va antes
-// de apretar, y ahí el color del comercio no ayuda.
-.checkout-confirm__btn--mp
-	background: #009EE3 !important
+.payment-result__actions .payment-result__action--secondary
+	background: var(--checkout-secondary-background, #FFFFFF) !important
+	color: var(--checkout-secondary-text, #245269) !important
+	border: 2px solid currentColor !important
+	opacity: 1 !important
+
+	&:hover:not(:disabled):not(.disabled)
+		background: var(--checkout-secondary-hover-background, #e9eef0) !important
+		color: var(--checkout-secondary-hover-text, #245269) !important
+
+// Dos anillos sólidos conservan una referencia visible sobre fondos claros y oscuros.
+.checkout-confirm__btn:focus,
+.payment-result__actions .btn:focus
+	outline: 3px solid #000 !important
+	outline-offset: 3px
+	box-shadow: 0 0 0 3px #FFF !important
 
 .checkout-confirm__hint
 	font-size: .82rem

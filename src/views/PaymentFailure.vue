@@ -17,13 +17,13 @@
 				<b-button
 				v-if="authenticated"
 				block
-				variant="success"
+				class="payment-result__action--primary"
 				:to="{name: 'Orders'}">
 					Ver mis pedidos
 				</b-button>
 				<b-button
 				block
-				variant="outline-secondary"
+				class="payment-result__action--secondary"
 				:to="{name: 'Home'}">
 					Volver a la tienda
 				</b-button>

@@ -1,8 +1,11 @@
+import { consumir_token_captcha } from '@/store/cart'
+import { capturar_checkout, captura_reset_checkout, checkout_vigente, cerrar_invitado_checkout } from '@/store/checkout_session'
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
 import { direcciones_activas, zona_a_convenir, linea_de_direccion, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
 import { carrito_a_consultar, tiene_marca_consulta_stock } from '@/helpers/consultas_de_stock'
+const pedidos_en_curso = new WeakSet()
 export default {
 	computed: {
 		pedido_a_consultar() {
@@ -931,8 +934,8 @@ export default {
 		 * No rechaza nunca: los llamadores viejos (Payway, el modal del carrito, el gateway) la
 		 * invocan sin `.catch`, y una promesa rechazada ahi solo ensuciaria la consola.
 		 *
-		 * @param {boolean} from_mercadopago El pago sigue en Mercado Pago: no se limpia el carrito ni
-		 *                                   se navega a la pagina de gracias, eso pasa al volver.
+		 * @param {boolean} from_mercadopago El pago sigue en Mercado Pago: limpia el borrador,
+		 *                                   conserva el resumen y no navega a gracias.
 		 * @param {boolean} mostrar_overlay Prender el cartel de carga a pantalla completa. El checkout
 		 *                                  pasa `false` porque muestra el estado adentro del boton;
 		 *                                  los demas llamadores no tienen boton propio y lo dejan en
@@ -952,11 +955,17 @@ export default {
 		 * @returns {Promise<boolean|null>}
 		 */
 		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false, aceptar_consulta_stock = false) {
-			if (!this.canMakeOrder()) {
+			if (pedidos_en_curso.has(this.$store.state.cart) || !this.canMakeOrder()) {
 				return Promise.resolve(null)
 			}
 
 			let self = this
+			const estado_pedido = this.$store.state.cart
+			pedidos_en_curso.add(estado_pedido)
+			const sesion = capturar_checkout(this.$store.state)
+			let continuacion = null
+			let pedido_creado = false
+			let resumen_enviado = null
 
 			if (mostrar_overlay) {
 				this.$store.commit('auth/setLoading', true)
@@ -964,9 +973,9 @@ export default {
 			}
 
 			let apagar_overlay = function() {
-				if (mostrar_overlay) {
+				if (mostrar_overlay && checkout_vigente(self.$store.state, continuacion ? continuacion.sesion : sesion)) {
 					self.$store.commit('auth/setLoading', false)
-					self.$store.commit('auth/setMessage', '')
+					if (checkout_vigente(self.$store.state, continuacion ? continuacion.sesion : sesion)) self.$store.commit('auth/setMessage', '')
 				}
 			}
 
@@ -1005,9 +1014,16 @@ export default {
 					corte.carrito_sin_guardar = true
 					throw corte
 				}
+				if (!checkout_vigente(self.$store.state, sesion)) throw new Error('checkout_cambio')
 				self.verificar_modo_del_pedido(aceptar_consulta_stock)
 				const datos_consulta = aceptar_consulta_stock ? { aceptar_consulta_stock: true } : {}
+				resumen_enviado = {
+					cart_id: self.cart.id, total: self.total,
+					payment_id: self.cart.payment_id, payment_status: self.cart.payment_status,
+				}
+				const captcha_token = consumir_token_captcha(self.$store.state)
 				return self.$api.post('/orders', {
+					...(captcha_token ? { captcha_token } : {}),
 					...datos_consulta,
 					commerce_id 	: env('VUE_APP_COMMERCE_ID'),
 					cart_id         : self.cart.id,
@@ -1024,95 +1040,54 @@ export default {
 				})
 			})
 			.then(function(res) {
-				if (from_mercadopago) {
-					// El pedido YA quedo creado (el POST devolvio 201): lo que falta es el
-					// pago en MercadoPago. Se trackea igual porque checkout_complete
-					// significa "pedido creado", no "pedido pagado", y este camino nunca
-					// vuelve a pasar por aca.
-					//
-					// El order_id sale del cuerpo del 201, que OrderController@store ahora
-					// devuelve como {"order_id": N}. En esta rama el SPA nunca llama a
-					// getCurrentOrder, asi que es la unica forma de conocerlo — y MercadoPago
-					// es el medio dominante, o sea que sin esto el grueso de los
-					// checkout_complete quedaria sin poder atarse a la venta.
-					//
-					// 🔴 El fallback a null NO es defensivo por las dudas: los dos lados nunca
-					// se despliegan juntos, asi que este SPA va a correr un tiempo contra la
-					// API vieja, que responde 201 con cuerpo VACIO. Ahi order_id queda null y
-					// el evento igual se manda (armar_evento saltea los null).
-					let order_id = res.data && res.data.order_id ? res.data.order_id : null
-					trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
-						order_id: order_id,
-						amount: self.total,
-					})
-					// Vaciado inmediato: esta rama se va del SPA enseguida (redirect a
-					// MercadoPago) y los 5 segundos del temporizador de la cola no llegan.
-					// Ver el comentario largo de la rama de abajo para el otro motivo.
-					enviar_cola()
+				// Desde el éxito del endpoint, ningún auxiliar puede convertirlo en fallo.
+				pedido_creado = true
+				const cart_id = resumen_enviado.cart_id
+				const total = resumen_enviado.total
+				const order_id = res.data && res.data.order_id || null
+				const resumen = {
+					...resumen_enviado, order_id,
+				}
+				if (!checkout_vigente(self.$store.state, sesion)) {
 					apagar_overlay()
 					return true
 				}
-
-				// Se guarda el id ANTES de limpiar el carrito del store: despues self.cart es null.
-				let cart_id = self.cart.id
-				// Mismo motivo que cart_id: el total del carrito hay que leerlo antes de vaciarlo.
-				let total_del_pedido = self.total
-
-				self.$store.commit('cart/setCart', null)
-				self.$store.commit('cart/set_buyer_id', null)
-				self.$store.commit('cart/set_selected_buyer', null)
-				localStorage.cart = null
-
-				// Secuencia obligatoria. El orden ES el fix: OrderController@current resuelve el
-				// comprador leyendo del guard 'buyer', asi que si la sesion se invalida antes,
-				// el pedido no se puede recuperar nunca mas y la pagina de gracias queda vacia.
-				// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion -> 4) navegar.
-				return self.$store.dispatch('orders/getCurrentOrder')
-				.then(function() {
-					// El tracking se SUMA a la secuencia, no la altera: sigue siendo
-					// 1) cargar el pedido -> 2) borrar el carrito -> 3) cerrar sesion ->
-					// 4) navegar. Va aca y no antes porque el order_id recien se conoce
-					// despues de getCurrentOrder (POST /orders responde 201 sin cuerpo).
-					let pedido = self.$store.state.orders.order
-					trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, {
-						order_id: pedido ? pedido.id : null,
-						amount: pedido && pedido.total != null ? pedido.total : total_del_pedido,
-					})
-					/*
-					 * 🔴 Vaciado INMEDIATO, y esto no es una optimizacion: es lo unico que
-					 * le da una chance al buyer_id.
-					 *
-					 * trackear() solo encola — el envio real sale 5 segundos despues, por
-					 * temporizador. Mientras tanto esta misma cadena sigue y llega a
-					 * logoutGuestAfterOrder(), que hace POST buyer/logout y es el camino
-					 * NORMAL del checkout de invitado. Cuando el lote finalmente saliera, la
-					 * sesion ya no existe, y BuyerTrackingController resuelve el comprador
-					 * desde el guard en el momento de la ingesta: buyer_id llegaria null.
-					 * Peor que perderlo siempre: si el temporizador casualmente disparaba
-					 * antes del logout, si lo llevaba. Sin esto la atribucion de las compras
-					 * queda librada a una carrera, sin patron.
-					 *
-					 * ⚠️ Esto REDUCE la carrera, no la elimina: el envio del tracking y el
-					 * del logout son dos requests independientes y el orden en que llegan al
-					 * servidor no esta garantizado. La atribucion igual es recuperable por
-					 * order_id -> orders.buyer_id, que es la via confiable cuando el
-					 * buyer_id del evento viene null.
-					 */
+				// Sólo se admite el resultado exacto del reset propio, calculado antes de sus subscribers.
+				continuacion = { sesion: captura_reset_checkout(self.$store.state) }
+				self.$store.commit('cart/reset_checkout', { completado: resumen })
+				const vigente = () => checkout_vigente(self.$store.state, continuacion.sesion)
+				const trackear_pedido = function() {
+					if (!vigente()) return
+					const pedido = !from_mercadopago && self.$store.state.orders.order
+					trackear(TIPOS_EVENTO.CHECKOUT_COMPLETO, { order_id: order_id || (pedido && pedido.id) || null, amount: total })
 					enviar_cola()
-					return self.deleteCartAfterOrder(cart_id)
-				})
-				.then(function() {
-					return self.logoutGuestAfterOrder()
-				})
-				.then(function() {
+				}
+				if (from_mercadopago) {
+					trackear_pedido()
 					apagar_overlay()
-					self.$router.push({name: 'Thanks'})
+					return true
+				}
+				// Recuperar el resumen antes del logout: la API anterior necesita el guard.
+				return Promise.resolve()
+				.then(() => vigente() && self.$store.dispatch('orders/getCurrentOrder', continuacion.sesion))
+				.catch(() => {})
+				.then(() => { trackear_pedido() })
+				.catch(() => {})
+				.then(() => vigente() && self.deleteCartAfterOrder(cart_id, continuacion))
+				.catch(() => {})
+				.then(() => vigente() && self.logoutGuestAfterOrder(continuacion))
+				.catch(() => {})
+				.then(() => {
+					apagar_overlay()
+					if (vigente()) self.$router.push({ name: 'Thanks' })
 					return true
 				})
 			})
 			.catch(function(err) {
 				apagar_overlay()
-				console.log(err)
+				if (pedido_creado) return true
+				// No registrar errores HTTP: pueden incluir el comprobante en config.data.
+				if (checkout_vigente(self.$store.state, sesion)) self.$store.commit('cart/renovar_captcha')
 				// El guardado descarto articulos no disponibles y se freno antes de crear el
 				// pedido: el aviso ya salio en cortar_si_el_guardado_descarto.
 				if (self.es_corte_por_articulos_no_disponibles(err)) {
@@ -1144,6 +1119,7 @@ export default {
 				}
 				return null
 			})
+			.finally(function() { pedidos_en_curso.delete(estado_pedido) })
 		},
 		verificar_modo_del_pedido(aceptar_consulta_stock) {
 			const confirmada_por_api = this.articles.some(tiene_marca_consulta_stock)
@@ -1193,8 +1169,8 @@ export default {
 		 * @param {number|null} cart_id id del carrito que origino el pedido
 		 * @returns {Promise}
 		 */
-		deleteCartAfterOrder(cart_id) {
-			if (!cart_id) {
+		deleteCartAfterOrder(cart_id, continuacion = { sesion: capturar_checkout(this.$store.state) }) {
+			if (!checkout_vigente(this.$store.state, continuacion.sesion) || !cart_id) {
 				return Promise.resolve()
 			}
 			return this.$api.delete('carts/' + cart_id)
@@ -1210,15 +1186,14 @@ export default {
 		 *
 		 * @returns {Promise}
 		 */
-		logoutGuestAfterOrder() {
-			if (!this.puede_comprar_sin_login) {
+		logoutGuestAfterOrder(continuacion = { sesion: capturar_checkout(this.$store.state) }) {
+			if (!checkout_vigente(this.$store.state, continuacion.sesion) || !this.puede_comprar_sin_login) {
 				return Promise.resolve()
 			}
 			return this.$api.post('buyer/logout')
 			.catch(() => {})
 			.then(() => {
-				this.$store.commit('auth/setAuthenticated', false)
-				this.$store.commit('auth/setUser', null)
+				cerrar_invitado_checkout(this.$store, continuacion)
 			})
 		},
 	}

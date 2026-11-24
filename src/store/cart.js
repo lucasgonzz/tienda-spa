@@ -1,4 +1,5 @@
  import Vue from 'vue'
+import { comprador_vacio } from '@/store/checkout_session'
 import axios from 'axios'
 import { normalizar_provincia } from '@/constants/provincias'
 import { env } from '@/runtime_config'
@@ -787,6 +788,29 @@ export function calcular_cuota(base, fila) {
 	}
 }
 
+// El comprobante vive sólo en memoria; nunca entra al carrito, Vuex ni almacenamiento.
+const tokens_checkout = new WeakMap()
+export function contexto_captcha(state) {
+	const comercio = state.commerce && state.commerce.commerce
+	const auth = state.auth || {}
+	return JSON.stringify([state.cart.checkout_generation, comercio && comercio.id, comercio && comercio.owner_id,
+		!!auth.authenticated, auth.authenticated && auth.user && auth.user.id,
+		state.cart.selected_buyer && state.cart.selected_buyer.id])
+}
+export function limpiar_token_captcha(state) {
+	tokens_checkout.delete(state.cart)
+}
+export function recibir_token_captcha(state, contexto, token) {
+	if (contexto !== contexto_captcha(state) || typeof token !== 'string' || !token.trim()) return false
+	tokens_checkout.set(state.cart, { contexto, token })
+	return true
+}
+export function consumir_token_captcha(state) {
+	const comprobante = tokens_checkout.get(state.cart)
+	limpiar_token_captcha(state)
+	return comprobante && comprobante.contexto === contexto_captcha(state) ? comprobante.token : null
+}
+
 export default {
 	namespaced: true,
 	state: {
@@ -810,14 +834,10 @@ export default {
 		},
 		/* Envío por correo (Zipnova): cotización, opción elegida y destino. Ver envio_inicial(). */
 		envio: envio_inicial(),
-		buyer: {
-			name: '',
-			email: '',
-			phone: '',
-			ciudad: '',
-			barrio: '',
-			address: '',
-		},
+		buyer: comprador_vacio(),
+		checkout_generation: 0,
+		captcha_revision: 0,
+		checkout_completado: null,
 		buyer_id: null,
 		selected_buyer: null,
 		payment_method: null,
@@ -860,6 +880,40 @@ export default {
 		added_item_popup_visible: false,
 	},
 	mutations: {
+		renovar_captcha(state) {
+			limpiar_token_captcha({ cart: state })
+			state.captcha_revision++
+		},
+		reset_checkout(state, opciones = {}) {
+			const lineas = opciones.conservar_lineas ? {
+				articles: state.cart.articles,
+				promociones_vinoteca: state.cart.promociones_vinoteca,
+				combos: state.cart.combos,
+			} : {}
+			limpiar_token_captcha({ cart: state })
+			state.captcha_revision++
+			state.checkout_generation++
+			state.checkout_completado = opciones.completado || (opciones.conservar_resumen ? state.checkout_completado : null)
+			state.buyer = comprador_vacio()
+			state.buyer_id = opciones.conservar_cliente && state.selected_buyer ? state.selected_buyer.id : null
+			// El cliente nuevo del vendedor no se borra al cambiarlo.
+			if (!opciones.conservar_cliente) state.selected_buyer = null
+			state.cart = Object.assign({
+				articles: [], promociones_vinoteca: [], combos: [], deliver: 0,
+				description: '', payment_id: '', payment_status: '', address_id: '',
+				payment_card_info_id: null, fecha_entrega: 0, envio: null,
+			}, lineas)
+			state.payment_method = null
+			state.cuotas_elegidas = null
+			state.cuotas_bloqueadas = false
+			state.delivery_zone = null
+			state.direccion_envio = null
+			state.direccion_sin_confirmar = false
+			state.added_item = null
+			state.added_item_popup_visible = false
+			resetear_envio(state)
+			try { localStorage.cart = null } catch (e) { /* Almacenamiento opcional. */ }
+		},
 		set_added_item(state, value) {
 			state.added_item = value
 		},

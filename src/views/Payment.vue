@@ -9,7 +9,10 @@
 			offset-xl="1">
 
 				<div class="checkout__header">
-					<h1 class="checkout__title">
+					<h1
+					ref="inicio_checkout"
+					tabindex="-1"
+					class="checkout__title">
 						Confirmá tu pedido
 					</h1>
 					<p class="checkout__subtitle">
@@ -113,6 +116,20 @@ export default {
 		/* El comprador entró a confirmar la compra. El par con checkout_complete es lo que
 		   deja medir el abandono del checkout. */
 		trackear(TIPOS_EVENTO.CHECKOUT_INICIO)
+	},
+	mounted() {
+		// El encabezado ya existe y la navegación fue confirmada. No enfocamos un input:
+		// así el lector anuncia el inicio sin abrir el teclado del teléfono.
+		this.$nextTick(() => {
+			if (this._isDestroyed || this.$route.name !== 'Payment') {
+				return
+			}
+			const inicio = this.$refs.inicio_checkout
+			if (inicio) {
+				inicio.focus({ preventScroll: true })
+				inicio.scrollIntoView({ behavior: 'auto', block: 'start' })
+			}
+		})
 	},
 	computed: {
 		pedido_a_consultar() {

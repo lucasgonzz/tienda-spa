@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { capturar_checkout, checkout_vigente } from './checkout_session'
 import { env } from '@/runtime_config'
 axios.defaults.baseUrl = env('VUE_APP_API_URL')	
 axios.defaults.withCredentials = true
@@ -50,10 +51,12 @@ export default {
 				console.log(err)
 			})
 		},
-		getCurrentOrder({ commit }) {
+		getCurrentOrder({ commit, rootState }, sesion) {
+			const token = sesion === undefined ? capturar_checkout(rootState) : sesion
+			if (!checkout_vigente(rootState, token)) return Promise.resolve()
 			return axios.get(`/api/orders/current/${env('VUE_APP_COMMERCE_ID')}`)
 			.then(res => {
-				commit('setOrder', res.data.order)
+				if (checkout_vigente(rootState, token)) commit('setOrder', res.data.order)
 			})
 			.catch(err => {
 				console.log(err)

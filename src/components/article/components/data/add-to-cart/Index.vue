@@ -12,13 +12,14 @@
 
 			<div class="cont-input-btn-add">
 				<amount
+				v-if="!compacto"
 				@addToCart="agregar_al_carrito"
 				:article="article"></amount>
 			
 				<b-button
 				v-if="!is_item_in_cart(article)"
 				@click="agregar_al_carrito"
-				:disabled="amount == '' || amount == 0"
+				:disabled="saving || amount == '' || amount == 0"
 				variant="outline-primary"
 				class="add-to-cart__btn-add"
 				v-b-tooltip.hover="{ title: 'Agregar al carrito', boundary: 'viewport' }"
@@ -70,6 +71,7 @@
 </template>
 <script>
 import articles from '@/mixins/articles'
+import { error_compra } from '@/helpers/compra_desde_tarjeta'
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 import { articulo_fue_descartado, escapar_html } from '@/store/cart'
 import { consultas_de_stock_activas } from '@/helpers/consultas_de_stock'
@@ -78,6 +80,7 @@ export default {
 	mixins: [articles],
 	props: {
 		article: Object,
+		compacto: Boolean,
 	},
 	components: {
 		Amount: () => import('@/components/article/components/data/add-to-cart/Amount'),
@@ -128,7 +131,7 @@ export default {
 				this.$toast.warning('Este artículo no está disponible para agregar al carrito')
 				return
 			}
-			this.saveCart()
+			return this.saveCart()
 		},
 		/**
 		 * Persiste la nueva cantidad del artículo en el carrito (API). No hace nada si la cantidad no es válida.
@@ -218,6 +221,18 @@ export default {
 			this.$toast.success('Carrito actualizado')
 		},
 		saveCart(buy_now = false) {
+			// addItem es toggle: ni una segunda instancia ni Enter pueden repetir el alta.
+			if (this.saving || this.$store.state.cart.saving) return Promise.resolve(false)
+			if (!this.authenticated && !this.puede_comprar_sin_login) return Promise.resolve(false)
+			const error = error_compra({
+				article: this.article, amount: this.amount, variante: this.selected_article_variant,
+				config: this.commerce.online_configuration,
+				consultar: this.stock_a_consultar_en_ficha(this.article),
+				precio: this.precio_por_cantidad(this.article, Number(this.amount), false) !== null
+					? this.precio_por_cantidad(this.article, Number(this.amount), false) : this.articlePriceEfectivo(this.article, false),
+				pausado: this.flag_activo(this.article.precio_pausado),
+			})
+			if (error) { this.$toast.error(error); return Promise.resolve(false) }
 			// Doble validación por seguridad para evitar altas al carrito por eventos manuales.
 			if (this.article && this.flag_activo(this.article.precio_pausado)) {
 				this.$toast.warning('Este artículo no está disponible para agregar al carrito')
@@ -232,7 +247,6 @@ export default {
 				return
 			}
 			if (this.checkVariant()) {
-				console.log('paso variants')
 				/*
 				 * 🔴 EL PRECIO DE LA LÍNEA SIGUE LA CANTIDAD. Si la cantidad que el comprador
 				 * eligió cae en un rango de `article_price_ranges`, el unitario de la línea es
@@ -263,6 +277,8 @@ export default {
 						price: precio_de_rango !== null ? precio_de_rango : this.articlePriceEfectivo(this.article, false),
 					},
 				}
+				if (this.is_item_in_cart(linea)) return Promise.resolve(false)
+				this.saving = true
 				this.$store.commit('cart/addItem', linea)
 				/*
 				 * 🔴 El evento sale del llamador y NO de la mutación. cart/addItem es un
@@ -288,7 +304,7 @@ export default {
 					this.$bvModal.hide('add-to-cart-modal')
 					this.$store.commit('auth/setMessage', 'Guardando carrito')
 					this.$store.commit('auth/setLoading', true)
-					this.$store.dispatch('cart/save')
+					return this.$store.dispatch('cart/save')
 					.then(descartados => {
 
 						/*
@@ -305,7 +321,7 @@ export default {
 						 */
 						if (articulo_fue_descartado(descartados, this.article)) {
 							this.$store.commit('auth/setLoading', false)
-							return
+							return false
 						}
 
 						const guardada = this.get_item_cart(linea)
@@ -322,19 +338,21 @@ export default {
 
 						this.$store.commit('articles/setAmount', '')
 						this.$store.commit('articles/setNotes', '')
-
+						return true
 					})
 					.catch(err => {
 						this.$store.commit('auth/setLoading', false)
-						console.log(err)
+						// Revierte sólo la línea optimista propia; nunca restaura un carrito viejo.
+						this.$store.commit('cart/removeArticle', { item: linea, remove_only_one_amount: false })
 						const datos = err.response && err.response.data
 						if (datos && datos.codigo === 'consulta_stock') {
-							this.$store.commit('cart/removeArticle', { item: linea, remove_only_one_amount: false })
 							this.$toast.error(escapar_html(datos.message))
-							return
+							return false
 						}
 						this.$toast.error('Error al guardar carrito')
+						return false
 					})
+					.finally(() => { this.saving = false })
 
 				} else {
 					// Guest checkout: carrito local sin persistir en API hasta el paso de pago.
@@ -355,8 +373,11 @@ export default {
 
 					this.$store.commit('articles/setAmount', '')
 					this.$store.commit('articles/setNotes', '')
+					this.saving = false
+					return Promise.resolve(true)
 				}
 			}
+			return Promise.resolve(false)
 		},
 		addToCartCookie() {
 			localStorage.cart = JSON.stringify(this.cart) 
@@ -372,7 +393,7 @@ export default {
 				&& this.article.article_properties.length
 			) {
 				this.article.article_properties.forEach(property => {
-					if (this.article.selected_article_properties[property.id] == 0) {
+					if (!(this.article.selected_article_properties || {})[property.article_property_type.name]) {
 						this.$toast.error('Seleccione '+property.article_property_type.name)
 						ok = false 
 					}

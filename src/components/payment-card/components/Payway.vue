@@ -1,8 +1,10 @@
 <template>
 	<div class="form-payway">
 		<form 
-		id="formulario">
-			<fieldset>
+		id="formulario"
+		@submit.prevent="sendForm">
+			<checkout-captcha @ready="captcha_listo = $event" />
+			<fieldset :disabled="procesando || pedido_enviado">
 				<input 
 				class="input-100"
 				v-model="titular"
@@ -76,7 +78,9 @@
 				</select>
 
 				<b-button
-				block 
+				block
+				:disabled="!captcha_listo || procesando || pedido_enviado"
+				:aria-busy="procesando ? 'true' : 'false'"
 				variant="success"
 				@click="sendForm">
 					Enviar Pedido
@@ -88,11 +92,17 @@
 <script>
 import cart from '@/mixins/cart'
 import payment_methods from '@/mixins/payment_methods'
+import CheckoutCaptcha from '@/components/payment/components/CheckoutCaptcha.vue'
+import { contexto_captcha } from '@/store/cart'
 export default {
 	mixins: [cart, payment_methods],
+	components: { CheckoutCaptcha },
 	data() {
 		return {
 			decidir: null,
+			captcha_listo: false,
+			procesando: false,
+			pedido_enviado: false,
 			titular: 'TITULAR',
 			numero_tarjeta: '4507990000004905',
 			codigo_seguridad: '123',
@@ -105,7 +115,13 @@ export default {
 		}
 	},
 	created() {
+		this.tarjeta_guardada = null
+		this.intento_payway = 0
 		this.init()
+	},
+	beforeDestroy() {
+		this.intento_payway++
+		this.tarjeta_guardada = null
 	},
 	computed: {
 		installments() {
@@ -123,81 +139,78 @@ export default {
 		init() {
 			const publicApiKey = "5HMK6GtWtUKyPhmeJo95DHtdvpJCT2G6";
 			const urlSandbox = "https://developers.decidir.com/api/v2";
-			this.decidir = new Decidir(urlSandbox);
+			this.decidir = new window.Decidir(urlSandbox);
 
 			this.decidir.setPublishableKey(publicApiKey);
 			this.decidir.setTimeout(5000);//timeout de 5 segundos
-			console.log('decidir')
-			console.log(this.decidir)
 		},
 		sendForm(event) {
-			if (this.check()) {
-				console.log('enviando')
-				event.preventDefault();
-				// this.getToken()
-			
-				var form = document.querySelector('#formulario');
-				this.decidir.createToken(form, this.sdkResponseHandler);//formulario y callback
-				return false;
+			if (event) event.preventDefault()
+			if (!this.captcha_listo || this.procesando || this.pedido_enviado || !this.check()) return Promise.resolve(null)
+			this.procesando = true
+			const intento = ++this.intento_payway
+			const contexto = contexto_captcha(this.$store.state)
+			const revision = this.$store.state.cart.captcha_revision
+			const firma = JSON.stringify([this.titular, this.numero_tarjeta, this.codigo_seguridad, this.mes, this.ano,
+				this.documento, this.selected_installments, this.payment_method_id])
+			let self = this
+			const vigente = function() {
+				return !self._isDestroyed && intento === self.intento_payway && contexto === contexto_captcha(self.$store.state)
 			}
-		},
-		// getToken() {
-		// 	this.$api.post('payway/token', {
-		// 		payment_method_id: this.cart_payment_method.id, 
-		// 		card_number: this.numero_tarjeta, 
-		// 		card_expiration_month: this.mes, 
-		// 		card_expiration_year: this.ano, 
-		// 		card_holder_name: this.titular, 
-		// 		card_holder_birthday: this.nacimiento, 
-		// 		card_holder_door_number: null, 
-		// 		security_code: this.codigo_seguridad, 
-		// 		number: this.documento, 
-		// 		payment_method_id: this.payment_method_id, 
-		// 	})
-		// 	.then(res => {
-		// 		console.log('se guardo payment-card-info, llego esto:')
-		// 		console.log(res.data.model)
-		// 		this.$store.commit('cart/setPaymentCardInfoId', res.data.model.id)
-		// 		this.makeOrder()
-		// 	})
-		// 	.catch(err => {
-		// 		console.log('Error al guardar Pago')
-		// 	})
-		// },
-		sdkResponseHandler(status, response) {
-			console.log('getCardType: '+this.getCardType())
-			console.log('response')
-			console.log(status)
-			console.log(response)
-			if (status != 200 && status != 201) {
-				this.$toast.error('Hubo un error')
-				response.error.forEach(error => {
-					if (error.error.param == 'card_holder_name') {
-						this.$toast.error('Revise el nombre del titular')
-					}
-					console.log(error.error.message)
+			const comprobar = function() {
+				if (!vigente() || !self.captcha_listo) throw new Error('verificacion_pendiente')
+			}
+			// Si sólo falló orders, renovar CAPTCHA no vuelve a guardar la misma tarjeta.
+			const guardada = this.tarjeta_guardada
+			const guardar = Promise.resolve().then(function() {
+				comprobar()
+				if (guardada && guardada.firma === firma && guardada.contexto === contexto) return guardada.id
+				return new Promise(function(resolve, reject) {
+					let respondido = false
+					self.decidir.createToken(self.$el.querySelector('#formulario'), function(status, response) {
+						if (respondido) return
+						respondido = true
+						if (status != 200 && status != 201) return reject(new Error('tarjeta_invalida'))
+						resolve(response)
+					})
+				}).then(function(response) {
+					comprobar()
+					return self.savePaymentCardInfo(response)
+				}).then(function(id) {
+					comprobar()
+					self.tarjeta_guardada = { firma, contexto, id }
+					return id
 				})
-			} else {
-				this.savePaymentCardInfo(response)
-			}
+			})
+			return guardar.then(function(id) {
+				comprobar()
+				self.$store.commit('cart/setPaymentCardInfoId', id)
+				return self.makeOrder()
+			}).then(function(ok) {
+				if (ok === true) self.pedido_enviado = true
+				else if (vigente() && ok !== false) self.$toast.error('No pudimos guardar tu pedido. Verificá de nuevo para reintentar.')
+				return ok
+			}).catch(function() {
+				// No registrar respuestas de tarjeta ni errores HTTP con comprobantes.
+				if (vigente()) self.$toast.error('No pudimos completar el pago. Tus datos siguen en el formulario; probá de nuevo.')
+				return null
+			}).finally(function() {
+				self.procesando = false
+				if (vigente() && !self.pedido_enviado && revision === self.$store.state.cart.captcha_revision) {
+					self.$store.commit('cart/renovar_captcha')
+				}
+			})
 		},
 		savePaymentCardInfo(response) {
-			// console.log('getCardType: '+this.getCardType())
-			// return
-			this.$api.post('payment-card-info', {
-				token: response.id, 
-				bin: response.bin, 
+			return this.$api.post('payment-card-info', {
+				token: response.id,
+				bin: response.bin,
 				installments: this.selected_installments,
 				payment_method_id: this.payment_method_id,
-			})
-			.then(res => {
-				console.log('se guardo payment-card-info, llego esto:')
-				console.log(res.data.model)
-				this.$store.commit('cart/setPaymentCardInfoId', res.data.model.id)
-				this.makeOrder()
-			})
-			.catch(err => {
-				console.log('Error al guardar Pago')
+			}).then(function(res) {
+				const id = res.data && res.data.model && res.data.model.id
+				if (!id) throw new Error('tarjeta_sin_guardar')
+				return id
 			})
 		},
 		check() {

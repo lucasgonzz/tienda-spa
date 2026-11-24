@@ -28,11 +28,7 @@ export default {
 		 * pago lo registra el webhook, asi que no hay ningun request que hacer.
 		 */
 		limpiar_carrito_local() {
-			this.$store.commit('cart/setCart', null)
-			this.$store.commit('cart/set_buyer_id', null)
-			this.$store.commit('cart/set_selected_buyer', null)
-			this.$store.commit('cart/setPaymentMethod', null)
-			localStorage.cart = null
+			this.$store.commit('cart/reset_checkout')
 		},
 	},
 }

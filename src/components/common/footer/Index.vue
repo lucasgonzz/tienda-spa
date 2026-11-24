@@ -33,7 +33,7 @@
 						</ul>
 					</b-col>
 					<b-col
-					v-if="footer_whatsapp_contacts.length || commerce.email"
+					v-if="footer_whatsapp_contacts.length || footer_email || footer_texto"
 					cols="12"
 					md="4"
 					class="site-footer__col">
@@ -41,17 +41,18 @@
 							Atención
 						</p>
 						<h3 class="site-footer__title">
-							Contactanos
+							{{ footer_titulo }}
 						</h3>
+						<p v-if="footer_texto" class="site-footer__text">{{ footer_texto }}</p>
 						<ul class="site-footer__list">
-							<li v-if="commerce.email">
+							<li v-if="footer_email">
 								<a
 								class="site-footer__link"
-								:href="'mailto:' + commerce.email">
+								:href="'mailto:' + footer_email">
 									<i
 									class="bi bi-envelope site-footer__icon"
 									aria-hidden="true"></i>
-									{{ commerce.email }}
+									{{ footer_email }}
 								</a>
 							</li>
 							<li v-for="contact in footer_whatsapp_contacts" :key="contact.key">
@@ -70,7 +71,7 @@
 						</ul>
 					</b-col>
 					<b-col
-					v-if="commerce.online_configuration.instagram || commerce.online_configuration.facebook"
+					v-if="footer_configuration.instagram || footer_configuration.facebook"
 					cols="12"
 					md="4"
 					class="site-footer__col">
@@ -81,13 +82,13 @@
 							Sigamos en contacto
 						</h3>
 						<ul class="site-footer__list site-footer__social-list">
-							<li v-if="commerce.online_configuration.instagram">
+							<li v-if="footer_configuration.instagram">
 								<a
 								class="site-footer__social-link"
 								aria-label="Instagram (abre en una pestaña nueva)"
 								target="_blank"
 								rel="noopener noreferrer"
-								:href="commerce.online_configuration.instagram">
+								:href="footer_configuration.instagram">
 									<i
 									class="bi bi-instagram site-footer__social-icon"
 									aria-hidden="true"></i>
@@ -95,13 +96,13 @@
 									<i class="bi bi-arrow-up-right site-footer__social-arrow" aria-hidden="true"></i>
 								</a>
 							</li>
-							<li v-if="commerce.online_configuration.facebook">
+							<li v-if="footer_configuration.facebook">
 								<a
 								class="site-footer__social-link"
 								aria-label="Facebook (abre en una pestaña nueva)"
 								target="_blank"
 								rel="noopener noreferrer"
-								:href="commerce.online_configuration.facebook">
+								:href="footer_configuration.facebook">
 									<i
 									class="bi bi-facebook site-footer__social-icon"
 									aria-hidden="true"></i>
@@ -130,6 +131,27 @@ export default {
 		CopyrightComponent: () => import('@/components/common/footer/Copyright'),
 	},
 	computed: {
+		footer_configuration() {
+			return this.commerce.online_configuration || {}
+		},
+		footer_titulo() {
+			let value = this.footer_configuration.footer_contacto_titulo
+			return typeof value == 'string' && value.trim() ? value.trim() : 'Contactanos'
+		},
+		footer_texto() {
+			let value = this.footer_configuration.footer_contacto_texto
+			return typeof value == 'string' ? value.trim() : ''
+		},
+		footer_email() {
+			let configured = this.footer_configuration.footer_contacto_email
+			let fallback = this.commerce.email
+			// Una dirección sin parámetros mailto ni controles recibidos de una API vieja.
+			let valid = function(value) {
+				return typeof value == 'string' && /^[a-z0-9.!$'*+_=-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value.trim())
+			}
+			if (valid(configured)) return configured.trim()
+			return valid(fallback) ? fallback.trim() : ''
+		},
 		footer_whatsapp_contacts() {
 			let contacts = this.storefront_whatsapp_contacts.filter(contact => contact.key != 'general')
 			if (!contacts.length && this.commerce.phone) {
@@ -227,12 +249,24 @@ export default {
 		margin: 0 0 0.85rem;
 		text-align: left;
 		line-height: 1.3;
+		overflow-wrap: anywhere;
 
 		@if $theme == dark {
 			color: #f5f5f5;
 		} @else {
 			color: #1a1a1a;
 		}
+	}
+
+	&__text {
+		white-space: pre-line;
+		overflow-wrap: anywhere;
+		text-align: left;
+	}
+
+	&__link:focus-visible {
+		outline: 3px solid currentColor;
+		outline-offset: 3px;
 	}
 
 	&__list {
@@ -253,6 +287,10 @@ export default {
 	}
 
 	&__link {
+		// Las reglas globales .tarjetas-*-N a le ponen ancho en porcentaje a TODO <a>: sin esto el correo se parte en una caja angosta
+		width: auto;
+		max-width: 100%;
+		overflow-wrap: anywhere;
 		display: inline-flex;
 		align-items: center;
 		font-size: 0.95rem;

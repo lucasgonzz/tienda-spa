@@ -1,15 +1,11 @@
 <template> 
 	
 	<div class="cont-images">
-		<!--
-			Link real a la ficha para los buscadores (mision seo-tiendas). @click.prevent sin
-			handler: el click sigue subiendo a la tarjeta (article-card/Index.vue::set_article),
-			que decide como siempre si navega segun la plantilla.
-		-->
+
 		<a
 		class="seo-link seo-link--bloque"
 		:href="href_articulo(article)"
-		@click.prevent>
+		@click.prevent.stop="toArticle(article)">
 			<vue-load-image
 			class="img-fluid">
 				<img 
@@ -27,8 +23,10 @@
 </template>
 <script>
 import VueLoadImage from 'vue-load-image'
+import articles from '@/mixins/articles'
 export default {
 	name: 'ArticleCard',
+	mixins: [articles],
 	props: {
 		article: Object,
 	},

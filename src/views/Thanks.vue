@@ -177,6 +177,7 @@
 </template>
 
 <script>
+import { mensaje_pedido_whatsapp } from '@/helpers/mensaje_pedido_whatsapp'
 import { env } from '@/runtime_config'
 import { tiene_marca_consulta_stock } from '@/helpers/consultas_de_stock'
 /**
@@ -292,7 +293,7 @@ export default {
 			if (!opcion) {
 				return ''
 			}
-			let texto = 'Envío: ' + opcion.carrier_name + ' · ' + opcion.service_name
+			let texto = 'Envío: ' + [opcion.carrier_name, opcion.service_name].filter(Boolean).join(' · ')
 			if (opcion.estimated_delivery) {
 				let fecha = new Date(opcion.estimated_delivery)
 				if (!isNaN(fecha.getTime())) {
@@ -300,7 +301,8 @@ export default {
 				}
 			}
 			let precio = Number(this.order.envio_precio)
-			if (this.order.envio_precio !== null && this.order.envio_precio !== undefined && isFinite(precio)) {
+			if ((typeof this.order.envio_precio === 'number' || typeof this.order.envio_precio === 'string')
+				&& String(this.order.envio_precio).trim() !== '' && isFinite(precio) && precio >= 0) {
 				texto += ' · ' + (precio === 0 ? 'Gratis' : this.price(precio))
 			}
 			return texto
@@ -436,98 +438,12 @@ export default {
 				return
 			}
 
-			let buyer_name =
-				this.order.buyer && this.order.buyer.name ? this.order.buyer.name : 'Cliente'
-
-			let message = '*Pedido N° ' + this.order.num + '*\n\n'
-			if (this.pedido_a_consultar) {
-				message += 'Disponibilidad a confirmar. Pago a coordinar.\n\n'
-			}
-
-			message += '*Cliente: ' + buyer_name + '*\n\n'
-
-			if (this.order.buyer) {
-				if (this.order.buyer.phone) {
-					message += '*Telefono: ' + this.order.buyer.phone + '*\n\n'
-				} else if (
-					this.order.buyer.comercio_city_client &&
-					this.order.buyer.comercio_city_client.phone
-				) {
-					message +=
-						'*Telefono: ' + this.order.buyer.comercio_city_client.phone + '*\n\n'
-				}
-			}
-
-			if (this.order.deliver) {
-				message += '*Direccion de entrega:* ' + this.order.address + ' \n \n'
-				if (this.order.envio_opcion) {
-					message += '*' + this.texto_envio_zipnova + '* \n \n'
-				}
-			} else {
-				message += '*Retiro por el local* \n \n'
-			}
-
-			message += '*Productos:*\n'
-
-			let index = 1
-			let articles_list = this.order.articles || []
-			articles_list.forEach((article) => {
-				message +=
-					'*' +
-					index +
-					') ' +
-					article.name +
-					(this.tiene_marca_consulta_stock(article) ? ' (Consultar)' : '') +
-					'* \n     Cantidad: ' +
-					article.pivot.amount +
-					' \n     Precio: ' +
-					this.price(article.pivot.price) +
-					' \n     Total: ' +
-					this.price(article.pivot.amount * article.pivot.price) +
-					'\n\n'
-				index++
+			const message = mensaje_pedido_whatsapp(this.order, {
+				precio: valor => this.price(valor),
+				fecha: valor => this.date(valor),
+				texto_envio: this.texto_envio_zipnova,
+				a_consultar: this.pedido_a_consultar,
 			})
-
-			let promos_list = this.order.promociones_vinoteca || []
-			promos_list.forEach((promo) => {
-				message +=
-					'*' +
-					index +
-					') ' +
-					promo.name +
-					'* \n     Cantidad: ' +
-					promo.pivot.amount +
-					' \n     Precio: ' +
-					this.price(promo.pivot.price) +
-					' \n     Total: ' +
-					this.price(promo.pivot.amount * promo.pivot.price) +
-					'\n'
-				index++
-			})
-
-			message += '\n\n *Total:* ' + this.price(this.order.total)
-
-			if (this.order.fecha_entrega) {
-				message += '\n \n *Fecha de entrega:* ' + this.date(this.order.fecha_entrega)
-			}
-
-			if (this.order.description) {
-				message += '\n \n *Observaciones:* ' + this.order.description
-			}
-
-			// iOS trunca o rompe links de wa.me muy largos. Si el pedido es grande, se manda el
-			// encabezado y el total, y se remite al numero de pedido para el detalle completo.
-			const MAX_MESSAGE_LENGTH = 1500
-
-			if (message.length > MAX_MESSAGE_LENGTH) {
-				let total_items = articles_list.length + promos_list.length
-
-				message = '*Pedido N° ' + this.order.num + '*\n\n'
-				message += '*Cliente: ' + buyer_name + '*\n\n'
-				message += 'Pedido de ' + total_items + ' productos.\n\n'
-				message += '*Total:* ' + this.price(this.order.total) + '\n\n'
-				message += 'El detalle completo esta en el pedido N° ' + this.order.num + '.'
-			}
 
 			const encoded_message = encodeURIComponent(message)
 

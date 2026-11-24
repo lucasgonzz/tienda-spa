@@ -194,6 +194,160 @@ function resolve_buy_box_button_colors(online_configuration, primary_color) {
 	return { color: valid_own_color, text_color: best_text_on(valid_own_color) }
 }
 
+/** Mezcla opaca: el contraste se calcula sobre el mismo color que se publica. */
+function mix_checkout_color(color, target, weight) {
+	let expanded = color.length == 4 ? '#' + color.slice(1).split('').map(c => c + c).join('') : color
+	let channels = [1, 3, 5].map(function(index) {
+		let source = parseInt(expanded.slice(index, index + 2), 16)
+		let destination = parseInt(target.slice(index, index + 2), 16)
+		return Math.round(source * (1 - weight) + destination * weight).toString(16).padStart(2, '0')
+	})
+	return '#' + channels.join('')
+}
+
+/** Conserva el texto configurado sólo si cumple AA, incluso en colores intermedios. */
+function checkout_text(background, preferred) {
+	if (contrast_ratio(background, preferred) >= 4.5) return preferred
+	let candidate = best_text_on(background)
+	return contrast_ratio(background, candidate) >= 4.5 ? candidate : '#000000'
+}
+
+/** Contraste mínimo de cualquier fondo de botón contra las superficies (descarta blancos y casi iguales al fondo). */
+const checkout_min_surface_contrast = 1.5
+
+/** Contraste mínimo si el fondo es gris: un gris claro se lee como botón desactivado. */
+const checkout_min_gray_contrast = 3
+
+/** Croma (max-min)/255 por debajo del cual un color se considera gris. */
+const checkout_gray_chroma = 0.1
+
+/** Neutro de respaldo del checkout (se conserva el de siempre para no mover lo ya probado). */
+const checkout_neutral_background = '#245269'
+
+/**
+ * Menor contraste de un color contra un conjunto de superficies.
+ *
+ * @param {string} color hex válido
+ * @param {string[]} surfaces hex válidos
+ * @returns {number}
+ */
+function min_surface_contrast(color, surfaces) {
+	let lowest = Infinity
+	surfaces.forEach(function(surface) {
+		let value = contrast_ratio(color, surface)
+		if (value !== null && value < lowest) lowest = value
+	})
+	return lowest
+}
+
+/**
+ * Croma de un color hex: (máximo - mínimo de R, G, B) / 255. Cerca de 0 es un gris.
+ *
+ * @param {string} color hex válido (#RGB o #RRGGBB)
+ * @returns {number}
+ */
+function color_chroma(color) {
+	let expanded = color.length == 4 ? '#' + color.slice(1).split('').map(c => c + c).join('') : color
+	let channels = [1, 3, 5].map(function(index) {
+		return parseInt(expanded.slice(index, index + 2), 16)
+	})
+	return (Math.max.apply(null, channels) - Math.min.apply(null, channels)) / 255
+}
+
+/**
+ * Regla de "fondo de botón aceptable" (decisión de Lucas, 23/11/2026: sólo se reemplazan los
+ * blancos y los grises claros). Es aceptable si contrasta >= 1,5:1 contra TODAS las superficies
+ * y, si es gris (croma < 0,10), >= 3:1. Los colores con tono quedan con su color de marca.
+ *
+ * @param {string} color hex válido
+ * @param {string[]} surfaces colores de las superficies que rodean al botón
+ * @returns {boolean}
+ */
+function is_acceptable_cta_background(color, surfaces) {
+	let lowest = min_surface_contrast(color, surfaces)
+	if (lowest < checkout_min_surface_contrast) return false
+	return color_chroma(color) >= checkout_gray_chroma || lowest >= checkout_min_gray_contrast
+}
+
+/**
+ * Elige el fondo del botón principal del checkout. Candidatos en orden: color primario,
+ * color del botón "Agregar al carrito", color secundario y el neutro de respaldo; sólo cuentan
+ * los hex válidos. Gana el primero aceptable (ver is_acceptable_cta_background); si ninguno lo
+ * es (sólo con un fondo de página extremo), el de mayor contraste mínimo.
+ *
+ * @param {object} config configuración online (ya no nula)
+ * @param {string[]} surfaces colores de las superficies (tarjeta blanca y fondo de página)
+ * @returns {string} hex del fondo del botón
+ */
+function resolve_checkout_cta_background(config, surfaces) {
+	let candidates = []
+	;[config.primary_color, config.add_to_cart_button_color, config.secondary_color].forEach(function(value) {
+		let valid = normalize_hex_color(value, '')
+		if (valid != '') candidates.push(valid)
+	})
+	candidates.push(checkout_neutral_background)
+
+	let best = candidates[0]
+	let best_contrast = -1
+	for (let index = 0; index < candidates.length; index++) {
+		if (is_acceptable_cta_background(candidates[index], surfaces)) return candidates[index]
+		let lowest = min_surface_contrast(candidates[index], surfaces)
+		if (lowest > best_contrast) {
+			best = candidates[index]
+			best_contrast = lowest
+		}
+	}
+	return best
+}
+
+/**
+ * Mezcla el fondo del botón hacia el color del texto (hover, procesando); si el resultado
+ * no es un fondo aceptable, mezcla hacia el lado opuesto con el mismo peso.
+ *
+ * @param {string} background fondo elegido del botón
+ * @param {string} target blanco o negro, hacia donde se mezcla primero
+ * @param {number} weight peso de la mezcla (0 a 1)
+ * @param {string[]} surfaces superficies que rodean al botón
+ * @returns {string} hex opaco
+ */
+function mix_checkout_state(background, target, weight, surfaces) {
+	let mixed = mix_checkout_color(background, target, weight)
+	if (is_acceptable_cta_background(mixed, surfaces)) return mixed
+	let opposite = target == '#FFFFFF' ? '#000000' : '#FFFFFF'
+	return mix_checkout_color(background, opposite, weight)
+}
+
+/**
+ * Paleta de acciones independiente del comercio y de la plantilla. El fondo del botón
+ * principal no es el primario a ciegas: se elige el primer color de la marca que no sea casi
+ * blanco ni gris claro (ver resolve_checkout_cta_background).
+ *
+ * @param {object|null|undefined} configuration
+ * @returns {object} estados -> { background, text }
+ */
+export function resolve_checkout_colors(configuration) {
+	let config = configuration || {}
+	let page_background = normalize_hex_color(config.background_color, resolve_default_background_color(config))
+	let surfaces = ['#FFFFFF', page_background]
+	let cta_background = resolve_checkout_cta_background(config, surfaces)
+	let preferred = normalize_hex_color(config.text_color, '#FFFFFF')
+	let hover_preferred = normalize_hex_color(config.hover_text_color, preferred)
+	let text = checkout_text(cta_background, preferred)
+	let target = best_text_on(cta_background) == '#FFFFFF' ? '#FFFFFF' : '#000000'
+	let hover = mix_checkout_state(cta_background, target, .16, surfaces)
+	let processing = mix_checkout_state(cta_background, target, .32, surfaces)
+	let secondary_hover = mix_checkout_color(cta_background, '#FFFFFF', .9)
+	return {
+		normal: { background: cta_background, text },
+		hover: { background: hover, text: checkout_text(hover, hover_preferred) },
+		focus: { background: cta_background, text },
+		processing: { background: processing, text: checkout_text(processing, preferred) },
+		disabled: { background: '#FFFFFF', text: '#6B6B6B' },
+		secondary: { background: '#FFFFFF', text: checkout_text('#FFFFFF', cta_background) },
+		'secondary-hover': { background: secondary_hover, text: checkout_text(secondary_hover, cta_background) },
+	}
+}
+
 /**
  * Aplica la paleta y variables de tema de online_configuration en :root.
  *
@@ -201,6 +355,12 @@ function resolve_buy_box_button_colors(online_configuration, primary_color) {
  * @returns {void}
  */
 export function apply_online_configuration_theme(online_configuration) {
+	/* También publica un fallback genérico cuando la configuración todavía no llegó. */
+	let checkout_colors = resolve_checkout_colors(online_configuration)
+	Object.keys(checkout_colors).forEach(function(state) {
+		document.documentElement.style.setProperty('--checkout-' + state + '-background', checkout_colors[state].background)
+		document.documentElement.style.setProperty('--checkout-' + state + '-text', checkout_colors[state].text)
+	})
 	if (!online_configuration) {
 		return
 	}
