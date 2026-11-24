@@ -212,8 +212,14 @@ function checkout_text(background, preferred) {
 	return contrast_ratio(background, candidate) >= 4.5 ? candidate : '#000000'
 }
 
-/** Contraste mínimo del fondo del botón contra las superficies que lo rodean (WCAG 1.4.11). */
-const checkout_min_surface_contrast = 3
+/** Contraste mínimo de cualquier fondo de botón contra las superficies (descarta blancos y casi iguales al fondo). */
+const checkout_min_surface_contrast = 1.5
+
+/** Contraste mínimo si el fondo es gris: un gris claro se lee como botón desactivado. */
+const checkout_min_gray_contrast = 3
+
+/** Croma (max-min)/255 por debajo del cual un color se considera gris. */
+const checkout_gray_chroma = 0.1
 
 /** Neutro de respaldo del checkout (se conserva el de siempre para no mover lo ya probado). */
 const checkout_neutral_background = '#245269'
@@ -235,10 +241,39 @@ function min_surface_contrast(color, surfaces) {
 }
 
 /**
+ * Croma de un color hex: (máximo - mínimo de R, G, B) / 255. Cerca de 0 es un gris.
+ *
+ * @param {string} color hex válido (#RGB o #RRGGBB)
+ * @returns {number}
+ */
+function color_chroma(color) {
+	let expanded = color.length == 4 ? '#' + color.slice(1).split('').map(c => c + c).join('') : color
+	let channels = [1, 3, 5].map(function(index) {
+		return parseInt(expanded.slice(index, index + 2), 16)
+	})
+	return (Math.max.apply(null, channels) - Math.min.apply(null, channels)) / 255
+}
+
+/**
+ * Regla de "fondo de botón aceptable" (decisión de Lucas, 23/11/2026: sólo se reemplazan los
+ * blancos y los grises claros). Es aceptable si contrasta >= 1,5:1 contra TODAS las superficies
+ * y, si es gris (croma < 0,10), >= 3:1. Los colores con tono quedan con su color de marca.
+ *
+ * @param {string} color hex válido
+ * @param {string[]} surfaces colores de las superficies que rodean al botón
+ * @returns {boolean}
+ */
+function is_acceptable_cta_background(color, surfaces) {
+	let lowest = min_surface_contrast(color, surfaces)
+	if (lowest < checkout_min_surface_contrast) return false
+	return color_chroma(color) >= checkout_gray_chroma || lowest >= checkout_min_gray_contrast
+}
+
+/**
  * Elige el fondo del botón principal del checkout. Candidatos en orden: color primario,
  * color del botón "Agregar al carrito", color secundario y el neutro de respaldo; sólo cuentan
- * los hex válidos. Gana el primero con contraste >= 3:1 contra TODAS las superficies; si
- * ninguno llega, el de mayor contraste mínimo (en empate, el de mejor orden).
+ * los hex válidos. Gana el primero aceptable (ver is_acceptable_cta_background); si ninguno lo
+ * es (sólo con un fondo de página extremo), el de mayor contraste mínimo.
  *
  * @param {object} config configuración online (ya no nula)
  * @param {string[]} surfaces colores de las superficies (tarjeta blanca y fondo de página)
@@ -255,8 +290,8 @@ function resolve_checkout_cta_background(config, surfaces) {
 	let best = candidates[0]
 	let best_contrast = -1
 	for (let index = 0; index < candidates.length; index++) {
+		if (is_acceptable_cta_background(candidates[index], surfaces)) return candidates[index]
 		let lowest = min_surface_contrast(candidates[index], surfaces)
-		if (lowest >= checkout_min_surface_contrast) return candidates[index]
 		if (lowest > best_contrast) {
 			best = candidates[index]
 			best_contrast = lowest
@@ -267,7 +302,7 @@ function resolve_checkout_cta_background(config, surfaces) {
 
 /**
  * Mezcla el fondo del botón hacia el color del texto (hover, procesando); si el resultado
- * queda por debajo de 3:1 contra las superficies, mezcla hacia el lado opuesto con el mismo peso.
+ * no es un fondo aceptable, mezcla hacia el lado opuesto con el mismo peso.
  *
  * @param {string} background fondo elegido del botón
  * @param {string} target blanco o negro, hacia donde se mezcla primero
@@ -277,15 +312,15 @@ function resolve_checkout_cta_background(config, surfaces) {
  */
 function mix_checkout_state(background, target, weight, surfaces) {
 	let mixed = mix_checkout_color(background, target, weight)
-	if (min_surface_contrast(mixed, surfaces) >= checkout_min_surface_contrast) return mixed
+	if (is_acceptable_cta_background(mixed, surfaces)) return mixed
 	let opposite = target == '#FFFFFF' ? '#000000' : '#FFFFFF'
 	return mix_checkout_color(background, opposite, weight)
 }
 
 /**
  * Paleta de acciones independiente del comercio y de la plantilla. El fondo del botón
- * principal no es el primario a ciegas: se elige el primer color de la marca que se distinga
- * de la tarjeta blanca y del fondo de página (ver resolve_checkout_cta_background).
+ * principal no es el primario a ciegas: se elige el primer color de la marca que no sea casi
+ * blanco ni gris claro (ver resolve_checkout_cta_background).
  *
  * @param {object|null|undefined} configuration
  * @returns {object} estados -> { background, text }
