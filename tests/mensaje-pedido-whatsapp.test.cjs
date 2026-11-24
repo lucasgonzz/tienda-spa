@@ -174,3 +174,39 @@ test('texto de envío de Thanks no transforma ausencia en envío gratis ni nombr
 	}
 	assert.equal(thanks.computed.texto_envio_zipnova.call({ order: { envio_opcion: { carrier_name: 'Correo', service_name: 'Domicilio' }, envio_precio: '0' }, price: formato.precio }), 'Envío: Correo · Domicilio · Gratis')
 })
+
+// ── Ronda 2 de CA-1: el corte por tope no puede partir un par sustituto (emoji) ──
+// Un sustituto suelto hace que encodeURIComponent (Thanks.vue) lance URIError y el comprador no pueda enviar el pedido.
+const SUSTITUTO_SUELTO = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/
+// Arma un texto largo con un emoji que arranca en `inicio` (cerca del borde del tope) y sigue con relleno.
+const con_emoji_en = (inicio, emoji = '🍷') => 'a'.repeat(inicio) + emoji + 'b'.repeat(40)
+// Cada campo con tope: cómo cargar el texto en el pedido y su tope.
+const CAMPOS_CON_TOPE = {
+	nombre: [80, (o, t) => { o.buyer.name = t }],
+	direccion: [300, (o, t) => { o.deliver = 1; o.address = t }],
+	observaciones: [500, (o, t) => { o.description = t }],
+	producto: [120, (o, t) => { o.articles = [item(t)] }],
+	variante: [160, (o, t) => { o.articles = [{ ...item('Té'), pivot: { amount: 2, price: 12, variant_id: 5 }, selected_variant: { id: 5, variant_description: t } }] }],
+	numero: [30, (o, t) => { o.num = t }],
+}
+for (const [campo, [tope, cargar]] of Object.entries(CAMPOS_CON_TOPE)) {
+	test('CA1b-' + campo + ' el corte en el tope no deja sustitutos sueltos ni rompe encodeURIComponent', () => {
+		for (const emoji of ['🍷', '🙏']) {
+			for (let corrimiento = 0; corrimiento <= 3; corrimiento++) {
+				const order = pedido()
+				cargar(order, con_emoji_en(tope - 4 + corrimiento, emoji))
+				const text = mensaje(order, formato)
+				assert.doesNotMatch(text, SUSTITUTO_SUELTO, campo + ' corrimiento ' + corrimiento)
+				assert.doesNotThrow(() => encodeURIComponent(text), campo + ' corrimiento ' + corrimiento)
+				assert.ok(text.length <= MAX_LARGO_MENSAJE)
+			}
+		}
+	})
+}
+test('CA1b-observaciones repetidas con emoji (caso del Revisor) se codifican sin error', () => {
+	const order = pedido()
+	order.description = 'Por favor tocar timbre 🙏 '.repeat(40)
+	const text = mensaje(order, formato)
+	assert.doesNotMatch(text, SUSTITUTO_SUELTO)
+	assert.doesNotThrow(() => encodeURIComponent(text))
+})
