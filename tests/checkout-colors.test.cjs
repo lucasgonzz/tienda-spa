@@ -52,7 +52,10 @@ test('U3-03 claro, oscuro e intermedio mantienen AA en TODOS los estados', () =>
 		assert.ok(ratio(palette.normal.background, '#FFFFFF') >= 3, primary + ' → ' + palette.normal.background)
 		assert.ok(ratio(palette.normal.background, '#FFFFFF') >= 3, 'background_color por defecto')
 		if (ratio(primary, '#FFFFFF') >= 3) assert.equal(palette.normal.background, primary)
-		assert.notEqual(palette.normal.text, primary)
+		// Decisión del Coordinador (23/11/2026) por CA1.4: el fondo ya no es siempre el primario, así que el texto
+		// sólo se compara con el primario cuando éste fue el fondo elegido; siempre debe diferir del fondo real.
+		if (palette.normal.background === primary) assert.notEqual(palette.normal.text, primary)
+		assert.notEqual(palette.normal.text, palette.normal.background)
 		assert.notEqual(palette.hover.background, palette.normal.background)
 		assert.notEqual(palette.processing.background, palette.hover.background)
 		assert.notEqual(palette.processing.background, palette.disabled.background)
