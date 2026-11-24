@@ -421,15 +421,18 @@ $checkout-tenue: rgba(0, 0, 0, .55)
 		background: var(--checkout-hover-background, #477184) !important
 		color: var(--checkout-hover-text, #FFFFFF) !important
 
+	// Desactivado: relleno blanco con contorno punteado gris; se distingue del activo (relleno oscuro) por forma y no sólo por color
 	&:disabled,
 	&.disabled
-		background: var(--checkout-disabled-background, #E0E0E0) !important
-		color: var(--checkout-disabled-text, #454545) !important
+		background: var(--checkout-disabled-background, #FFFFFF) !important
+		color: var(--checkout-disabled-text, #6B6B6B) !important
+		border: 2px dashed #8A8A8A !important
 		cursor: not-allowed
 
 	&.checkout-confirm__btn--processing:disabled
 		background: var(--checkout-processing-background, #6a8999) !important
 		color: var(--checkout-processing-text, #000000) !important
+		border: 2px dashed currentColor !important
 		border-style: dashed !important
 		cursor: progress
 

@@ -1,7 +1,23 @@
 import { tiene_marca_consulta_stock, variante_de_linea } from './consultas_de_stock'
 
 // Reutiliza los bloques del helper previo; sin columnas ni sangrías Unicode.
-export const MAX_LARGO_MENSAJE = 1500
+// Presupuesto de caracteres del texto sin codificar. WhatsApp admite 65 536; 4000 deja holgura
+// (un pedido de 15 productos con variante entra entero). Nunca se reemplaza el pedido por un resumen:
+// si no entran todos los productos se listan los primeros y se avisa cuántos faltan.
+export const MAX_LARGO_MENSAJE = 4000
+
+// Topes por campo de texto libre (caracteres). Al cortar se agrega "…".
+const TOPES = { numero: 30, nombre: 80, telefono: 40, direccion: 300, envio: 200, observaciones: 500, producto: 120, variante: 160 }
+
+/**
+ * Corta un texto ya limpio al tope indicado, agregando "…" si hubo recorte.
+ * @param {string} texto
+ * @param {number} tope
+ * @returns {string}
+ */
+function acotar(texto, tope) {
+	return texto.length > tope ? texto.slice(0, tope - 1).trimEnd() + '…' : texto
+}
 
 function limpio(valor) {
 	return typeof valor === 'string' || typeof valor === 'number'
@@ -57,9 +73,9 @@ function detalle(item, indice, tipo, formato) {
 	if (subtotal === null && cantidad !== null && unitario !== null) {
 		subtotal = numero(cantidad * unitario)
 	}
-	const lineas = [indice + '. ' + tipo + (limpio(item.name) || 'Sin nombre')
+	const lineas = [indice + '. ' + tipo + (acotar(limpio(item.name), TOPES.producto) || 'Sin nombre')
 		+ (tiene_marca_consulta_stock(item) ? ' (Consultar)' : '')]
-	const descripcion = variante(item)
+	const descripcion = acotar(variante(item), TOPES.variante)
 	if (descripcion) {
 		lineas.push('Variante: ' + descripcion)
 	}
@@ -79,14 +95,14 @@ export function mensaje_pedido_whatsapp(pedido, formato) {
 	const promos = lista(order.promociones_vinoteca)
 	const combos = lista(order.combos)
 	const items = articulos.concat(promos, combos)
-	const numeroPedido = limpio(order.num)
+	const numeroPedido = acotar(limpio(order.num), TOPES.numero)
 	const encabezado = '*Pedido' + (numeroPedido ? ' N° ' + numeroPedido : '') + '*'
 	const aviso = formato.a_consultar || items.some(tiene_marca_consulta_stock)
 		? '_Disponibilidad a confirmar. Pago a coordinar._' : ''
 	const total = '*' + (aviso ? 'TOTAL ESTIMADO: ' : 'TOTAL: ') + importe(order.total, formato) + '*'
 	const buyer = order.buyer || {}
-	const telefono = limpio(buyer.phone) || limpio(buyer.comercio_city_client && buyer.comercio_city_client.phone)
-	const cliente = ['*Cliente:* ' + (limpio(buyer.name) || 'Cliente')]
+	const telefono = acotar(limpio(buyer.phone) || limpio(buyer.comercio_city_client && buyer.comercio_city_client.phone), TOPES.telefono)
+	const cliente = ['*Cliente:* ' + (acotar(limpio(buyer.name), TOPES.nombre) || 'Cliente')]
 	if (telefono) {
 		cliente.push('*Teléfono:* ' + telefono)
 	}
@@ -94,10 +110,10 @@ export function mensaje_pedido_whatsapp(pedido, formato) {
 	if (order.deliver === true || order.deliver === 1 || order.deliver === '1') {
 		entrega.push('*Entrega:* Envío a domicilio')
 		if (limpio(order.address)) {
-			entrega.push('*Dirección:* ' + limpio(order.address))
+			entrega.push('*Dirección:* ' + acotar(limpio(order.address), TOPES.direccion))
 		}
 		if (order.envio_opcion && limpio(formato.texto_envio)) {
-			entrega.push(limpio(formato.texto_envio))
+			entrega.push(acotar(limpio(formato.texto_envio), TOPES.envio))
 		}
 	} else if (order.deliver === false || order.deliver === 0 || order.deliver === '0') {
 		entrega.push('*Entrega:* Retiro por el local')
@@ -105,22 +121,29 @@ export function mensaje_pedido_whatsapp(pedido, formato) {
 	if (order.fecha_entrega) {
 		entrega.push('*Fecha de entrega:* ' + limpio(formato.fecha(order.fecha_entrega)))
 	}
-	const productos = articulos.map((item, i) => detalle(item, i + 1, '', formato))
+	const lineas_producto = articulos.map((item, i) => detalle(item, i + 1, '', formato))
 		.concat(promos.map((item, i) => detalle(item, articulos.length + i + 1, 'Promo: ', formato)))
 		.concat(combos.map((item, i) => detalle(item, articulos.length + promos.length + i + 1, 'Combo: ', formato)))
-	const bloques = [encabezado, aviso, cliente.join('\n'), entrega.join('\n'),
-		'*Productos*\n' + (productos.length ? productos.join('\n\n') : 'Detalle disponible en el pedido.'),
-		total]
-	if (limpio(order.description)) {
-		bloques.push('*Observaciones:* ' + limpio(order.description))
+	const observaciones = limpio(order.description)
+		? '*Observaciones:* ' + acotar(limpio(order.description), TOPES.observaciones) : ''
+	// Bloques fijos: nunca se omiten. Los productos van entre la entrega y el total.
+	const antes = [encabezado, aviso, cliente.join('\n'), entrega.join('\n')].filter(Boolean)
+	const despues = [total, observaciones].filter(Boolean)
+	const armar = function(productos, restantes) {
+		const detalle_productos = productos.length ? productos.join('\n\n') : 'Detalle disponible en el pedido.'
+		const cola = restantes > 0
+			? '\n\n… y ' + restantes + ' productos más (detalle completo en el pedido)' : ''
+		return antes.concat(['*Productos*\n' + detalle_productos + cola], despues).join('\n\n')
 	}
-	let mensaje = bloques.filter(Boolean).join('\n\n')
+	let mensaje = armar(lineas_producto, 0)
 	if (mensaje.length > MAX_LARGO_MENSAJE) {
-		// El resumen conserva total y advertencia, aun con textos de entrada muy extensos.
-		mensaje = [encabezado.slice(0, 160).replace(/\*$/, '') + '*', aviso,
-			'Pedido de ' + items.length + ' líneas (' + articulos.length + ' productos, '
-				+ promos.length + ' promociones, ' + combos.length + ' combos).',
-			total, 'El detalle completo está en el pedido registrado.'].filter(Boolean).join('\n\n')
+		// Se incluyen productos en orden mientras el mensaje (con la línea de restantes) entre en el presupuesto.
+		let incluidos = lineas_producto.length
+		while (incluidos > 0) {
+			incluidos--
+			mensaje = armar(lineas_producto.slice(0, incluidos), lineas_producto.length - incluidos)
+			if (mensaje.length <= MAX_LARGO_MENSAJE) break
+		}
 	}
 	return mensaje
 }

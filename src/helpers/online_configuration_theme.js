@@ -212,25 +212,104 @@ function checkout_text(background, preferred) {
 	return contrast_ratio(background, candidate) >= 4.5 ? candidate : '#000000'
 }
 
-/** Paleta de acciones independiente del comercio y de la plantilla. */
+/** Contraste mínimo del fondo del botón contra las superficies que lo rodean (WCAG 1.4.11). */
+const checkout_min_surface_contrast = 3
+
+/** Neutro de respaldo del checkout (se conserva el de siempre para no mover lo ya probado). */
+const checkout_neutral_background = '#245269'
+
+/**
+ * Menor contraste de un color contra un conjunto de superficies.
+ *
+ * @param {string} color hex válido
+ * @param {string[]} surfaces hex válidos
+ * @returns {number}
+ */
+function min_surface_contrast(color, surfaces) {
+	let lowest = Infinity
+	surfaces.forEach(function(surface) {
+		let value = contrast_ratio(color, surface)
+		if (value !== null && value < lowest) lowest = value
+	})
+	return lowest
+}
+
+/**
+ * Elige el fondo del botón principal del checkout. Candidatos en orden: color primario,
+ * color del botón "Agregar al carrito", color secundario y el neutro de respaldo; sólo cuentan
+ * los hex válidos. Gana el primero con contraste >= 3:1 contra TODAS las superficies; si
+ * ninguno llega, el de mayor contraste mínimo (en empate, el de mejor orden).
+ *
+ * @param {object} config configuración online (ya no nula)
+ * @param {string[]} surfaces colores de las superficies (tarjeta blanca y fondo de página)
+ * @returns {string} hex del fondo del botón
+ */
+function resolve_checkout_cta_background(config, surfaces) {
+	let candidates = []
+	;[config.primary_color, config.add_to_cart_button_color, config.secondary_color].forEach(function(value) {
+		let valid = normalize_hex_color(value, '')
+		if (valid != '') candidates.push(valid)
+	})
+	candidates.push(checkout_neutral_background)
+
+	let best = candidates[0]
+	let best_contrast = -1
+	for (let index = 0; index < candidates.length; index++) {
+		let lowest = min_surface_contrast(candidates[index], surfaces)
+		if (lowest >= checkout_min_surface_contrast) return candidates[index]
+		if (lowest > best_contrast) {
+			best = candidates[index]
+			best_contrast = lowest
+		}
+	}
+	return best
+}
+
+/**
+ * Mezcla el fondo del botón hacia el color del texto (hover, procesando); si el resultado
+ * queda por debajo de 3:1 contra las superficies, mezcla hacia el lado opuesto con el mismo peso.
+ *
+ * @param {string} background fondo elegido del botón
+ * @param {string} target blanco o negro, hacia donde se mezcla primero
+ * @param {number} weight peso de la mezcla (0 a 1)
+ * @param {string[]} surfaces superficies que rodean al botón
+ * @returns {string} hex opaco
+ */
+function mix_checkout_state(background, target, weight, surfaces) {
+	let mixed = mix_checkout_color(background, target, weight)
+	if (min_surface_contrast(mixed, surfaces) >= checkout_min_surface_contrast) return mixed
+	let opposite = target == '#FFFFFF' ? '#000000' : '#FFFFFF'
+	return mix_checkout_color(background, opposite, weight)
+}
+
+/**
+ * Paleta de acciones independiente del comercio y de la plantilla. El fondo del botón
+ * principal no es el primario a ciegas: se elige el primer color de la marca que se distinga
+ * de la tarjeta blanca y del fondo de página (ver resolve_checkout_cta_background).
+ *
+ * @param {object|null|undefined} configuration
+ * @returns {object} estados -> { background, text }
+ */
 export function resolve_checkout_colors(configuration) {
 	let config = configuration || {}
-	let primary = normalize_hex_color(config.primary_color, '#245269')
+	let page_background = normalize_hex_color(config.background_color, resolve_default_background_color(config))
+	let surfaces = ['#FFFFFF', page_background]
+	let cta_background = resolve_checkout_cta_background(config, surfaces)
 	let preferred = normalize_hex_color(config.text_color, '#FFFFFF')
 	let hover_preferred = normalize_hex_color(config.hover_text_color, preferred)
-	let text = checkout_text(primary, preferred)
-	let target = best_text_on(primary) == '#FFFFFF' ? '#FFFFFF' : '#000000'
-	let hover = mix_checkout_color(primary, target, .16)
-	let processing = mix_checkout_color(primary, target, .32)
-	let secondary_hover = mix_checkout_color(primary, '#FFFFFF', .9)
+	let text = checkout_text(cta_background, preferred)
+	let target = best_text_on(cta_background) == '#FFFFFF' ? '#FFFFFF' : '#000000'
+	let hover = mix_checkout_state(cta_background, target, .16, surfaces)
+	let processing = mix_checkout_state(cta_background, target, .32, surfaces)
+	let secondary_hover = mix_checkout_color(cta_background, '#FFFFFF', .9)
 	return {
-		normal: { background: primary, text },
+		normal: { background: cta_background, text },
 		hover: { background: hover, text: checkout_text(hover, hover_preferred) },
-		focus: { background: primary, text },
+		focus: { background: cta_background, text },
 		processing: { background: processing, text: checkout_text(processing, preferred) },
-		disabled: { background: '#E0E0E0', text: '#454545' },
-		secondary: { background: '#FFFFFF', text: checkout_text('#FFFFFF', primary) },
-		'secondary-hover': { background: secondary_hover, text: checkout_text(secondary_hover, primary) },
+		disabled: { background: '#FFFFFF', text: '#6B6B6B' },
+		secondary: { background: '#FFFFFF', text: checkout_text('#FFFFFF', cta_background) },
+		'secondary-hover': { background: secondary_hover, text: checkout_text(secondary_hover, cta_background) },
 	}
 }
 
