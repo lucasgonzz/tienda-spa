@@ -82,24 +82,60 @@ test('cero explícito válido y multiplicación fuera de rango no llega al forma
 	assert.match(mensaje({ articles: [item('Enorme', 1e200, 1e200)] }, formato), /Subtotal: A confirmar/)
 })
 
-test('consulta de stock se conserva incluso en resumen largo con promos y combos', () => {
+test('CA1-08 pedido grande con variantes, promo y combo en consulta de stock llega completo, sin resumen', () => {
 	const order = pedido()
-	order.articles = Array.from({ length: 35 }, (_, i) => item('Artículo extenso ' + i))
+	order.articles = Array.from({ length: 15 }, (_, i) => ({
+		...item('Vino reserva de bodega número ' + String(i + 1).padStart(2, '0')),
+		pivot: { amount: 2, price: 12, variant_id: 5 },
+		selected_variant: { id: 5, article_property_values: [{ name: 'Malbec', article_property_type: { name: 'Tipo' } }] },
+	}))
 	order.combos = [{ ...item('Combo'), pivot: { amount: 1, price: 4, stock_a_consultar: 1 } }]
 	order.promociones_vinoteca = [item('Promo')]
+	Object.assign(order, { deliver: 1, address: 'Calle 1 Piso 2', envio_opcion: {} })
+	const text = mensaje(order, { ...formato, texto_envio: 'Envío: Correo' })
+	assert.ok(text.length <= MAX_LARGO_MENSAJE, 'largo ' + text.length)
+	for (const parte of ['*Cliente:* ', '*Teléfono:* ', '*Entrega:* Envío a domicilio', '*Dirección:* ', 'Variante: Tipo: Malbec', 'Disponibilidad a confirmar', 'TOTAL ESTIMADO: $ 19.00', 'Promo: Promo', 'Combo: Combo']) {
+		assert.ok(text.includes(parte), parte)
+	}
+	for (let i = 1; i <= 15; i++) assert.ok(text.includes('Vino reserva de bodega número ' + String(i).padStart(2, '0')), 'artículo ' + i)
+	assert.doesNotMatch(text, /productos más|Pedido de /)
+})
+
+test('CA1-07 pedido corto: el texto no cambia respecto del que producía el helper antes de la corrección', () => {
+	const order = pedido()
+	order.articles = [item('Té'), item('Yerba mate', 1, 35)]
+	Object.assign(order, { total: 59, deliver: 1, address: 'Calle 1 Piso 2', description: 'Tocar timbre' })
+	assert.equal(mensaje(order, { ...formato, texto_envio: 'Envío: Correo · $ 20' }),
+		'*Pedido N° 28*\n\n*Cliente:* Ana\n*Teléfono:* 123\n\n*Entrega:* Envío a domicilio\n*Dirección:* Calle 1 Piso 2\n\n*Productos*\n1. Té\nCantidad: 2 unidades\nPrecio unitario: $ 12.00\nSubtotal: $ 24.00\n\n2. Yerba mate\nCantidad: 1 unidades\nPrecio unitario: $ 35.00\nSubtotal: $ 35.00\n\n*TOTAL: $ 59.00*\n\n*Observaciones:* Tocar timbre')
+})
+
+test('CA1-09 80 artículos largos: datos del cliente y total intactos y recorte ordenado de productos', () => {
+	const order = pedido()
+	order.articles = Array.from({ length: 80 }, (_, i) => item(('Artículo ' + String(i + 1).padStart(2, '0') + ' ').padEnd(120, 'x')))
+	Object.assign(order, { deliver: 1, address: 'Calle 1 Piso 2', total: 1234 })
 	const text = mensaje(order, formato)
-	assert.ok(text.length <= MAX_LARGO_MENSAJE)
-	assert.match(text, /Disponibilidad a confirmar. Pago a coordinar./)
-	assert.match(text, /Pedido de 37 líneas \(35 productos, 1 promociones, 1 combos\)/)
-	assert.match(text, /TOTAL ESTIMADO: \$ 19.00/)
-	assert.match(text, /detalle completo está en el pedido registrado/)
-	// También funciona cuando el exceso está en los datos personales, no en la cantidad.
-	order.articles = []
+	assert.ok(text.length <= MAX_LARGO_MENSAJE, 'largo ' + text.length)
+	for (const parte of ['*Cliente:* Ana', '*Teléfono:* 123', '*Entrega:* Envío a domicilio', '*Dirección:* Calle 1 Piso 2', '*TOTAL: $ 1234.00*']) {
+		assert.ok(text.includes(parte), parte)
+	}
+	const listados = order.articles.filter(a => text.includes(a.name)).length
+	assert.ok(listados > 0 && listados < 80, 'listados ' + listados)
+	for (let i = 0; i < 80; i++) assert.equal(text.includes(order.articles[i].name), i < listados, 'orden en ' + (i + 1))
+	const resto = text.match(/… y (\d+) productos más \(detalle completo en el pedido\)/)
+	assert.ok(resto, 'línea de productos restantes')
+	assert.equal(Number(resto[1]), 80 - listados)
+	assert.ok(text.indexOf(resto[0]) < text.indexOf('*TOTAL'))
+})
+
+test('CA1-10 datos personales enormes se acotan sin perder etiquetas ni producto', () => {
+	const order = pedido()
+	Object.assign(order, { num: '9'.repeat(3000), deliver: 1, address: 'B'.repeat(3000), description: 'C'.repeat(3000) })
 	order.buyer.name = 'A'.repeat(3000)
-	order.address = 'B'.repeat(3000)
-	order.num = '9'.repeat(3000)
-	order.deliver = 1
-	assert.ok(mensaje(order, formato).length <= MAX_LARGO_MENSAJE)
+	const text = mensaje(order, formato)
+	assert.ok(text.length <= MAX_LARGO_MENSAJE, 'largo ' + text.length)
+	for (const parte of ['*Cliente:* ', '*Dirección:* ', '*Entrega:* Envío a domicilio', '*TOTAL', '1. Té', '*Observaciones:* ']) {
+		assert.ok(text.includes(parte), parte)
+	}
 })
 
 test('entrega y datos preexistentes sin PII adicional ni formato inyectado', () => {
