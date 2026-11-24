@@ -24,6 +24,14 @@ function ratio(a, b) {
 	const values = [luminance(a), luminance(b)].sort((a, b) => b - a)
 	return (values[0] + .05) / (values[1] + .05)
 }
+// Oráculo de la adenda B: fondo aceptable = ≥1,5:1 contra todas las superficies y, si es gris (croma < 0,10), ≥3:1.
+function acceptable(color, surfaces = ['#FFFFFF']) {
+	if (color.length === 4) color = '#' + [...color.slice(1)].map(c => c + c).join('')
+	const channels = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16))
+	const chroma = (Math.max(...channels) - Math.min(...channels)) / 255
+	const lowest = Math.min(...surfaces.map(surface => ratio(color, surface)))
+	return lowest >= 1.5 && (chroma >= .1 || lowest >= 3)
+}
 function readable(palette) {
 	for (const [state, colors] of Object.entries(palette)) {
 		assert.ok(ratio(colors.background, colors.text) >= 4.5, state + ': ' + JSON.stringify(colors))
@@ -47,10 +55,10 @@ test('U3-02 configuración ausente o inválida usa fallback genérico legible', 
 test('U3-03 claro, oscuro e intermedio mantienen AA en TODOS los estados', () => {
 	for (const primary of ['#fff', '#000', '#ffff00', '#777777', '#767676', '#123456', '#abcdef']) {
 		const palette = theme.resolve_checkout_colors({ primary_color: primary, text_color: primary, hover_text_color: primary })
-		// CA1.4: criterio más exigente. El fondo del botón contrasta ≥3:1 contra la tarjeta blanca y contra
-		// el fondo de página, y sólo es el primario cuando éste ya contrasta (no se cambia a quien estaba bien).
-		assert.ok(ratio(palette.normal.background, '#FFFFFF') >= 3, primary + ' → ' + palette.normal.background)
-		assert.ok(ratio(palette.normal.background, '#FFFFFF') >= 3, 'background_color por defecto')
+		// CA1.4: criterio más exigente. El fondo del botón no es el primario a ciegas: sólo es el primario cuando éste ya contrasta (no se cambia a quien estaba bien).
+		// Decisión de Lucas 23/11/2026, adenda B: sólo blancos y grises claros
+		assert.ok(acceptable(palette.normal.background), primary + ' → ' + palette.normal.background)
+		assert.ok(acceptable(palette.normal.background), 'background_color por defecto')
 		if (ratio(primary, '#FFFFFF') >= 3) assert.equal(palette.normal.background, primary)
 		// Decisión del Coordinador (23/11/2026) por CA1.4: el fondo ya no es siempre el primario, así que el texto
 		// sólo se compara con el primario cuando éste fue el fondo elegido; siempre debe diferir del fondo real.
@@ -127,18 +135,21 @@ test('CA1-01 con la configuración de Truvari el botón es violeta oscuro con te
 test('CA1-02 hover, foco y procesando legibles; secundario violeta; desactivado blanco y distinguible', () => {
 	const palette = theme.resolve_checkout_colors(T)
 	for (const state of ['hover', 'focus', 'processing']) {
-		assert.ok(ratio(palette[state].background, '#FFFFFF') >= 3, state + ' fondo: ' + palette[state].background)
+		// Decisión de Lucas 23/11/2026, adenda B: sólo blancos y grises claros
+		assert.ok(acceptable(palette[state].background), state + ' fondo: ' + palette[state].background)
 		assert.ok(ratio(palette[state].background, palette[state].text) >= 4.5, state + ' texto')
 	}
 	assert.equal(palette.secondary.text, '#250237')
 	assert.deepEqual(palette.disabled, { background: '#FFFFFF', text: '#6B6B6B' })
-	assert.ok(ratio(palette.normal.background, palette.disabled.background) >= 3)
+	// Decisión de Lucas 23/11/2026, adenda B: sólo blancos y grises claros
+	assert.ok(ratio(palette.normal.background, palette.disabled.background) >= 1.5)
 })
 test('CA1-03 orden de candidatos: primario, botón de agregar, secundario y neutro', () => {
 	const claro = '#E9E7EA'
 	assert.equal(normal_background({ primary_color: claro, add_to_cart_button_color: null, secondary_color: '#250237' }), '#250237')
 	assert.equal(normal_background({ primary_color: claro, add_to_cart_button_color: '#FFEEEE', secondary_color: '#123456' }), '#123456')
-	assert.equal(normal_background({ primary_color: claro, add_to_cart_button_color: 'bad', secondary_color: '#fe7802' }), '#245269')
+	// Decisión de Lucas 23/11/2026, adenda B: sólo blancos y grises claros
+	assert.equal(normal_background({ primary_color: claro, add_to_cart_button_color: 'bad', secondary_color: '#fe7802' }), '#fe7802')
 	assert.equal(normal_background({ primary_color: '#c5111d', add_to_cart_button_color: '#250237', secondary_color: '#123456' }), '#c5111d')
 })
 test('CA1-04 el reemplazo de U3-03 es más exigente: un primario claro nunca queda como fondo', () => {
@@ -157,10 +168,11 @@ test('CA1-05 barrido RGB con fondo blanco y gris: fondo ≥3:1, textos AA y acti
 			readable(palette)
 			for (const state of ['normal', 'hover', 'focus', 'processing']) {
 				for (const surface of ['#FFFFFF', page]) {
-					assert.ok(ratio(palette[state].background, surface) >= 3, page + ' ' + primary + ' ' + state + ' ' + palette[state].background)
+					// Decisión de Lucas 23/11/2026, adenda B: sólo blancos y grises claros
+					assert.ok(acceptable(palette[state].background, ['#FFFFFF', page]), page + ' ' + primary + ' ' + state + ' ' + palette[state].background)
 				}
 			}
-			assert.ok(ratio(palette.normal.background, palette.disabled.background) >= 3, primary)
+			assert.ok(ratio(palette.normal.background, palette.disabled.background) >= 1.5, primary)
 		}
 	}
 })
@@ -174,4 +186,49 @@ test('CA1-06 SASS: desactivado con contorno punteado gris y procesando con su pr
 	assert.ok(processing, 'bloque procesando')
 	assert.match(processing[1], /border: 2px dashed currentColor !important/)
 	assert.match(sass, /border-style: dashed !important/)
+})
+
+// ── Adenda B: sólo se reemplazan los blancos y grises claros; los colores con tono conservan su color de marca ──
+// "Negro" en la SPA es '#111111' (best_text_on) o '#000000' cuando '#111111' no llega a 4,5:1 (caso #777777).
+const NEGRO = ['#111111', '#000000']
+test('CA1c-01 tabla de valores esperados: fondo y texto del botón principal', () => {
+	const casos = [
+		// [primario, botón carrito, secundario, fondo esperado, texto esperado (o null = negro)]
+		['#E9E7EA', '#250237', '#250237', '#250237', '#FFFFFF'],
+		['#FF9800', null, '#fe7802', '#FF9800', null],
+		['#4CAF50', null, null, '#4CAF50', null],
+		['#FFC107', null, null, '#FFC107', null],
+		['#03A9F4', null, null, '#03A9F4', null],
+		['#fe7802', null, null, '#fe7802', null],
+		['#CCCCCC', null, '#250237', '#250237', '#FFFFFF'],
+		['#CCCCCC', null, null, '#245269', '#FFFFFF'],
+		['#FFF9C4', null, '#fe7802', '#fe7802', null],
+		['#777777', null, null, '#777777', '#000000'],
+		['#c5111d', null, null, '#c5111d', '#FFFFFF'],
+		['#fff', null, '#fe7802', '#fe7802', null],
+	]
+	for (const [primary, carrito, secundario, fondo, texto] of casos) {
+		const normal = theme.resolve_checkout_colors({ primary_color: primary, add_to_cart_button_color: carrito, secondary_color: secundario }).normal
+		assert.equal(normal.background, fondo, primary + ' fondo')
+		if (texto) assert.equal(normal.text, texto, primary + ' texto')
+		else assert.ok(NEGRO.includes(normal.text), primary + ' texto negro: ' + normal.text)
+		assert.ok(ratio(normal.background, normal.text) >= 4.5, primary + ' contraste del texto')
+	}
+})
+test('CA1c-02 el secundario toma el color de marca si se lee sobre blanco y si no, texto oscuro', () => {
+	const naranja = theme.resolve_checkout_colors({ primary_color: '#FF9800' }).secondary
+	assert.equal(naranja.background, '#FFFFFF')
+	assert.ok(ratio(naranja.background, naranja.text) >= 4.5)
+	assert.ok(NEGRO.includes(naranja.text), naranja.text)
+	assert.equal(theme.resolve_checkout_colors({ primary_color: '#c5111d' }).secondary.text, '#c5111d')
+})
+test('CA1c-03 hover, foco y procesando de un color con tono siguen siendo aceptables y legibles', () => {
+	for (const primary of ['#FF9800', '#4CAF50', '#FFC107', '#03A9F4', '#fe7802']) {
+		const palette = theme.resolve_checkout_colors({ primary_color: primary })
+		for (const state of ['hover', 'focus', 'processing']) {
+			assert.ok(acceptable(palette[state].background), primary + ' ' + state + ' ' + palette[state].background)
+			assert.ok(ratio(palette[state].background, palette[state].text) >= 4.5, primary + ' ' + state + ' texto')
+		}
+		assert.notEqual(palette.hover.background, palette.normal.background, primary)
+	}
 })
