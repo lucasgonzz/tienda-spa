@@ -1,3 +1,4 @@
+import { marcar_intento_incierto } from '@/utils/brick_de_tarjeta'
 import { consumir_token_captcha } from '@/store/cart'
 import { capturar_checkout, captura_reset_checkout, checkout_vigente, cerrar_invitado_checkout } from '@/store/checkout_session'
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
@@ -1162,6 +1163,11 @@ export default {
 		 */
 		manejar_error_de_cobro_con_tarjeta(err) {
 			const respuesta = err && err.response
+			// Sin respuesta (corte de red) o error del servidor: el pago pudo haberse aprobado igual. El reintento
+			// reusa el mismo token para que el servidor no cobre dos veces.
+			if (!respuesta || respuesta.status >= 500) {
+				marcar_intento_incierto()
+			}
 			if (!respuesta) {
 				return false
 			}

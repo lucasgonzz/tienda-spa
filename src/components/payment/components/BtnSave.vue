@@ -54,7 +54,7 @@
 </template>
 <script>
 import cart from '@/mixins/cart'
-import { obtener_datos } from '@/utils/brick_de_tarjeta'
+import { obtener_datos, recordar_intento, intento_para_reusar, olvidar_intento, hay_intento_incierto } from '@/utils/brick_de_tarjeta'
 import { capturar_checkout, checkout_vigente, captura_identificacion_checkout } from '@/store/checkout_session'
 import CheckoutCaptcha from './CheckoutCaptcha.vue'
 import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
@@ -321,8 +321,21 @@ export default {
 			let opcion = this.opcion_de_tarjeta
 			let metodo = this.cart_payment_method
 
-			return obtener_datos()
+			// Firma del pago: si el anterior quedó sin respuesta del servidor y es igual, se reusa su token (ver
+			// recordar_intento en brick_de_tarjeta.js). Si cambió el método o las cuotas, es otro pago.
+			let firma = metodo.id + '|' + opcion.cuotas + '|' + opcion.total
+			let anteriores = intento_para_reusar(firma)
+
+			return (anteriores ? Promise.resolve(anteriores) : obtener_datos())
 			.then(function(datos) {
+				// Siempre se vuelve a registrar: así el estado «incierto» se rearma sólo si este envío tampoco tiene respuesta.
+				recordar_intento(firma, datos)
+				// Email del pagador: el que trae el Brick o, si no, el del comprador AL MOMENTO de pagar (el
+				// invitado lo completa después de elegir el método).
+				let pagador = Object.assign({}, datos.payer)
+				if (!pagador.email) {
+					pagador.email = (self.user && self.user.email) || self.$store.state.cart.buyer.email || ''
+				}
 				let cobro = {
 					payment_method_id: metodo.id,
 					cuotas: opcion.cuotas,
@@ -331,7 +344,7 @@ export default {
 						token: datos.token,
 						payment_method_id: datos.payment_method_id,
 						issuer_id: datos.issuer_id,
-						payer: datos.payer,
+						payer: pagador,
 					},
 				}
 				// Identificador de dispositivo que deja el SDK de Mercado Pago (antifraude), si existe.
@@ -346,6 +359,10 @@ export default {
 			})
 			.then(function(ok) {
 				self.procesando = false
+				// Resuelto (aprobado, rechazado o cortado antes de cobrar): el próximo intento pide token nuevo.
+				if (!hay_intento_incierto()) {
+					olvidar_intento()
+				}
 				if (ok === false) {
 					return
 				}

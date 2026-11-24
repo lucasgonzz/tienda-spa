@@ -83,13 +83,15 @@ export default {
 		 */
 		total_a_pagar() {
 			if (this.pedido_a_consultar) {
-				return this.total + this.envio_precio_elegido
+				// Con el recargo de la tienda, igual que el Subtotal: las líneas visibles tienen que sumar el total.
+				return this.total_web + this.envio_precio_elegido
 			}
 			return this.total_with_deliver
 		},
 		/**
-		 * Con la tarjeta dentro de la página y más de 1 cuota, la línea de total dice «N cuotas de $X» (el valor que
-		 * calculó el servidor). Con 1 pago, o sin tarjeta, es vacío y se muestra el total de siempre.
+		 * Con la tarjeta dentro de la página, la línea de total sale de la opción elegida que calculó el servidor:
+		 * «N cuotas de $X» con cuotas, o el total de la opción con 1 pago. Sin tarjeta (u opciones todavía sin
+		 * cargar) es vacío y se muestra el total de siempre.
 		 *
 		 * @returns {string}
 		 */
@@ -100,8 +102,12 @@ export default {
 			}
 			let estado = this.$store.state.cart.tarjeta_mp
 			let elegidas = estado.opciones.filter(o => o.cuotas === estado.cuotas)
-			if (!elegidas.length || elegidas[0].cuotas <= 1) {
+			if (!elegidas.length) {
 				return ''
+			}
+			// 1 pago: el total de la opción del servidor (el mismo número del botón de pagar), no el del navegador.
+			if (elegidas[0].cuotas <= 1) {
+				return this.price(elegidas[0].total)
 			}
 			return elegidas[0].cuotas + ' cuotas de ' + this.price(elegidas[0].valor_cuota)
 		},

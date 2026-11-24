@@ -31,7 +31,7 @@ export default {
 	name: 'FormularioDeTarjeta',
 	props: {
 		// Public key de Mercado Pago del comercio (viene en la lista pública de métodos de pago).
-		public_key: { type: String, required: true },
+		public_key: { type: String, default: '' },
 		// Monto con el que se inicializa el Brick (sólo informativo: el cobro lo decide el servidor).
 		amount: { type: Number, required: true },
 		// Email del comprador, que el Brick usa como pagador.
@@ -64,12 +64,40 @@ export default {
 		 */
 		montar_brick() {
 			let self = this
-			if (typeof window === 'undefined' || !window.MercadoPago) {
+			// Sin public key (el comercio no tiene la cuenta conectada) o sin SDK no hay formulario posible.
+			if (!this.public_key || typeof window === 'undefined' || !window.MercadoPago) {
 				this.error = true
 				return
 			}
-			let mp = new window.MercadoPago(this.public_key, { locale: 'es-AR' })
-			mp.bricks().create('cardPayment', this.id_del_contenedor, {
+			let creacion
+			try {
+				creacion = this.crear_brick(new window.MercadoPago(this.public_key, { locale: 'es-AR' }))
+			} catch (e) {
+				// El SDK puede tirar al construirse (clave inválida) o al crear el Brick: se avisa, no se queda cargando.
+				this.error = true
+				return
+			}
+			creacion
+			.then(function(controlador) {
+				if (self.destruido) {
+					controlador.unmount()
+					return
+				}
+				registrar(controlador)
+			})
+			.catch(function() {
+				self.error = true
+			})
+		},
+		/**
+		 * Pide a Mercado Pago el Card Payment Brick.
+		 *
+		 * @param {object} mp Instancia de `new MercadoPago(...)`.
+		 * @returns {Promise<object>} Controlador del Brick.
+		 */
+		crear_brick(mp) {
+			let self = this
+			return mp.bricks().create('cardPayment', this.id_del_contenedor, {
 				initialization: {
 					amount: this.amount,
 					payer: { email: this.email },
@@ -84,20 +112,15 @@ export default {
 					onReady() {
 						self.listo = true
 					},
+					// El Brick lo lista como callback del formulario. Acá NO se cobra: el cobro lo hace el botón del
+					// checkout (BtnSave) con getFormData(), así que sólo se devuelve una promesa resuelta.
+					onSubmit() {
+						return Promise.resolve()
+					},
 					onError() {
 						self.error = true
 					},
 				},
-			})
-			.then(function(controlador) {
-				if (self.destruido) {
-					controlador.unmount()
-					return
-				}
-				registrar(controlador)
-			})
-			.catch(function() {
-				self.error = true
 			})
 		},
 	},

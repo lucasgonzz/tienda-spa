@@ -61,3 +61,60 @@ export function desmontar() {
 		// Si el SDK ya había sacado el formulario no hay nada más que limpiar.
 	}
 }
+
+// Último intento de pago cuyo resultado se desconoce (el servidor no contestó): {firma, datos}. Ver recordar_intento().
+let intento = null
+
+/**
+ * Recuerda los datos tokenizados del intento que se está enviando, junto con su `firma` (método + cuotas + monto).
+ *
+ * Existe por el doble cobro: si el servidor no contesta (503, corte de red) el pago pudo haberse aprobado igual. El
+ * servidor evita cobrar dos veces con una clave que sale del token, así que el reintento TIENE que mandar el mismo
+ * token en vez de pedirle uno nuevo al Brick.
+ *
+ * @param {string} firma Identifica el pago (método, cuotas y monto).
+ * @param {object} datos Lo que devolvió obtener_datos().
+ * @returns {void}
+ */
+export function recordar_intento(firma, datos) {
+	intento = { firma: firma, datos: datos, incierto: false }
+}
+
+/**
+ * Marca el intento actual como de resultado incierto (no hubo respuesta del servidor): el próximo igual lo reusa.
+ *
+ * @returns {void}
+ */
+export function marcar_intento_incierto() {
+	if (intento) {
+		intento.incierto = true
+	}
+}
+
+/**
+ * Devuelve los datos del intento anterior si quedó incierto y es el MISMO pago (misma firma); si no, null.
+ *
+ * @param {string} firma
+ * @returns {object|null}
+ */
+export function intento_para_reusar(firma) {
+	return intento && intento.incierto && intento.firma === firma ? intento.datos : null
+}
+
+/**
+ * Olvida el intento recordado (pago resuelto: aprobado o rechazado).
+ *
+ * @returns {void}
+ */
+export function olvidar_intento() {
+	intento = null
+}
+
+/**
+ * Si hay un intento recordado y quedó incierto.
+ *
+ * @returns {boolean}
+ */
+export function hay_intento_incierto() {
+	return !!(intento && intento.incierto)
+}
