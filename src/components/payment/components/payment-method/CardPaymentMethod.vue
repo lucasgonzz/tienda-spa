@@ -41,6 +41,12 @@
 					Tarjeta de crédito o débito, o dinero en tu cuenta de Mercado Pago
 				</p>
 
+				<p
+				v-else-if="es_tarjeta_mp"
+				class="checkout-option__description">
+					Tarjeta de crédito o débito, sin salir de esta página
+				</p>
+
 				<div
 				v-if="payment_method.discount || payment_method.surchage"
 				class="checkout-option__tags">
@@ -60,10 +66,16 @@
 
 		<cuotas-mercado-pago
 		v-if="es_mercado_pago && esta_elegido"></cuotas-mercado-pago>
+
+		<!-- Pago con tarjeta dentro de la página: sólo para el tipo «Tarjeta Mercado Pago» y ya elegido. -->
+		<tarjeta-mercado-pago
+		v-if="es_tarjeta_mp && esta_elegido"
+		:payment_method="payment_method"></tarjeta-mercado-pago>
 	</div>
 </template>
 <script>
 import cart from '@/mixins/cart'
+import TarjetaMercadoPago from '@/components/payment/components/payment-method/tarjeta-mercado-pago/Index'
 import CuotasMercadoPago from '@/components/payment/components/payment-method/CuotasMercadoPago'
 
 /**
@@ -89,6 +101,7 @@ export default {
 	mixins: [cart],
 	components: {
 		CuotasMercadoPago,
+		TarjetaMercadoPago,
 	},
 	computed: {
 		/**
@@ -104,6 +117,15 @@ export default {
 		 */
 		es_mercado_pago() {
 			return !!(this.payment_method.type && this.payment_method.type.name == 'MercadoPago')
+		},
+		/**
+		 * Si esta forma de pago cobra con tarjeta DENTRO de la página (tipo «Tarjeta Mercado Pago»,
+		 * lo define el ERP). Monta el selector de cuotas y el formulario seguro de Mercado Pago.
+		 *
+		 * @returns {boolean}
+		 */
+		es_tarjeta_mp() {
+			return !!(this.payment_method.type && this.payment_method.type.name === 'Tarjeta Mercado Pago')
 		},
 		/**
 		 * El chip de la marca solo si el nombre que le puso el comercio no lo dice ya. El nombre de
