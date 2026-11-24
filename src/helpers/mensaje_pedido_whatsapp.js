@@ -16,7 +16,17 @@ const TOPES = { numero: 30, nombre: 80, telefono: 40, direccion: 300, envio: 200
  * @returns {string}
  */
 function acotar(texto, tope) {
-	return texto.length > tope ? texto.slice(0, tope - 1).trimEnd() + '…' : texto
+	if (texto.length <= tope) {
+		return texto
+	}
+	let corte = texto.slice(0, tope - 1)
+	// Si el corte cayó en medio de un par sustituto (emoji), se descarta la mitad alta suelta:
+	// un sustituto solo hace que encodeURIComponent lance URIError y el pedido no se pueda enviar.
+	const ultimo = corte.charCodeAt(corte.length - 1)
+	if (ultimo >= 0xD800 && ultimo <= 0xDBFF) {
+		corte = corte.slice(0, -1)
+	}
+	return corte.trimEnd() + '…'
 }
 
 function limpio(valor) {
