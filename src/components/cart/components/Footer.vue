@@ -39,7 +39,7 @@
 			guarda nada en su data(), todo vive en el store, así que las dos copias muestran lo mismo.
 		-->
 		<cotizador-envio
-		v-if="commerce.envios_zipnova"
+		v-if="commerce.envios_correo"
 		usar_carrito></cotizador-envio>
 
 		<!-- Acción principal -->

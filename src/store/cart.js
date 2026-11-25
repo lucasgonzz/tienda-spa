@@ -2004,7 +2004,14 @@ export default {
 					items_firma: firma_de_lineas(articles.concat(articles_extra)),
 				})
 				if (!res.data.opciones || !res.data.opciones.length) {
-					commit('set_envio_error', 'Ningún correo llega a ese código postal. Probá con otro o elegí retiro por el local.')
+					// Misión envios-andreani: sin opciones porque el paquete es demasiado grande para
+					// ningún correo (el servidor lo marca con `sin_opciones_motivo: 'medidas'`, sólo
+					// cuando Andreani está conectado). Se dice con claridad en vez de culpar al código postal.
+					if (res.data.sin_opciones_motivo === 'medidas') {
+						commit('set_envio_error', 'Tu compra es muy grande para enviarla por correo. Elegí retiro en el local o consultá al negocio.')
+					} else {
+						commit('set_envio_error', 'Ningún correo llega a ese código postal. Probá con otro o elegí retiro por el local.')
+					}
 				}
 				return res.data
 			})

@@ -722,7 +722,7 @@ export default {
 					return errors
 				}
 			}
-			let hay_formas = this.delivery_zones.length > 0 || !!this.commerce.envios_zipnova
+			let hay_formas = this.delivery_zones.length > 0 || !!this.commerce.envios_correo
 			if (hay_formas && !this.cart_delivery_zone && !this.cart_envio_opcion) {
 				errors.push('¿Cómo te lo enviamos?')
 				return errors

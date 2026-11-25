@@ -618,7 +618,7 @@ export default {
 		 * @returns {string}
 		 */
 		hint_envio_gratis() {
-			let config = this.commerce ? this.commerce.envios_zipnova_config : null
+			let config = this.commerce ? this.commerce.envios_correo_config : null
 			if (!config || !config.envio_gratis_desde) {
 				return ''
 			}

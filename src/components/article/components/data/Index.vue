@@ -57,7 +57,7 @@
 			esta en el carrito (por eso la caja de compra dice "Actualizar carrito").
 		-->
 		<cotizador-envio
-		v-if="commerce.envios_zipnova"
+		v-if="commerce.envios_correo"
 		:articulos_extra="[{ id: article_to_show.id, type: article_to_show.is_combo ? 'combo' : (article_to_show.is_promocion_vinoteca ? 'promocion_vinoteca' : 'article'), amount: $store.state.articles.amount }]"></cotizador-envio>
 
 		<variants></variants>
