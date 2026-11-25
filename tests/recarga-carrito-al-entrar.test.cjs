@@ -64,3 +64,11 @@ test('estando en el carrito sigue recargando sin navegar', () => {
 	assert.deepEqual(registro.dispatch, ['cart/getLastCart'])
 	assert.deepEqual(registro.push, [])
 })
+
+// El clic dentro del cartel de faltante no debe subir a la tarjeta (que navega a la ficha).
+test('el raiz de CartStockNotice frena la propagacion del clic', () => {
+	const fuente = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'components', 'common', 'article-card', 'body', 'CartStockNotice.vue'), 'utf8')
+	const raiz = fuente.slice(fuente.indexOf('<div'), fuente.indexOf('>', fuente.indexOf('v-if="is_cart_view')) + 1)
+	assert.match(raiz, /class="cart-stock-notice"/)
+	assert.match(raiz, /@click\.stop/)
+})
