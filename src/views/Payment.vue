@@ -95,6 +95,29 @@ import DireccionDeEntrega from '@/components/payment/components/DireccionDeEntre
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 import { direcciones_activas } from '@/helpers/direcciones'
 import { carrito_a_consultar } from '@/helpers/consultas_de_stock'
+/**
+ * Alto que ocupa el nav fijo más un margen chico, para que el título del checkout no
+ * quede escondido debajo al hacer scroll. Si no hay nav (o no hay documento) devuelve 0
+ * y el scroll se comporta como antes. Es una función de módulo (no un método) para no
+ * depender de que el componente exponga `methods`.
+ *
+ * @returns {number} píxeles a descontar arriba del inicio del checkout
+ */
+function margen_superior_bajo_nav() {
+	// Margen de aire entre el nav y el título, en píxeles.
+	const aire = 10
+	if (typeof document === 'undefined') {
+		return 0
+	}
+	// Nav fijo de la tienda; su altura cambia según el ancho, por eso se mide acá.
+	const nav = document.querySelector('.cont-nav')
+	if (!nav) {
+		return 0
+	}
+	const alto_nav = nav.getBoundingClientRect().height
+	return alto_nav > 0 ? Math.round(alto_nav + aire) : 0
+}
+
 export default {
 	components: {
 		WhatsAppInfo: () => import('@/components/payment/components/WhatsAppInfo'),
@@ -127,6 +150,13 @@ export default {
 			const inicio = this.$refs.inicio_checkout
 			if (inicio) {
 				inicio.focus({ preventScroll: true })
+				/* El nav es position: fixed y tapa lo que queda al ras del borde superior:
+				   se mide su altura en este momento y se la descuenta con scroll-margin-top,
+				   así scrollIntoView deja el título visible en cualquier ancho. */
+				const margen = margen_superior_bajo_nav()
+				if (inicio.style) {
+					inicio.style.scrollMarginTop = margen ? margen + 'px' : ''
+				}
 				inicio.scrollIntoView({ behavior: 'auto', block: 'start' })
 			}
 		})
