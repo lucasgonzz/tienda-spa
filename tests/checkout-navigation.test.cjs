@@ -183,3 +183,34 @@ test('U4-05 abandonar o destruir checkout antes del tick no mueve otra pantalla'
   if (!destroyed) vm.$destroy()
  }
 })
+test('U4-06 el inicio del checkout descuenta la altura real del nav fijo y deja un margen', async () => {
+ // Casos: nav de distinta altura (celular / escritorio) y sin nav (se comporta como antes).
+ const casos = [
+  { alto_nav: 64, esperado: '74px' },
+  { alto_nav: 110, esperado: '120px' },
+  { alto_nav: null, esperado: '' },
+ ]
+ for (const caso of casos) {
+  const calls = []
+  global.document = {
+   querySelector(selector) {
+    assert.equal(selector, '.cont-nav')
+    return caso.alto_nav === null ? null : { getBoundingClientRect() { return { height: caso.alto_nav } } }
+   },
+  }
+  const vm = new Vue({ ...Payment, beforeCreate() { Object.defineProperty(this, '$route', { value: { name: 'Payment' } }) } }).$mount()
+  // El doble del encabezado expone style como el DOM real; el margen se mide en el momento.
+  vm.$refs.inicio_checkout = {
+   style: {},
+   focus(options) { calls.push(['focus', options]) },
+   scrollIntoView(options) { calls.push(['scroll', options, this.style.scrollMarginTop || '']) },
+  }
+  await Vue.nextTick()
+  assert.deepEqual(calls, [
+   ['focus', { preventScroll: true }],
+   ['scroll', { behavior: 'auto', block: 'start' }, caso.esperado],
+  ])
+  vm.$destroy()
+  delete global.document
+ }
+})
