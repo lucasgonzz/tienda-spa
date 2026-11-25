@@ -8,7 +8,7 @@
 		<div class="checkout-summary__items">
 			<last-article
 			class="m-b-10"
-			v-for="article in cart.articles"
+			v-for="article in lineas_resumen"
 			:key="'art-' + article.id + '-' + article.pivot.variant_id"
 			:show_added_info="false"
 			:article="article"></last-article>
@@ -62,6 +62,7 @@
 </template>
 <script>
 import BeforeConfirmNotice from '@/components/payment/components/BeforeConfirmNotice'
+import { lineas_para_resumen } from '@/helpers/ajuste_de_carrito'
 
 export default {
 	components: {
@@ -75,6 +76,14 @@ export default {
 	computed: {
 		cart() {
 			return this.$store.state.cart.cart
+		},
+		/**
+		 * Renglones del resumen: se sacan los que quedaron en 0 esperando stock.
+		 *
+		 * @returns {Array}
+		 */
+		lineas_resumen() {
+			return lineas_para_resumen(this.cart.articles)
 		},
 		/**
 		 * Los combos del carrito. El `|| []` es el guard del carrito que vino de una API que

@@ -24,6 +24,9 @@
 
 		<cart-info
 		:article="article"></cart-info>
+
+		<cart-stock-notice
+		:article="article"></cart-stock-notice>
 	</div>
 </template>
 <script>
@@ -41,6 +44,7 @@ export default {
 		Price: () => import('@/components/common/article-card/body/Price'),
 		BtnMasInfo: () => import('@/components/common/article-card/body/BtnMasInfo'),
 		CartInfo: () => import('@/components/common/article-card/body/CartInfo'),
+		CartStockNotice: () => import('@/components/common/article-card/body/CartStockNotice'),
 	},
 }
 </script>
