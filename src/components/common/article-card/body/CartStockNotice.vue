@@ -1,6 +1,8 @@
 <template>
+	<!-- @click.stop: ningun clic del cartel (casilla, label, texto) debe subir a la tarjeta, que navega a la ficha -->
 	<div
 	class="cart-stock-notice"
+	@click.stop
 	v-if="is_cart_view && (hay_faltante || hay_aviso_agotarse)">
 		<!-- Cartel del renglón recortado: lo que agregó originalmente y lo que hay ahora -->
 		<div
