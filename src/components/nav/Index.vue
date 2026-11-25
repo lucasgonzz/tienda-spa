@@ -3,6 +3,9 @@
 	v-if="show_nav"
 	:class="scroll_bottom ? 'navbar-small' : ''"
 	class="cont-nav">
+		<!-- Franja fina arriba del navbar con la leyenda de descuento por medio de pago (si el comercio la prendió). -->
+		<leyenda-descuento variante="sitio"></leyenda-descuento>
+
 		<b-navbar 
 		toggleable="lg" 
 		type="dark">
@@ -30,6 +33,8 @@
 	</div>
 </template>
 <script>
+import LeyendaDescuento from '@/components/common/LeyendaDescuento'
+
 export default {
 	data() {
 		return {
@@ -50,6 +55,7 @@ export default {
 		})
 	},
 	components: { 
+		LeyendaDescuento,
 		BrandBtn: () => import('@/components/nav/BrandBtn'),
 		RightButtons: () => import('@/components/nav/right-buttons/Index'),
 		InfoCompraSegura: () => import('@/components/nav/InfoCompraSegura'),

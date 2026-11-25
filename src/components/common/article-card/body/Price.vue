@@ -142,6 +142,9 @@
 					{{ texto_de_la_oferta }}
 				</p>
 
+				<!-- Leyenda del mayor descuento por medio de pago (si el comercio la prendió). -->
+				<leyenda-descuento variante="tarjeta"></leyenda-descuento>
+
 			</div>
 		</div>
 	</div>
@@ -156,7 +159,10 @@
 </div> 
 </template>
 <script>
+import LeyendaDescuento from '@/components/common/LeyendaDescuento'
+
 export default {
+	components: { LeyendaDescuento },
 	props: {
 		article: Object,
 	},

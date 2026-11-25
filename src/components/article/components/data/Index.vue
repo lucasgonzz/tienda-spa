@@ -33,6 +33,10 @@
 		<name-heart></name-heart>
 
 		<price></price>
+
+		<!-- Leyenda del mayor descuento por medio de pago (si el comercio la prendió). -->
+		<leyenda-descuento variante="ficha"></leyenda-descuento>
+
 		<vinoteca></vinoteca>
 
 		<payment-methods-info></payment-methods-info>
@@ -75,6 +79,7 @@
 import NameHeart from '@/components/article/components/data/NameHeart'
 import PaymentMethodsInfo from '@/components/article/components/data/PaymentMethodsInfo'
 import Price from '@/components/article/components/data/Price'
+import LeyendaDescuento from '@/components/common/LeyendaDescuento'
 import Condition from '@/components/article/components/data/Condition'
 // import Notes from '@/components/article/components/data/Notes'
 import Compartir from '@/components/article/components/data/Compartir'
@@ -85,6 +90,7 @@ import BtnLoader from '@/components/common/BtnLoader'
 export default {
 	name: 'ArticleData',
 	components: {
+		LeyendaDescuento,
 		NameHeart,
 		Vinoteca: () => import('@/components/article/components/data/Vinoteca'),
 		PaymentMethodsInfo,

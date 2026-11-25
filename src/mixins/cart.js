@@ -1,3 +1,4 @@
+import { marcar_intento_incierto, olvidar_intento } from '@/utils/brick_de_tarjeta'
 import { consumir_token_captcha } from '@/store/cart'
 import { capturar_checkout, captura_reset_checkout, checkout_vigente, cerrar_invitado_checkout } from '@/store/checkout_session'
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
@@ -271,17 +272,36 @@ export default {
 			})
 			return total
 		},
+		/**
+		 * Total del carrito con el recargo de precios de la tienda (`online_price_surchage`), o sea el «precio web»
+		 * que el comprador vio en la ficha y que cobra el servidor (OnlinePaymentHelper::getArticlePrice).
+		 *
+		 * `carts.total` NO lleva ese recargo (se suma recién al cobrar), y por eso el checkout mostraba 100.000 cuando
+		 * se cobraban 105.000. Va sin redondear, igual que el servidor. Sin recargo configurado es igual a `total`.
+		 * El carrito (/carrito) no usa este valor: se queda como estaba.
+		 *
+		 * @returns {number}
+		 */
+		total_web() {
+			let comercio = this.$store.state.commerce.commerce
+			let configuracion = comercio && comercio.online_configuration
+			let recargo = Number(configuracion && configuracion.online_price_surchage)
+			if (!isFinite(recargo) || !recargo) {
+				return this.total
+			}
+			return this.total * (1 + recargo / 100)
+		},
 		total_with_payment_method_discount() {
 			if (this.cart_payment_method && this.cart_payment_method.discount) {
-				return this.total - (this.total * this.cart_payment_method.discount / 100)
+				return this.total_web - (this.total_web * this.cart_payment_method.discount / 100)
 			}
-			return this.total
+			return this.total_web
 		},
 		total_with_payment_method_surchage() {
 			if (this.cart_payment_method && this.cart_payment_method.surchage) {
-				return this.total + (this.total * this.cart_payment_method.surchage / 100)
+				return this.total_web + (this.total_web * this.cart_payment_method.surchage / 100)
 			}
-			return this.total
+			return this.total_web
 		},
 		total_with_payment_method() {
 			if (this.cart_payment_method && this.cart_payment_method.discount) {
@@ -290,7 +310,7 @@ export default {
 			if (this.cart_payment_method && this.cart_payment_method.surchage) {
 				return this.total_with_payment_method_surchage
 			}
-			return this.total
+			return this.total_web
 		},
 		/**
 		 * Estado del envío por correo (Zipnova) en el store: código postal, opciones cotizadas,
@@ -954,7 +974,7 @@ export default {
 		 *                                  `false` (ver arriba).
 		 * @returns {Promise<boolean|null>}
 		 */
-		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false, aceptar_consulta_stock = false) {
+		makeOrder(from_mercadopago = false, mostrar_overlay = true, frenar_si_hay_descartes = false, aceptar_consulta_stock = false, cobro_con_tarjeta = null) {
 			if (pedidos_en_curso.has(this.$store.state.cart) || !this.canMakeOrder()) {
 				return Promise.resolve(null)
 			}
@@ -1022,7 +1042,10 @@ export default {
 					payment_id: self.cart.payment_id, payment_status: self.cart.payment_status,
 				}
 				const captcha_token = consumir_token_captcha(self.$store.state)
-				return self.$api.post('/orders', {
+				// Con tarjeta el POST cobra y crea el pedido en un solo paso (/mercado-pago/tarjeta/pagar): el
+				// cuerpo es el mismo de /orders más lo del cobro. Sin `cobro_con_tarjeta` es el de siempre.
+				return self.$api.post(cobro_con_tarjeta ? '/mercado-pago/tarjeta/pagar' : '/orders', {
+					...(cobro_con_tarjeta || {}),
 					...(captcha_token ? { captcha_token } : {}),
 					...datos_consulta,
 					commerce_id 	: env('VUE_APP_COMMERCE_ID'),
@@ -1055,6 +1078,11 @@ export default {
 				// Sólo se admite el resultado exacto del reset propio, calculado antes de sus subscribers.
 				continuacion = { sesion: captura_reset_checkout(self.$store.state) }
 				self.$store.commit('cart/reset_checkout', { completado: resumen })
+				// Si el servidor usó un pago aprobado anterior de este carrito (no cobró de nuevo), se avisa con lo que
+				// se cobró de verdad, que puede diferir de lo que había en el selector.
+				if (cobro_con_tarjeta && res.data && res.data.pago_previo === true) {
+					self.$toast.success(self.texto_de_pago_previo(res.data.order || res.data.model))
+				}
 				const vigente = () => checkout_vigente(self.$store.state, continuacion.sesion)
 				const trackear_pedido = function() {
 					if (!vigente()) return
@@ -1088,6 +1116,10 @@ export default {
 				if (pedido_creado) return true
 				// No registrar errores HTTP: pueden incluir el comprobante en config.data.
 				if (checkout_vigente(self.$store.state, sesion)) self.$store.commit('cart/renovar_captcha')
+				// Errores propios del cobro con tarjeta: se avisan acá y no se crea ningún pedido.
+				if (cobro_con_tarjeta && self.manejar_error_de_cobro_con_tarjeta(err)) {
+					return false
+				}
 				// El guardado descarto articulos no disponibles y se freno antes de crear el
 				// pedido: el aviso ya salio en cortar_si_el_guardado_descarto.
 				if (self.es_corte_por_articulos_no_disponibles(err)) {
@@ -1120,6 +1152,81 @@ export default {
 				return null
 			})
 			.finally(function() { pedidos_en_curso.delete(estado_pedido) })
+		},
+		/**
+		 * Texto del aviso cuando el pedido se registró con un pago aprobado anterior del carrito. Usa las cuotas y el
+		 * monto del PEDIDO (`cuotas_cobradas`, `total_cobrado`), no los del selector. Si el servidor no manda alguno,
+		 * esa parte se omite.
+		 *
+		 * @param {object|undefined} pedido Pedido que devolvió el servidor.
+		 * @returns {string}
+		 */
+		texto_de_pago_previo(pedido) {
+			let texto = 'Ya tenías un pago aprobado para este carrito: registramos tu pedido con ese pago.'
+			let cuotas = pedido && Number(pedido.cuotas_cobradas)
+			let monto = pedido && Number(pedido.total_cobrado)
+			let detalle = []
+			if (cuotas > 0) {
+				detalle.push(cuotas === 1 ? '1 pago' : cuotas + ' cuotas')
+			}
+			if (monto > 0) {
+				detalle.push('total ' + this.price(monto))
+			}
+			if (detalle.length) {
+				texto += ' Se cobró: ' + detalle.join(', ') + '.'
+			}
+			return texto
+		},
+		/**
+		 * Atiende los errores del cobro con tarjeta (POST /mercado-pago/tarjeta/pagar). Ninguno crea pedido.
+		 *
+		 * - `pago_rechazado`, `pago_no_confirmado`, `cuotas_con_interes`, `pago_sin_respuesta`, `pedido_no_creado`:
+		 *   son textos NUESTROS (los arma tienda-api para el comprador), por eso se muestran tal cual. El criterio de
+		 *   no mostrar mensajes de la API para el resto de los errores sigue igual.
+		 * - `monto_cambio` (409): el total cambió desde que se mostró; se refrescan las opciones y el comprador
+		 *   tiene que revisar antes de volver a pagar.
+		 * - 404: tienda-api vieja sin el endpoint.
+		 *
+		 * @param {object} err Error de axios.
+		 * @returns {boolean} true si lo atendió (ya avisó al comprador).
+		 */
+		manejar_error_de_cobro_con_tarjeta(err) {
+			const respuesta = err && err.response
+			const datos = (respuesta && respuesta.data) || {}
+			// Respuestas CIERTAS del servidor: el pago ya se resolvió (el pedido no se pudo crear y el pago se devolvió, o el
+			// token ya se usó). El token NO se reusa: el próximo Pagar le pide uno nuevo al Brick.
+			const codigos_ciertos = ['pedido_no_creado', 'token_usado', 'pago_previo_no_cubre']
+			if (codigos_ciertos.indexOf(datos.codigo) !== -1) {
+				olvidar_intento()
+			} else if (!respuesta || respuesta.status >= 500) {
+				// Sin respuesta (corte de red) o error del servidor sin código conocido: el pago pudo haberse aprobado
+				// igual. El reintento reusa el mismo token para que el servidor no cobre dos veces.
+				marcar_intento_incierto()
+			}
+			if (!respuesta) {
+				return false
+			}
+			// Textos NUESTROS (los arma tienda-api para el comprador): se muestran tal cual. `pago_previo_no_cubre` no
+			// tiene reintento automático: el comprador lee el mensaje y decide.
+			const codigos_con_mensaje = ['pago_rechazado', 'pago_no_confirmado', 'cuotas_con_interes', 'pago_sin_respuesta', 'pedido_no_creado', 'token_usado', 'pago_previo_no_cubre']
+			if (codigos_con_mensaje.indexOf(datos.codigo) !== -1 && datos.message) {
+				this.$toast.error(escapar_html(datos.message))
+				return true
+			}
+			if (respuesta.status === 409 && datos.codigo === 'monto_cambio') {
+				if (Array.isArray(datos.opciones)) {
+					this.$store.commit('cart/set_opciones_de_tarjeta', datos.opciones)
+				} else {
+					this.$store.dispatch('cart/cargar_montos_de_tarjeta')
+				}
+				this.$toast.warning('El total cambió, revisalo antes de pagar.')
+				return true
+			}
+			if (respuesta.status === 404) {
+				this.$toast.error('El pago con tarjeta no está disponible en este momento. Elegí otro medio de pago.')
+				return true
+			}
+			return false
 		},
 		verificar_modo_del_pedido(aceptar_consulta_stock) {
 			const confirmada_por_api = this.articles.some(tiene_marca_consulta_stock)

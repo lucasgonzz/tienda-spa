@@ -811,6 +811,16 @@ export function consumir_token_captcha(state) {
 	return comprobante && comprobante.contexto === contexto_captcha(state) ? comprobante.token : null
 }
 
+/**
+ * Estado inicial del cobro con tarjeta (ver `tarjeta_mp` en el estado). Función y no constante para que cada
+ * reinicio devuelva un objeto nuevo.
+ *
+ * @returns {object}
+ */
+function tarjeta_mp_inicial() {
+	return { opciones: [], cuotas: 1, cargando: false, no_disponible: false }
+}
+
 export default {
 	namespaced: true,
 	state: {
@@ -857,6 +867,15 @@ export default {
 		 * pedido nacería con otra.
 		 */
 		cuotas_bloqueadas: false,
+		/**
+		 * Cobro con tarjeta dentro de la tienda (método de tipo «Tarjeta Mercado Pago»).
+		 *  - opciones: lo que calculó el SERVIDOR para este carrito: [{cuotas, valor_cuota, total}]. La pantalla
+		 *    nunca calcula cuotas ni recargos de este método: sólo muestra y devuelve lo que recibió.
+		 *  - cuotas: la cantidad elegida (1 = un pago).
+		 *  - cargando: hay un pedido de montos en vuelo.
+		 *  - no_disponible: la API no tiene el endpoint (tienda-api vieja) o falló: no se puede pagar con tarjeta.
+		 */
+		tarjeta_mp: { opciones: [], cuotas: 1, cargando: false, no_disponible: false },
 		delivery_zone: null,
 		/*
 		 * Dirección de entrega elegida en el checkout (misión formas-envio-direcciones-maps,
@@ -906,6 +925,7 @@ export default {
 			state.payment_method = null
 			state.cuotas_elegidas = null
 			state.cuotas_bloqueadas = false
+			state.tarjeta_mp = tarjeta_mp_inicial()
 			state.delivery_zone = null
 			state.direccion_envio = null
 			state.direccion_sin_confirmar = false
@@ -989,6 +1009,8 @@ export default {
 			// Cambiar de forma de pago limpia lo que se había elegido de cuotas. Si la nueva ofrece
 			// cuotas queda "Contado" preseleccionado (lo que el comprador paga hoy); si no, null.
 			state.cuotas_elegidas = cuotas_ofrecidas(value).length ? 'contado' : null
+			// Los montos de la tarjeta son del carrito y del método: al cambiar de método se descartan.
+			state.tarjeta_mp = tarjeta_mp_inicial()
 		},
 		limpiar_pago_para_consulta(state) {
 			state.payment_method = null
@@ -1019,6 +1041,50 @@ export default {
 		 * @param {object} state
 		 * @param {boolean} value
 		 */
+		/**
+		 * Guarda las opciones de pago con tarjeta que calculó el servidor. Si la cantidad elegida ya no
+		 * existe entre las nuevas, vuelve a 1 pago.
+		 *
+		 * @param {object} state
+		 * @param {Array} opciones [{cuotas, valor_cuota, total}]
+		 */
+		set_opciones_de_tarjeta(state, opciones) {
+			state.tarjeta_mp.opciones = opciones || []
+			let sigue = state.tarjeta_mp.opciones.filter(o => o.cuotas === state.tarjeta_mp.cuotas).length
+			if (!sigue) {
+				state.tarjeta_mp.cuotas = 1
+			}
+		},
+		/**
+		 * Cantidad de cuotas elegida para pagar con tarjeta (1 = un pago). Congelada mientras se paga.
+		 *
+		 * @param {object} state
+		 * @param {number} cuotas
+		 */
+		set_cuotas_de_tarjeta(state, cuotas) {
+			if (state.cuotas_bloqueadas) {
+				return
+			}
+			state.tarjeta_mp.cuotas = cuotas
+		},
+		/**
+		 * Marca si hay un pedido de montos en vuelo.
+		 *
+		 * @param {object} state
+		 * @param {boolean} valor
+		 */
+		set_tarjeta_cargando(state, valor) {
+			state.tarjeta_mp.cargando = !!valor
+		},
+		/**
+		 * Marca que el pago con tarjeta no se puede usar (API vieja sin el endpoint, o el pedido de montos falló).
+		 *
+		 * @param {object} state
+		 * @param {boolean} valor
+		 */
+		set_tarjeta_no_disponible(state, valor) {
+			state.tarjeta_mp.no_disponible = !!valor
+		},
 		set_cuotas_bloqueadas(state, value) {
 			state.cuotas_bloqueadas = !!value
 		},
@@ -1603,6 +1669,36 @@ export default {
 		},
 	},
 	actions: {
+		/**
+		 * Pide al servidor las opciones de pago con tarjeta del carrito ya guardado: una por cantidad de cuotas, con
+		 * el valor de cada cuota y el total, calculados con el precio web, el envío y el recargo de cuotas del comercio.
+		 *
+		 * Resuelve siempre (nunca rechaza): ante un 404 (tienda-api vieja) o cualquier falla deja `no_disponible` en
+		 * true y las opciones vacías, así el checkout avisa y no deja pagar con tarjeta.
+		 *
+		 * @param {object} contexto Contexto de Vuex.
+		 * @returns {Promise<void>}
+		 */
+		cargar_montos_de_tarjeta({ state, commit }) {
+			let metodo = state.payment_method
+			if (!metodo || !state.cart.id) {
+				commit('set_tarjeta_no_disponible', true)
+				return Promise.resolve()
+			}
+			commit('set_tarjeta_cargando', true)
+			return axios.post('/api/mercado-pago/tarjeta/montos', { cart_id: state.cart.id, payment_method_id: metodo.id })
+			.then(res => {
+				commit('set_tarjeta_no_disponible', false)
+				commit('set_opciones_de_tarjeta', res.data.opciones)
+			})
+			.catch(() => {
+				commit('set_opciones_de_tarjeta', [])
+				commit('set_tarjeta_no_disponible', true)
+			})
+			.finally(() => {
+				commit('set_tarjeta_cargando', false)
+			})
+		},
 		quitarItem({ state, commit }, item) {
 			if (!state.cart.id) {
 				// El invitado todavía tiene un carrito local: quitar no debe crearlo en la API.
