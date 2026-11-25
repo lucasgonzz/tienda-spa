@@ -83,6 +83,8 @@
 	</div>
 </template>
 <script>
+import { texto_de_calle } from '@/helpers/sucursales'
+
 /**
  * Una tarjeta de opción de envío (correo + servicio), tal como la devuelve
  * `ZipnovaQuoteNormalizer` o, desde la misión envios-andreani, el normalizador de Andreani (misma
@@ -183,7 +185,7 @@ export default {
 			let options = [{ value: null, text: 'Elegí la sucursal' }]
 			;(this.opcion.puntos_de_retiro || []).forEach(punto => {
 				// Sin `null`/`undefined` pegados al texto: una sucursal de Andreani puede venir sin altura.
-				let direccion = [punto.street, punto.street_number].filter(parte => !!parte).join(' ')
+				let direccion = texto_de_calle(punto)
 				let texto = punto.description
 				if (direccion) {
 					texto += ' — ' + direccion

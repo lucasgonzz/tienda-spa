@@ -229,6 +229,7 @@
 import cart from '@/mixins/cart'
 import { PROVINCIAS } from '@/constants/provincias'
 import { linea_de_direccion } from '@/helpers/direcciones'
+import { texto_de_calle } from '@/helpers/sucursales'
 
 /**
  * Los campos del destino, para armar el par get/set contra el store sin repetir doce veces lo
@@ -348,7 +349,7 @@ export default {
 				return ''
 			}
 			let partes = []
-			let direccion = (this.sucursal.street + ' ' + this.sucursal.street_number).trim()
+			let direccion = texto_de_calle(this.sucursal)
 			if (direccion) {
 				partes.push(direccion)
 			}

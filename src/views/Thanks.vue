@@ -180,6 +180,7 @@
 import { mensaje_pedido_whatsapp } from '@/helpers/mensaje_pedido_whatsapp'
 import { env } from '@/runtime_config'
 import { tiene_marca_consulta_stock } from '@/helpers/consultas_de_stock'
+import { texto_de_calle } from '@/helpers/sucursales'
 /**
  * Pantalla post-compra: agradecimiento, resumen de ítems y enlace opcional al PDF del pedido.
  *
@@ -323,7 +324,7 @@ export default {
 			if (!sucursal) {
 				return ''
 			}
-			let direccion = (sucursal.street + ' ' + sucursal.street_number).trim()
+			let direccion = texto_de_calle(sucursal)
 			return sucursal.description + (direccion ? ' — ' + direccion : '') + (sucursal.city ? ', ' + sucursal.city : '')
 		},
 		/**
