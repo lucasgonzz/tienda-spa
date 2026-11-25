@@ -82,6 +82,12 @@ export default {
 			} else {
 				if (!this.checkCartPaymentStatus()) {
 					if (this.cant_cart_items > 0) {
+						// Al ENTRAR al carrito desde otra ruta se recarga tambien (sin esperar la
+						// respuesta ni bloquear la navegacion), para que el comprador vea el
+						// ajuste de stock hecho por el sistema mientras estaba fuera.
+						if (this.flag_activo(this.commerce.online_configuration.register_to_buy)) {
+							this.$store.dispatch('cart/getLastCart')
+						}
 						this.$router.push({name: 'Cart'})
 						this.$scrollToTop()
 					} else {

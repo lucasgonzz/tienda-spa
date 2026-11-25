@@ -1699,6 +1699,39 @@ export default {
 				commit('set_tarjeta_cargando', false)
 			})
 		},
+		/**
+		 * Cambia la casilla "Completar mi carrito cuando vuelva a haber stock" de un renglón.
+		 *
+		 * Hace `PATCH /api/carts/{id}/items` y aplica el carrito que devuelve el servidor. El estado
+		 * visible no cambia hasta que el servidor confirma. Se usa axios.request porque axios 0.20
+		 * pierde el cuerpo en los alias.
+		 *
+		 * Contra una tienda-api anterior (404/405) rechaza con `err.api_vieja = true` para que el
+		 * componente devuelva la casilla y avise; cualquier otro error se propaga tal cual.
+		 *
+		 * @param {object} contexto Contexto de Vuex.
+		 * @param {{item: object, valor: boolean}} datos Renglón y nuevo valor de la casilla.
+		 * @returns {Promise}
+		 */
+		cambiarCompletarAlReponer({ state, commit }, { item, valor }) {
+			let variante = item.pivot ? item.pivot.variant_id : item.variant_id
+			let datos = { tipo: 'articulo', id: item.id, variant_id: variante || null, completar_al_reponer: !!valor }
+			commit('setSaving', true)
+			return axios.request({ method: 'patch', url: '/api/carts/' + state.cart.id + '/items', data: datos })
+			.then(res => {
+				commit('setCart', res.data.cart)
+			})
+			.catch(err => {
+				let status = err.response && err.response.status
+				if (status === 404 || status === 405) {
+					err.api_vieja = true
+				}
+				throw err
+			})
+			.finally(() => {
+				commit('setSaving', false)
+			})
+		},
 		quitarItem({ state, commit }, item) {
 			if (!state.cart.id) {
 				// El invitado todavía tiene un carrito local: quitar no debe crearlo en la API.
