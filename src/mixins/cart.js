@@ -1,4 +1,4 @@
-import { marcar_intento_incierto } from '@/utils/brick_de_tarjeta'
+import { marcar_intento_incierto, olvidar_intento } from '@/utils/brick_de_tarjeta'
 import { consumir_token_captcha } from '@/store/cart'
 import { capturar_checkout, captura_reset_checkout, checkout_vigente, cerrar_invitado_checkout } from '@/store/checkout_session'
 import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
@@ -1078,6 +1078,11 @@ export default {
 				// Sólo se admite el resultado exacto del reset propio, calculado antes de sus subscribers.
 				continuacion = { sesion: captura_reset_checkout(self.$store.state) }
 				self.$store.commit('cart/reset_checkout', { completado: resumen })
+				// Si el servidor usó un pago aprobado anterior de este carrito (no cobró de nuevo), se avisa con lo que
+				// se cobró de verdad, que puede diferir de lo que había en el selector.
+				if (cobro_con_tarjeta && res.data && res.data.pago_previo === true) {
+					self.$toast.success(self.texto_de_pago_previo(res.data.order || res.data.model))
+				}
 				const vigente = () => checkout_vigente(self.$store.state, continuacion.sesion)
 				const trackear_pedido = function() {
 					if (!vigente()) return
@@ -1149,6 +1154,30 @@ export default {
 			.finally(function() { pedidos_en_curso.delete(estado_pedido) })
 		},
 		/**
+		 * Texto del aviso cuando el pedido se registró con un pago aprobado anterior del carrito. Usa las cuotas y el
+		 * monto del PEDIDO (`cuotas_cobradas`, `total_cobrado`), no los del selector. Si el servidor no manda alguno,
+		 * esa parte se omite.
+		 *
+		 * @param {object|undefined} pedido Pedido que devolvió el servidor.
+		 * @returns {string}
+		 */
+		texto_de_pago_previo(pedido) {
+			let texto = 'Ya tenías un pago aprobado para este carrito: registramos tu pedido con ese pago.'
+			let cuotas = pedido && Number(pedido.cuotas_cobradas)
+			let monto = pedido && Number(pedido.total_cobrado)
+			let detalle = []
+			if (cuotas > 0) {
+				detalle.push(cuotas === 1 ? '1 pago' : cuotas + ' cuotas')
+			}
+			if (monto > 0) {
+				detalle.push('total ' + this.price(monto))
+			}
+			if (detalle.length) {
+				texto += ' Se cobró: ' + detalle.join(', ') + '.'
+			}
+			return texto
+		},
+		/**
 		 * Atiende los errores del cobro con tarjeta (POST /mercado-pago/tarjeta/pagar). Ninguno crea pedido.
 		 *
 		 * - `pago_rechazado`, `pago_no_confirmado`, `cuotas_con_interes`, `pago_sin_respuesta`, `pedido_no_creado`:
@@ -1163,16 +1192,23 @@ export default {
 		 */
 		manejar_error_de_cobro_con_tarjeta(err) {
 			const respuesta = err && err.response
-			// Sin respuesta (corte de red) o error del servidor: el pago pudo haberse aprobado igual. El reintento
-			// reusa el mismo token para que el servidor no cobre dos veces.
-			if (!respuesta || respuesta.status >= 500) {
+			const datos = (respuesta && respuesta.data) || {}
+			// Respuestas CIERTAS del servidor: el pago ya se resolvió (el pedido no se pudo crear y el pago se devolvió, o el
+			// token ya se usó). El token NO se reusa: el próximo Pagar le pide uno nuevo al Brick.
+			const codigos_ciertos = ['pedido_no_creado', 'token_usado', 'pago_previo_no_cubre']
+			if (codigos_ciertos.indexOf(datos.codigo) !== -1) {
+				olvidar_intento()
+			} else if (!respuesta || respuesta.status >= 500) {
+				// Sin respuesta (corte de red) o error del servidor sin código conocido: el pago pudo haberse aprobado
+				// igual. El reintento reusa el mismo token para que el servidor no cobre dos veces.
 				marcar_intento_incierto()
 			}
 			if (!respuesta) {
 				return false
 			}
-			const datos = respuesta.data || {}
-			const codigos_con_mensaje = ['pago_rechazado', 'pago_no_confirmado', 'cuotas_con_interes', 'pago_sin_respuesta', 'pedido_no_creado']
+			// Textos NUESTROS (los arma tienda-api para el comprador): se muestran tal cual. `pago_previo_no_cubre` no
+			// tiene reintento automático: el comprador lee el mensaje y decide.
+			const codigos_con_mensaje = ['pago_rechazado', 'pago_no_confirmado', 'cuotas_con_interes', 'pago_sin_respuesta', 'pedido_no_creado', 'token_usado', 'pago_previo_no_cubre']
 			if (codigos_con_mensaje.indexOf(datos.codigo) !== -1 && datos.message) {
 				this.$toast.error(escapar_html(datos.message))
 				return true
