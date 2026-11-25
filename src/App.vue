@@ -1,6 +1,9 @@
 <template>
     <div id="app">
         <logo-loading></logo-loading>
+        <!-- Fuera del v-if="commerce": si tienda-api está actualizando, el comercio nunca cargó. -->
+        <tienda-actualizando
+        v-if="actualizando"></tienda-actualizando>
         <div
         v-if="commerce">
             <pausar-tienda-online
@@ -33,6 +36,7 @@
 </template>
 <script>
 import PausarTiendaOnline from '@/components/common/PausarTiendaOnline'
+import TiendaActualizando from '@/components/common/TiendaActualizando'
 import NavComponent from '@/components/nav/Index'
 import BtnWhatsApp from '@/components/common/BtnWhatsApp'
 import LogoLoading from '@/components/common/LogoLoading'
@@ -49,6 +53,7 @@ import { env } from '@/runtime_config'
 export default {
     components: {
         PausarTiendaOnline,
+        TiendaActualizando,
         NavComponent,
         BtnWhatsApp,
         // NotificationsPermissions,
@@ -122,6 +127,15 @@ export default {
         },
         route() {
             return this.$route.name
+        },
+        /**
+         * true mientras tienda-api responde la marca de "sistema actualizando" (503).
+         * Lo prende el interceptor de main.js o commerce/getCommerce.
+         *
+         * @returns {boolean}
+         */
+        actualizando() {
+            return this.$store.state.commerce.actualizando
         },
         /**
          * Indica si la ruta activa es una de autenticacion (login, registro o
