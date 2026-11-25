@@ -66,7 +66,9 @@ export function instalar_interceptor_actualizando(instancia, al_detectar) {
  *
  * Cada tick llama a `consultar()` (que devuelve una promesa de booleano: true = ya se liberó). Si una
  * consulta sigue en vuelo, el tick siguiente no lanza otra encima. Un rechazo (red caída, otro 503)
- * se ignora y se reintenta en el próximo tick. Al liberarse corta el intervalo y llama a `al_liberarse()`.
+ * se ignora y se reintenta en el próximo tick. Al liberarse corta el intervalo y llama a `al_liberarse()`
+ * una sola vez; eso vale aunque `detener()` se haya llamado con una consulta en vuelo (ver el comentario
+ * en el `.then`). `detener()` sí impide cualquier consulta nueva.
  *
  * @param {function} consultar Devuelve una promesa que resuelve true cuando ya no está actualizando.
  * @param {function} al_liberarse Se llama una sola vez cuando `consultar` resolvió true.
@@ -77,6 +79,8 @@ export function iniciar_reintento(consultar, al_liberarse, intervalo_ms) {
 	/* Identificador del intervalo y bandera de consulta en vuelo. */
 	let timer = null
 	let consultando = false
+	/* true una vez que se avisó la liberación: garantiza una única recarga. */
+	let avisado = false
 
 	/* Corta el intervalo si sigue vivo. */
 	function detener() {
@@ -94,7 +98,15 @@ export function iniciar_reintento(consultar, al_liberarse, intervalo_ms) {
 		consultar()
 		.then(liberado => {
 			consultando = false
-			if (liberado && timer !== null) {
+			/*
+			 * Si la consulta ya respondió "liberado", se avisa AUNQUE detener() se haya llamado mientras
+			 * volaba: la respuesta es real y no depende de que el llamador siga vivo. Caso que lo exige:
+			 * getCommerce apaga `actualizando` y el v-if de App.vue destruye la pantalla (cuyo
+			 * beforeDestroy llama a detener()) en el flush de Vue, ANTES de que esta cadena .then siga.
+			 * Con `timer !== null` como condición, la tienda nunca recargaba al liberarse.
+			 */
+			if (liberado && !avisado) {
+				avisado = true
 				detener()
 				al_liberarse()
 			}
