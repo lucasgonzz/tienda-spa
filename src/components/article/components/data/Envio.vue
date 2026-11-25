@@ -38,7 +38,7 @@ export default {
 		 * aca necesita un importe de envio por articulo, es el Cotizador el que lo tiene, no
 		 * este renglon.
 		 *
-		 * 🔴 Con `commerce.envios_zipnova` activo tampoco se repite "Hacemos envíos a
+		 * 🔴 Con `commerce.envios_correo` activo tampoco se repite "Hacemos envíos a
 		 * domicilio": el Cotizador ya lo dice con un numero real, y duplicarlo aca al lado
 		 * es sumar ruido sin sumar informacion.
 		 *
@@ -52,7 +52,7 @@ export default {
 				return []
 			}
 			let renglones = []
-			if (!this.commerce.envios_zipnova && this.flag_activo(this.commerce.online_configuration.has_delivery)) {
+			if (!this.commerce.envios_correo && this.flag_activo(this.commerce.online_configuration.has_delivery)) {
 				renglones.push({
 					texto: 'Hacemos envíos a domicilio',
 					icono: 'bi bi-truck',

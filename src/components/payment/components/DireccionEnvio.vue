@@ -289,7 +289,7 @@ export default {
 		 * @returns {boolean}
 		 */
 		mostrar() {
-			return Number(this.deliver) === 1 && !!this.commerce.envios_zipnova && !!this.cart_envio_opcion
+			return Number(this.deliver) === 1 && !!this.commerce.envios_correo && !!this.cart_envio_opcion
 		},
 		opcion() {
 			return this.cart_envio_opcion

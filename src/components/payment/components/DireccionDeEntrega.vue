@@ -15,7 +15,7 @@
 		v-model="direccion"
 		modo="checkout"
 		:guardar_en_la_cuenta="es_comprador_logueado"
-		:pide_codigo_postal="!!commerce.envios_zipnova"></direcciones>
+		:pide_codigo_postal="!!commerce.envios_correo"></direcciones>
 	</div>
 </template>
 <script>
@@ -74,7 +74,7 @@ export default {
 			},
 		},
 		hint() {
-			if (this.commerce.envios_zipnova) {
+			if (this.commerce.envios_correo) {
 				return 'Con tu dirección te mostramos los envíos que llegan, el costo y los días de entrega.'
 			}
 			return 'Elegí o cargá la dirección donde recibís el pedido.'

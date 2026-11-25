@@ -33,7 +33,7 @@
 				<div class="checkout-option__body">
 					<p class="checkout-option__name">
 						<span
-						v-if="commerce.envios_zipnova"
+						v-if="commerce.envios_correo"
 						class="formas-de-envio__prefijo">Envío del negocio:</span>
 						{{ delivery_zone.name }}
 					</p>
@@ -69,7 +69,7 @@
 			elegida en "¿A dónde te lo enviamos?": sin dirección todavía, en lugar del cotizador se
 			le dice que la elija primero.
 		-->
-		<template v-if="commerce.envios_zipnova">
+		<template v-if="commerce.envios_correo">
 			<p
 			v-if="direcciones_de_envio_activas && !cart_direccion_envio"
 			:class="{'formas-de-envio__cotizador--con-zonas': delivery_zones.length}"
@@ -120,22 +120,22 @@ export default {
 		 * @returns {boolean}
 		 */
 		mostrar() {
-			return Number(this.deliver) === 1 && (this.delivery_zones.length > 0 || !!this.commerce.envios_zipnova)
+			return Number(this.deliver) === 1 && (this.delivery_zones.length > 0 || !!this.commerce.envios_correo)
 		},
 		hint() {
 			if (this.direcciones_de_envio_activas) {
-				if (this.delivery_zones.length && this.commerce.envios_zipnova) {
+				if (this.delivery_zones.length && this.commerce.envios_correo) {
 					return 'Elegí el envío del negocio o uno de los correos que llegan a tu dirección.'
 				}
-				if (this.commerce.envios_zipnova) {
+				if (this.commerce.envios_correo) {
 					return 'Estos son los correos que llegan a tu dirección, con el costo y los días de entrega.'
 				}
 				return 'Elegí cómo te lo enviamos.'
 			}
-			if (this.delivery_zones.length && this.commerce.envios_zipnova) {
+			if (this.delivery_zones.length && this.commerce.envios_correo) {
 				return 'Elegí el envío del negocio o cotizá el envío por correo con tu código postal.'
 			}
-			if (this.commerce.envios_zipnova) {
+			if (this.commerce.envios_correo) {
 				return 'Escribí tu código postal para ver los correos que llegan, el costo y los días de entrega.'
 			}
 			return 'Elegí la zona donde recibís el pedido.'

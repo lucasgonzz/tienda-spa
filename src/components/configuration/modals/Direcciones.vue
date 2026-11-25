@@ -15,7 +15,7 @@
 		v-if="abierto"
 		modo="cuenta"
 		guardar_en_la_cuenta
-		:pide_codigo_postal="!!commerce.envios_zipnova"></direcciones>
+		:pide_codigo_postal="!!commerce.envios_correo"></direcciones>
 	</b-modal>
 </template>
 <script>
