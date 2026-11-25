@@ -85,7 +85,8 @@
 <script>
 /**
  * Una tarjeta de opción de envío (correo + servicio), tal como la devuelve
- * `ZipnovaQuoteNormalizer`. La usa `Cotizador.vue` en dos lugares con el mismo markup: la lista
+ * `ZipnovaQuoteNormalizer` o, desde la misión envios-andreani, el normalizador de Andreani (misma
+ * forma, sin logo ni plazo: se muestra el nombre y no se escribe "null" ni "0 días"). La usa `Cotizador.vue` en dos lugares con el mismo markup: la lista
  * elegible del checkout y la lista informativa del modal "Costos y tiempo de entrega" — separarla
  * evitó duplicar esta tarjeta dos veces adentro del mismo archivo.
  *
@@ -181,7 +182,8 @@ export default {
 		opciones_sucursal() {
 			let options = [{ value: null, text: 'Elegí la sucursal' }]
 			;(this.opcion.puntos_de_retiro || []).forEach(punto => {
-				let direccion = (punto.street + ' ' + punto.street_number).trim()
+				// Sin `null`/`undefined` pegados al texto: una sucursal de Andreani puede venir sin altura.
+				let direccion = [punto.street, punto.street_number].filter(parte => !!parte).join(' ')
 				let texto = punto.description
 				if (direccion) {
 					texto += ' — ' + direccion
