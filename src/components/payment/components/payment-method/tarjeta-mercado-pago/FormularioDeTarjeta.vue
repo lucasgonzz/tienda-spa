@@ -23,6 +23,11 @@
 <script>
 import { registrar, desmontar } from '@/utils/brick_de_tarjeta'
 
+// Tiempo máximo (ms) que se espera a que el Brick avise `onReady` desde que se pide crearlo. Con una public key
+// inválida o con Mercado Pago caído el SDK carga pero ni `onReady`, ni `onError`, ni la promesa de `create` avisan:
+// sin este plazo el checkout quedaría para siempre en «Cargando formulario seguro...».
+const TIEMPO_DE_ESPERA_DEL_BRICK = 15000
+
 /**
  * Monta el Card Payment Brick con la public key del comercio y registra su controlador en `brick_de_tarjeta`
  * (de ahí lo lee el botón de pagar). Lo desmonta al destruirse.
@@ -47,6 +52,8 @@ export default {
 			error: false,
 			// El componente ya se destruyó (el Brick puede llegar tarde y hay que desmontarlo).
 			destruido: false,
+			// Timer del plazo de espera de onReady (null si no hay uno corriendo).
+			temporizador: null,
 		}
 	},
 	mounted() {
@@ -54,6 +61,7 @@ export default {
 	},
 	beforeDestroy() {
 		this.destruido = true
+		this.cancelar_temporizador()
 		desmontar()
 	},
 	methods: {
@@ -69,11 +77,19 @@ export default {
 				this.error = true
 				return
 			}
+			// Si pasa el plazo sin onReady, se muestra el aviso y el comprador puede elegir otro medio de pago.
+			this.temporizador = setTimeout(function() {
+				self.temporizador = null
+				if (!self.listo && !self.destruido) {
+					self.error = true
+				}
+			}, TIEMPO_DE_ESPERA_DEL_BRICK)
 			let creacion
 			try {
 				creacion = this.crear_brick(new window.MercadoPago(this.public_key, { locale: 'es-AR' }))
 			} catch (e) {
 				// El SDK puede tirar al construirse (clave inválida) o al crear el Brick: se avisa, no se queda cargando.
+				this.cancelar_temporizador()
 				this.error = true
 				return
 			}
@@ -86,8 +102,20 @@ export default {
 				registrar(controlador)
 			})
 			.catch(function() {
+				self.cancelar_temporizador()
 				self.error = true
 			})
+		},
+		/**
+		 * Frena el timer del plazo de espera, si hay uno.
+		 *
+		 * @returns {void}
+		 */
+		cancelar_temporizador() {
+			if (this.temporizador !== null) {
+				clearTimeout(this.temporizador)
+				this.temporizador = null
+			}
 		},
 		/**
 		 * Pide a Mercado Pago el Card Payment Brick.
@@ -109,8 +137,11 @@ export default {
 					visual: { hidePaymentButton: true },
 				},
 				callbacks: {
+					// También si llega pasado el plazo: el formulario funciona y el aviso de error se retira.
 					onReady() {
+						self.cancelar_temporizador()
 						self.listo = true
+						self.error = false
 					},
 					// El Brick lo lista como callback del formulario. Acá NO se cobra: el cobro lo hace el botón del
 					// checkout (BtnSave) con getFormData(), así que sólo se devuelve una promesa resuelta.
@@ -118,6 +149,7 @@ export default {
 						return Promise.resolve()
 					},
 					onError() {
+						self.cancelar_temporizador()
 						self.error = true
 					},
 				},
