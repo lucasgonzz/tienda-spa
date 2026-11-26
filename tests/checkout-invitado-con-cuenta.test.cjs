@@ -52,8 +52,8 @@ const Addresses = load('store/buyer_addresses').default
 const cart_methods = load('mixins/cart').default.methods
 const Btn = load('components/payment/components/BtnSave.vue').default
 
-// Texto exacto que el comprador ve cuando la sesión cambió mientras confirmábamos (PLAN §2.B).
-const TOAST_SESION = 'Cambió la sesión mientras confirmábamos tu pedido. Revisá tus datos y confirmá de nuevo.'
+// Decisión del Coordinador: cuando la sesión cambia mientras se confirma NO hay toast (invariante QA3: la respuesta
+// de un checkout viejo no tiene efecto sobre el contexto nuevo); sólo baja `procesando`.
 // Lo que devuelve tienda-api para un comprador con credencial: recortado y SIN email.
 const MODELO_RECORTADO = { id: 5, address: 'Av. Siempre Viva 742', ciudad: 'Córdoba', barrio: 'Centro', seller_id: null, addresses: [] }
 const turno = () => new Promise(r => setImmediate(r))
@@ -144,7 +144,8 @@ test('B1 invitado con el email de una cuenta con contraseña: el POST buyer vuel
 	// Una sola continuación, con el checkout intacto en el momento de continuar.
 	assert.equal(f.continuaciones.length, 1, 'continuar_checkout se llama una vez')
 	assert.deepEqual(f.continuaciones[0], antes, 'generación, nombre, email, teléfono, deliver, dirección y cart.id iguales')
-	assert.equal(f.store.state.cart.checkout_generation, antes.generacion)
+	// Un pedido exitoso suma 1 a la generación (lo fija U2-01 de checkout-session); la foto de arriba prueba que no hubo reinicio.
+	assert.equal(f.store.state.cart.checkout_generation, antes.generacion + 1)
 	// Sale el pedido (POST orders) y se navega a Gracias: el primer clic alcanza.
 	assert.deepEqual(f.requests.map(r => r.url), ['buyer', '/orders'])
 	assert.equal(f.requests[1].body.buyer.id, 5)
@@ -164,7 +165,8 @@ test('B1 con deliver=1 el envío a domicilio y la dirección tampoco se pierden'
 	await pendiente
 	assert.equal(f.continuaciones.length, 1)
 	assert.deepEqual(f.continuaciones[0], antes)
-	assert.equal(f.store.state.cart.checkout_generation, antes.generacion)
+	// Un pedido exitoso suma 1 a la generación (lo fija U2-01 de checkout-session); la foto de arriba prueba que no hubo reinicio.
+	assert.equal(f.store.state.cart.checkout_generation, antes.generacion + 1)
 	assert.equal(f.vm.procesando, false)
 })
 
@@ -180,7 +182,7 @@ function interponer(f, tipo) {
 }
 
 for (const tipo of ['otro_id', 'mismo_id_otro_objeto']) {
-	test(`B2 setUser ajeno (${tipo}) durante la identificación: reinicia como hoy y ready() termina con procesando=false y el aviso`, async () => {
+	test(`B2 setUser ajeno (${tipo}) durante la identificación: reinicia como hoy y ready() termina con procesando=false y sin toast`, async () => {
 		const f = escenario()
 		const generacion = f.store.state.cart.checkout_generation
 		const pendiente = f.vm.ready(false)
@@ -189,7 +191,7 @@ for (const tipo of ['otro_id', 'mismo_id_otro_objeto']) {
 		f.ok()
 		await pendiente
 		assert.equal(f.vm.procesando, false)
-		assert.deepEqual(f.errors, [TOAST_SESION])
+		assert.deepEqual(f.errors, [], 'sin toast: invariante QA3')
 		assert.deepEqual(f.requests.map(r => r.url), ['buyer'], 'no se crea ningún pedido sobre la sesión ajena')
 		assert.deepEqual(f.routes, [])
 	})
@@ -210,7 +212,7 @@ test('B2 un setUser ajeno disparado SÍNCRONO por un subscriber justo después d
 	await pendiente
 	assert.equal(f.store.state.cart.checkout_generation, generacion + 1)
 	assert.equal(f.vm.procesando, false)
-	assert.deepEqual(f.errors, [TOAST_SESION])
+	assert.deepEqual(f.errors, [], 'sin toast: invariante QA3')
 	assert.deepEqual(f.requests.map(r => r.url), ['buyer'])
 })
 
@@ -223,7 +225,7 @@ test('B3 corte antes del POST (el componente ya no está vivo): procesando=false
 	assert.deepEqual(f.requests, [])
 })
 
-test('B3 corte en el .then antes del setUser: procesando=false y toast (o sin toast si el componente se destruyó)', async () => {
+test('B3 corte en el .then antes del setUser: procesando=false y sin toast (con el componente vivo o destruido)', async () => {
 	for (const destruido of [false, true]) {
 		const f = escenario()
 		const pendiente = f.vm.ready(false)
@@ -232,12 +234,12 @@ test('B3 corte en el .then antes del setUser: procesando=false y toast (o sin to
 		f.ok()
 		await pendiente
 		assert.equal(f.vm.procesando, false, 'destruido=' + destruido)
-		assert.deepEqual(f.errors, destruido ? [] : [TOAST_SESION], 'destruido=' + destruido)
+		assert.deepEqual(f.errors, [], 'sin toast (invariante QA3), destruido=' + destruido)
 		assert.deepEqual(f.requests.map(r => r.url), ['buyer'])
 	}
 })
 
-test('B3 corte en el .then después del setUser: procesando=false y toast (o sin toast si el componente se destruyó)', async () => {
+test('B3 corte en el .then después del setUser: procesando=false y sin toast (con el componente vivo o destruido)', async () => {
 	for (const destruido of [false, true]) {
 		const f = escenario()
 		let armado = true
@@ -252,12 +254,12 @@ test('B3 corte en el .then después del setUser: procesando=false y toast (o sin
 		f.ok()
 		await pendiente
 		assert.equal(f.vm.procesando, false, 'destruido=' + destruido)
-		assert.deepEqual(f.errors, destruido ? [] : [TOAST_SESION], 'destruido=' + destruido)
+		assert.deepEqual(f.errors, [], 'sin toast (invariante QA3), destruido=' + destruido)
 		assert.deepEqual(f.requests.map(r => r.url), ['buyer'])
 	}
 })
 
-test('B3 corte en el .catch (la sesión cambió y el POST falla): procesando=false y toast (o sin toast si se destruyó)', async () => {
+test('B3 corte en el .catch (la sesión cambió y el POST falla): procesando=false y sin toast (con el componente vivo o destruido)', async () => {
 	for (const destruido of [false, true]) {
 		const f = escenario()
 		const pendiente = f.vm.ready(false)
@@ -266,7 +268,7 @@ test('B3 corte en el .catch (la sesión cambió y el POST falla): procesando=fal
 		f.fail()
 		await pendiente
 		assert.equal(f.vm.procesando, false, 'destruido=' + destruido)
-		assert.deepEqual(f.errors, destruido ? [] : [TOAST_SESION], 'destruido=' + destruido)
+		assert.deepEqual(f.errors, [], 'sin toast (invariante QA3), destruido=' + destruido)
 	}
 })
 
