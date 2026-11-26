@@ -1,4 +1,5 @@
 import { env } from '@/runtime_config'
+import { segmento_de_ficha } from '@/helpers/segmento_ficha'
 /*
 |--------------------------------------------------------------------------
 | SEO (mision seo-tiendas, 23/9/2026)
@@ -136,12 +137,14 @@ export default {
 		 * @returns {string}
 		 */
 		href_articulo(article) {
-			if (!article || !article.slug) {
+			// Slug o ~id si no tiene slug; null sólo si no hay ni slug ni id
+			let segmento = segmento_de_ficha(article)
+			if (!segmento) {
 				return null
 			}
 			return this.$router.resolve({
 				name: 'Article',
-				params: { slug: article.slug, commerce_id: env('VUE_APP_COMMERCE_ID') },
+				params: { slug: segmento, commerce_id: env('VUE_APP_COMMERCE_ID') },
 			}).href
 		},
 		/**

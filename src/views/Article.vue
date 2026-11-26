@@ -84,6 +84,7 @@ import articles from '@/mixins/articles'
 import { abrir_vista_de_producto, cerrar_vista } from '@/utils/tracking'
 import { seo_servidor } from '@/utils/seo_servidor'
 import { env } from '@/runtime_config'
+import { segmento_de_ficha } from '@/helpers/segmento_ficha'
 
 /**
  * Vista detalle de artículo: layout envuelto para alinearlo con el resto de páginas retail de la tienda.
@@ -236,7 +237,7 @@ export default {
 		 * @returns {string}
 		 */
 		seo_canonica() {
-			return this.seo_origen() + '/articulos/' + this.seo_segmento(this.article.slug) + '/' + env('VUE_APP_COMMERCE_ID')
+			return this.seo_origen() + '/articulos/' + this.seo_segmento(segmento_de_ficha(this.article)) + '/' + env('VUE_APP_COMMERCE_ID')
 		},
 		/**
 		 * Todas las fotos del articulo (la primera es la de og:image). Si no tiene, la imagen por
