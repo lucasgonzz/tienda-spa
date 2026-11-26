@@ -216,18 +216,18 @@ export default {
 		},
 		/**
 		 * Corta `ready()` cuando la sesión del checkout cambió mientras se identificaba al comprador (otra
-		 * pestaña, logout, otro comprador). Antes esos cortes hacían `return` sin bajar `procesando` ni avisar
-		 * y el botón quedaba "Enviando tu pedido..." para siempre (cuelgue del 26/11/2026).
+		 * pestaña, logout, otro comprador). Antes esos cortes hacían `return` sin bajar `procesando` y el
+		 * botón quedaba "Enviando tu pedido..." para siempre (cuelgue del 26/11/2026).
 		 *
-		 * Baja `procesando` siempre; el aviso sólo si el componente sigue vivo.
+		 * Sólo baja `procesando` (estado del componente, no del store). NO muestra ningún aviso a propósito:
+		 * la respuesta de un checkout viejo no puede tener ningún efecto sobre el contexto nuevo (ni commits,
+		 * ni rutas, ni toasts; invariante fijado por los tests QA3 de checkout-session). El comprador ve el
+		 * checkout nuevo y el botón libre para confirmar de nuevo.
 		 *
 		 * @returns {void}
 		 */
 		cortar_por_sesion_cambiada() {
 			this.procesando = false
-			if (!this._isDestroyed && !this._isBeingDestroyed) {
-				this.$toast.error('Cambió la sesión mientras confirmábamos tu pedido. Revisá tus datos y confirmá de nuevo.')
-			}
 		},
 		ready(aceptar_consulta_stock, ir_a_tarjeta = false) {
 			// Todos los pagos validan la misma política antes de identificar o navegar.
