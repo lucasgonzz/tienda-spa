@@ -11,6 +11,8 @@ const babel = require('@babel/core')
 const Vue = require('vue')
 const Vuex = require('vuex')
 const axios = require('axios')
+// Se carga ANTES de definir global.window: vue-template-compiler lee navigator al importarse
+require('vue-template-compiler')
 
 Vue.use(Vuex)
 Vue.config.productionTip = false
