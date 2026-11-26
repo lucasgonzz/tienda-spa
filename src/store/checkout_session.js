@@ -1,6 +1,10 @@
 // Contexto efímero: sólo el observer del commit propio puede conservar el resumen.
 const cierres_propios = new WeakMap()
 
+// Identificación propia en curso del invitado: sólo vive durante el commit de `identificar_invitado_checkout`.
+// Guarda el id y el objeto exacto que devolvió POST /api/buyer (mismo molde que `cierres_propios`).
+const identificaciones_propias = new WeakMap()
+
 // La generación identifica un borrador, aunque el usuario siga autenticado.
 export function comprador_vacio() {
 	return { name: '', email: '', phone: '', ciudad: '', barrio: '', address: '' }
@@ -51,11 +55,20 @@ export function observar_checkout(store) {
 		const actual = store.state.auth && store.state.auth.user
 		const nuevo_comercio = store.state.commerce && store.state.commerce.commerce
 		const cambio_comercio = mutation.type === 'commerce/setCommerce'
+		// Identificación propia (misión truvari-carrito-entrega-pago): el comprador que devolvió el POST buyer de este
+		// mismo checkout. Se reconoce por la marca que deja `identificar_invitado_checkout` (mismo objeto y mismo id),
+		// porque con una cuenta con contraseña el POST devuelve el modelo recortado SIN email y la comparación por
+		// email de abajo falla: antes eso reiniciaba el checkout y dejaba el botón "procesando" para siempre.
+		const marca = identificaciones_propias.get(store)
+		const identificacion_propia = !!(marca && mutation.type === 'auth/setUser' && actual &&
+			mutation.payload === marca.payload && marca.id !== null && marca.id !== undefined &&
+			Number(actual.id) === Number(marca.id))
 		// POST buyer identifica al invitado sin abrir otro borrador.
 		const invitado_identificado = mutation.type === 'auth/setUser' && !usuario && actual &&
 			!store.state.auth.authenticated &&
-			String(actual.email || '').trim().toLowerCase() === String(store.state.cart.buyer.email || '').trim().toLowerCase() &&
-			!!actual.email
+			(identificacion_propia || (
+				String(actual.email || '').trim().toLowerCase() === String(store.state.cart.buyer.email || '').trim().toLowerCase() &&
+				!!actual.email))
 		const primera_carga = cambio_comercio && !comercio
 		identidad = nueva
 		usuario = actual
@@ -73,6 +86,26 @@ export function observar_checkout(store) {
 		if (checkout_vigente(store.state, esperada)) store.commit('buyer_addresses/limpiar')
 		identidad = identidad_checkout(store.state)
 	})
+}
+
+/**
+ * Guarda en el store al comprador que devolvió POST /api/buyer como invitado identificado, sin reiniciar el
+ * checkout aunque el modelo venga sin email (cuenta con contraseña o Google: `modeloParaElCheckout` lo recorta).
+ *
+ * La marca sólo vale para ESTE commit (mismo objeto y mismo id) y se borra en `finally`: cualquier otro
+ * `auth/setUser` (otra pestaña, logout, otro comprador, un subscriber) sigue reiniciando como siempre.
+ *
+ * @param {object} store store de Vuex
+ * @param {object} model comprador devuelto por POST /api/buyer (con `id`)
+ * @returns {void}
+ */
+export function identificar_invitado_checkout(store, model) {
+	identificaciones_propias.set(store, { id: model && model.id, payload: model })
+	try {
+		store.commit('auth/setUser', model)
+	} finally {
+		identificaciones_propias.delete(store)
+	}
 }
 
 // Predice únicamente el reset síncrono que observar_checkout hace por este logout.

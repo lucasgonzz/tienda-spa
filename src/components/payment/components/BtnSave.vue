@@ -55,7 +55,7 @@
 <script>
 import cart from '@/mixins/cart'
 import { obtener_datos, recordar_intento, intento_para_reusar, olvidar_intento, hay_intento_incierto } from '@/utils/brick_de_tarjeta'
-import { capturar_checkout, checkout_vigente, captura_identificacion_checkout } from '@/store/checkout_session'
+import { capturar_checkout, checkout_vigente, captura_identificacion_checkout, identificar_invitado_checkout } from '@/store/checkout_session'
 import CheckoutCaptcha from './CheckoutCaptcha.vue'
 import { linea_de_direccion, faltantes_de_direccion, etiqueta_de_campo, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
 
@@ -214,6 +214,21 @@ export default {
 			this.$router.push({name: 'Login'})
 			return true
 		},
+		/**
+		 * Corta `ready()` cuando la sesión del checkout cambió mientras se identificaba al comprador (otra
+		 * pestaña, logout, otro comprador). Antes esos cortes hacían `return` sin bajar `procesando` ni avisar
+		 * y el botón quedaba "Enviando tu pedido..." para siempre (cuelgue del 26/11/2026).
+		 *
+		 * Baja `procesando` siempre; el aviso sólo si el componente sigue vivo.
+		 *
+		 * @returns {void}
+		 */
+		cortar_por_sesion_cambiada() {
+			this.procesando = false
+			if (!this._isDestroyed && !this._isBeingDestroyed) {
+				this.$toast.error('Cambió la sesión mientras confirmábamos tu pedido. Revisá tus datos y confirmá de nuevo.')
+			}
+		},
 		ready(aceptar_consulta_stock, ir_a_tarjeta = false) {
 			// Todos los pagos validan la misma política antes de identificar o navegar.
 			if (this.procesando || !this.check()) return
@@ -247,11 +262,11 @@ export default {
 					return !self._isDestroyed && !self._isBeingDestroyed && checkout_vigente(self.$store.state, sesion)
 				}
 				this.procesando = true
-				if (!vigente()) return
+				if (!vigente()) return this.cortar_por_sesion_cambiada()
 
 				return this.$api.post('buyer', datos_buyer)
 				.then(function(res) {
-					if (!vigente()) return
+					if (!vigente()) return self.cortar_por_sesion_cambiada()
 					// El modelo que devuelve POST buyer viene con la direccion ya actualizada
 					// (el backend la persiste al reconocer el email, prompt 400). Aun asi, la
 					// direccion del pedido se manda explicita desde order_address (prompt 402):
@@ -262,12 +277,13 @@ export default {
 					if (!model || !model.id) throw new Error('comprador_incompleto')
 					// Sólo la transición propia prevista puede habilitar pedido o tarjeta.
 					sesion = captura_identificacion_checkout(self.$store.state, model)
-					self.$store.commit('auth/setUser', model)
-					if (!vigente()) return
+					// El comprador recortado (sin email) también es el de este checkout: no se reinicia.
+					identificar_invitado_checkout(self.$store, model)
+					if (!vigente()) return self.cortar_por_sesion_cambiada()
 					return self.continuar_checkout(aceptar_consulta_stock, ir_a_tarjeta)
 				})
 				.catch(function() {
-					if (!vigente()) return
+					if (!vigente()) return self.cortar_por_sesion_cambiada()
 					// El error HTTP puede contener datos sensibles; no se registra.
 					self.procesando = false
 					if (vigente()) self.$toast.error('Hubo un error al identificar el comprador')
