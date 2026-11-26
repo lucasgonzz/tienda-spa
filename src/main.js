@@ -42,6 +42,7 @@ import './registerServiceWorker'
 import router from './router'
 import { limpiar_head_del_servidor, soltar_ld_del_servidor } from '@/utils/seo_servidor'
 import store from './store'
+import { instalar_interceptor_actualizando } from '@/utils/tienda_actualizando'
 
 // Notifications
 import VueToast from 'vue-toast-notification'
@@ -65,20 +66,34 @@ import 'bootstrap-icons/font/bootstrap-icons.css'
 import '@trevoreyre/autocomplete-vue/dist/style.css'
 
 // Install Axios
+/*
+ * Aviso de "estamos actualizando la tienda" (mision aviso-actualizacion-sistema): las TRES instancias de
+ * axios (la global, $axios y $api) llevan un interceptor que, ante la marca de tienda-api (503 con
+ * error "sistema_actualizando"), prende commerce.actualizando en el store. El error se vuelve a
+ * rechazar igual, así cada llamador sigue con su .catch. App.vue dibuja la pantalla; ver
+ * src/utils/tienda_actualizando.js.
+ */
+const prender_actualizando = () => store.commit('commerce/set_actualizando', true)
+instalar_interceptor_actualizando(axios, prender_actualizando)
+
 Vue.use({
 	install (Vue) {
-		Vue.prototype.$axios = axios.create({
+		const instancia_axios = axios.create({
 			baseURL : env('VUE_APP_API_URL'),
 			withCredentials : true
 		})
+		instalar_interceptor_actualizando(instancia_axios, prender_actualizando)
+		Vue.prototype.$axios = instancia_axios
 	}
 })
 Vue.use({
 	install (Vue) {
-		Vue.prototype.$api = axios.create({
+		const instancia_api = axios.create({
 			baseURL : env('VUE_APP_API_URL')+'/api',
 			withCredentials : true
 		})
+		instalar_interceptor_actualizando(instancia_api, prender_actualizando)
+		Vue.prototype.$api = instancia_api
 	}
 })
 
