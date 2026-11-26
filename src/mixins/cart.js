@@ -5,6 +5,7 @@ import { trackear, TIPOS_EVENTO, enviar_cola } from '@/utils/tracking'
 import { firma_de_lineas, lineas_del_carrito, articulos_no_disponibles, avisar_articulos_no_disponibles, carrito_sin_lineas, escapar_html, cuotas_ofrecidas, metodo_de_la_lista, cuota_elegida_efectiva } from '@/store/cart'
 import { env } from '@/runtime_config'
 import { direcciones_activas, zona_a_convenir, linea_de_direccion, codigo_postal_para_cotizar, mismo_codigo_postal } from '@/helpers/direcciones'
+import { resolver_zona, carrito_tiene_combo } from '@/helpers/envio_zona_propia'
 import { carrito_a_consultar, tiene_marca_consulta_stock } from '@/helpers/consultas_de_stock'
 const pedidos_en_curso = new WeakSet()
 export default {
@@ -349,6 +350,23 @@ export default {
 			return Number(this.cart.deliver) === 1 && !!this.cart_envio_opcion
 		},
 		/**
+		 * Lo que cobra la forma de envío propia elegida, con la regla de envío gratis aplicada (misión
+		 * truvari-carrito-entrega-pago, 26/11/2026): `{precio, gratis, motivo, a_convenir}`.
+		 *
+		 * Es el espejo JS de `EnvioZonaPropiaHelper::resolver()` de tienda-api. El subtotal que se compara con el
+		 * mínimo es `total` (lo que valen las líneas, como `carts.total` en el servidor) y NO `total_web` ni el
+		 * total con el medio de pago: pagar en efectivo con descuento no le saca el envío gratis a quien ya llegó.
+		 * Contra una API vieja la zona no trae las claves nuevas y la regla da su `price`.
+		 *
+		 * @returns {object|null} null si no hay forma propia elegida
+		 */
+		envio_zona_resuelta() {
+			if (!this.cart_delivery_zone) {
+				return null
+			}
+			return resolver_zona(this.cart_delivery_zone, this.total, carrito_tiene_combo(this.cart))
+		},
+		/**
 		 * Lo que suma el envío al total en PANTALLA: la zona propia del negocio o la opción de
 		 * Zipnova (`precio`, que ya viene con la regla de envío gratis aplicada). Sin envío a
 		 * domicilio, cero. Es un cálculo de pantalla: lo que se cobra lo resuelve la API con
@@ -361,12 +379,9 @@ export default {
 				return 0
 			}
 			if (this.cart_delivery_zone) {
-				// Forma propia "a convenir" (19/10/2026): no suma nada al total, su `price` no se mira.
-				// Es lo mismo que hace la API en OrderTotalsHelper y en la preferencia de Mercado Pago.
-				if (this.zona_elegida_a_convenir) {
-					return 0
-				}
-				let precio = Number(this.cart_delivery_zone.price)
+				// El precio sale de la regla: "a convenir" no suma nada (19/10/2026; lo mismo hace la API en
+				// OrderTotalsHelper y en la preferencia de Mercado Pago) y el envío gratis suma 0 (26/11/2026).
+				let precio = Number(this.envio_zona_resuelta.precio)
 				return isFinite(precio) ? precio : 0
 			}
 			if (this.cart_envio_opcion) {
