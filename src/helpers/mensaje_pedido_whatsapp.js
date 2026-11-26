@@ -125,6 +125,10 @@ export function mensaje_pedido_whatsapp(pedido, formato) {
 		if (order.envio_opcion && limpio(formato.texto_envio)) {
 			entrega.push(acotar(limpio(formato.texto_envio), TOPES.envio))
 		}
+		// Forma de envío propia (26/11/2026): sólo si no hay correo; lo arma la vista con lo que se cobró.
+		if (!order.envio_opcion && limpio(formato.texto_envio_zona)) {
+			entrega.push(acotar(limpio(formato.texto_envio_zona), TOPES.envio))
+		}
 	} else if (order.deliver === false || order.deliver === 0 || order.deliver === '0') {
 		entrega.push('*Entrega:* Retiro por el local')
 	}
