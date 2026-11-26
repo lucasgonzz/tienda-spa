@@ -181,6 +181,7 @@ import { mensaje_pedido_whatsapp } from '@/helpers/mensaje_pedido_whatsapp'
 import { env } from '@/runtime_config'
 import { tiene_marca_consulta_stock } from '@/helpers/consultas_de_stock'
 import { texto_de_calle } from '@/helpers/sucursales'
+import { texto_envio_del_pedido } from '@/helpers/envio_zona_propia'
 /**
  * Pantalla post-compra: agradecimiento, resumen de ítems y enlace opcional al PDF del pedido.
  *
@@ -271,6 +272,10 @@ export default {
 					lines.push('Sucursal de retiro: ' + this.sucursal_de_retiro)
 				}
 			}
+			// Forma de envío propia (26/11/2026): lo que se cobró, con la foto del pedido; vacío con correo o retiro.
+			if (this.texto_envio_zona) {
+				lines.push(this.texto_envio_zona)
+			}
 			if (this.order.deliver && this.order.address) {
 				lines.push('Entrega: ' + this.order.address)
 			} else if (!this.order.deliver) {
@@ -283,6 +288,17 @@ export default {
 				lines.push('Observaciones: ' + this.order.description)
 			}
 			return lines
+		},
+		/**
+		 * "Envío: Envío Truvari · Gratis (compras desde $80.000)" para un pedido con forma de envío propia.
+		 * Usa lo que se cobró (la foto `envio_zona_precio` del pedido) y, sin ella, el precio vivo de la zona.
+		 * @returns {string} '' si el pedido no es de una forma propia a domicilio
+		 */
+		texto_envio_zona() {
+			let self = this
+			return texto_envio_del_pedido(this.order, function(importe) {
+				return self.price(importe, false)
+			})
 		},
 		/**
 		 * "Envío: Andreani · Envío a domicilio · llega aprox. el 18/09 · $ 6.473,50" para un pedido
@@ -443,6 +459,7 @@ export default {
 				precio: valor => this.price(valor),
 				fecha: valor => this.date(valor),
 				texto_envio: this.texto_envio_zipnova,
+				texto_envio_zona: this.texto_envio_zona,
 				a_consultar: this.pedido_a_consultar,
 			})
 

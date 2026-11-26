@@ -42,6 +42,17 @@
 					class="checkout-option__description">
 						{{ delivery_zone.description }}
 					</p>
+					<!-- Envío gratis (26/11/2026): por qué es gratis, o cuánto le falta al comprador para que lo sea. -->
+					<p
+					v-if="motivo_gratis_de(delivery_zone)"
+					class="checkout-option__description checkout-option__description--good">
+						{{ motivo_gratis_de(delivery_zone) }}
+					</p>
+					<p
+					v-else-if="hint_de_la_zona(delivery_zone)"
+					class="checkout-option__description">
+						{{ hint_de_la_zona(delivery_zone) }}
+					</p>
 				</div>
 
 				<!--
@@ -52,6 +63,12 @@
 				v-if="es_a_convenir(delivery_zone)"
 				class="checkout-option__price formas-de-envio__a-convenir">
 					A coordinar con el vendedor
+				</p>
+				<!-- Con la regla de envío gratis cumplida el precio es "Gratis" (nunca "$ 0"), en verde. -->
+				<p
+				v-else-if="resolucion_de(delivery_zone).gratis"
+				class="checkout-option__price checkout-option__price--good">
+					Gratis
 				</p>
 				<p
 				v-else
@@ -96,6 +113,7 @@
 import cart from '@/mixins/cart'
 import CotizadorEnvio from '@/components/common/envio/Cotizador'
 import { zona_a_convenir } from '@/helpers/direcciones'
+import { resolver_zona, carrito_tiene_combo, texto_motivo_gratis, hint_envio_gratis } from '@/helpers/envio_zona_propia'
 
 /**
  * Formas de envío del checkout, en UNA sola lista: las zonas propias del negocio (si las tiene)
@@ -107,6 +125,10 @@ import { zona_a_convenir } from '@/helpers/direcciones'
  * Formas propias "a convenir" (`delivery_zones.costo_a_convenir`, 19/10/2026): se muestran con
  * "A coordinar con el vendedor" en lugar del precio y no suman nada al total (`envio_precio_elegido`
  * del mixin). Ej.: "Acordar con el vendedor". Con una base sin la columna, todas cobran su precio.
+ *
+ * Envío gratis (26/11/2026): una forma propia puede ser gratis desde un monto o si el pedido tiene un combo
+ * (`envio_gratis_desde` / `envio_gratis_con_combo`). La opción muestra "Gratis" con el motivo, o cuánto
+ * falta para llegar al mínimo. Regla en `helpers/envio_zona_propia.js`.
  */
 export default {
 	name: 'FormasDeEnvio',
@@ -160,10 +182,47 @@ export default {
 		es_a_convenir(delivery_zone) {
 			return zona_a_convenir(delivery_zone)
 		},
+		/**
+		 * Lo que cobraría esta forma con el carrito actual (regla de envío gratis aplicada). Es la misma
+		 * cuenta que `envio_zona_resuelta` del mixin, pero para cualquier forma de la lista y no sólo la elegida.
+		 *
+		 * @param {object} delivery_zone
+		 * @returns {{precio: number, gratis: boolean, motivo: (string|null), a_convenir: boolean}}
+		 */
+		resolucion_de(delivery_zone) {
+			return resolver_zona(delivery_zone, this.total, carrito_tiene_combo(this.cart))
+		},
+		/**
+		 * "Por compras desde $80.000" / "Con combos" si la forma es gratis con el carrito actual; si no, ''.
+		 *
+		 * @param {object} delivery_zone
+		 * @returns {string}
+		 */
+		motivo_gratis_de(delivery_zone) {
+			let self = this
+			return texto_motivo_gratis(this.resolucion_de(delivery_zone).motivo, delivery_zone, function(importe) {
+				return self.price(importe, false)
+			})
+		},
+		/**
+		 * "Te faltan $12.000 para el envío gratis o sumá un combo" y similares; '' si no hay nada que decir.
+		 *
+		 * @param {object} delivery_zone
+		 * @returns {string}
+		 */
+		hint_de_la_zona(delivery_zone) {
+			let self = this
+			return hint_envio_gratis(delivery_zone, this.total, carrito_tiene_combo(this.cart), function(importe) {
+				return self.price(importe, false)
+			})
+		},
 	},
 }
 </script>
 <style lang="sass">
+.checkout-option__price.checkout-option__price--good
+	color: #1b7a3d
+
 .formas-de-envio__prefijo
 	font-weight: 500
 	color: rgba(0, 0, 0, .55)

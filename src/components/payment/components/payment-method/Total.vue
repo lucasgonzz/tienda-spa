@@ -25,10 +25,13 @@
 		-->
 		<p
 		v-if="cart.deliver && cart_delivery_zone"
-		class="checkout-summary__line">
+		class="checkout-summary__line"
+		:class="envio_zona_resuelta.gratis ? 'checkout-summary__line--good' : ''">
 			Envío ({{ cart_delivery_zone.name }})
 			<span v-if="zona_elegida_a_convenir">A coordinar</span>
-			<span v-else>+ {{ price(cart_delivery_zone.price) }}</span>
+			<!-- Envío gratis (26/11/2026): la regla ya aplicada en `envio_zona_resuelta` (mixin del carrito). -->
+			<span v-else-if="envio_zona_resuelta.gratis">Gratis</span>
+			<span v-else>+ {{ price(envio_zona_resuelta.precio) }}</span>
 		</p>
 
 		<!--
