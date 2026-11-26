@@ -1,4 +1,5 @@
 import articlesMixin from '@/mixins/articles'
+import { segmento_de_ficha } from '@/helpers/segmento_ficha'
 export default {
 	mixins: [articlesMixin],
 	computed: {
@@ -49,7 +50,10 @@ export default {
 			}
 		},
 		goToArticle(message) {
-			let slug = message.article.slug
+			let slug = segmento_de_ficha(message.article)
+			if (!slug) {
+				return
+			}
 			this.$router.push({name: 'Article', params: {slug: slug}})
 			this.$scrollToTop()
 		},

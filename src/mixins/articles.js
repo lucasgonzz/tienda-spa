@@ -1,5 +1,6 @@
 import { trackear, TIPOS_EVENTO } from '@/utils/tracking'
 import { env } from '@/runtime_config'
+import { segmento_de_ficha } from '@/helpers/segmento_ficha'
 import { consultas_de_stock_activas, es_articulo_publicado, linea_a_consultar, stock_es_cero, tiene_marca_consulta_stock, variante_de_linea, variante_visible } from '@/helpers/consultas_de_stock'
 export default {
 	computed: {
@@ -98,10 +99,22 @@ export default {
 			}
 			return this.hasStock(article, en_carrito ? variante_de_linea(article) : null) ? '' : 'Agotado'
 		},
+		/**
+		 * Abre la ficha de un artículo desde una tarjeta. El segmento de la URL es el slug o, si el
+		 * artículo no tiene, `~<id>` (segmento_de_ficha). Si no hay forma de armarlo (ni slug ni
+		 * id) no navega y deja un aviso en consola: antes empujaba slug null y la ficha quedaba
+		 * en "No pudimos cargar este producto".
+		 * @param {object} article
+		 */
 		toArticle(article) {
+			let segmento = segmento_de_ficha(article)
+			if (!segmento) {
+				console.warn('toArticle: el artículo no tiene slug ni id, no se puede abrir la ficha', article)
+				return
+			}
 			this.$store.commit('articles/setArticleToShow', article)
 			this.set_amount_add_to_cart()
-			let params = {slug: article.slug, commerce_id: env('VUE_APP_COMMERCE_ID')}
+			let params = {slug: segmento, commerce_id: env('VUE_APP_COMMERCE_ID')}
 			console.log('params:')
 			console.log(params)
 			this.$router.push({name: 'Article', params})

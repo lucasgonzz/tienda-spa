@@ -5,6 +5,7 @@ axios.defaults.withCredentials = true
 import preguntar from '@/store/articles/preguntar'
 import categories from '@/store/categories'
 import { env } from '@/runtime_config'
+import { segmento_de_ficha } from '@/helpers/segmento_ficha'
 
 /**
  * Si `article` es un Article de verdad y no una PromocionVinoteca.
@@ -249,7 +250,8 @@ export default {
 				// "cargado" a la ficha que todavía está pidiendo.
 				commit('setLoadingArticleToShow', false)
 				let en_pantalla = state.article_to_show
-				if (en_pantalla && en_pantalla.slug === params.slug) {
+				// Compara por segmento de ficha: un artículo sin slug se pide como `~<id>`
+				if (en_pantalla && segmento_de_ficha(en_pantalla) === params.slug) {
 					return
 				}
 				commit('setArticleToShow', null)

@@ -15,6 +15,7 @@
 </template>
 <script>
 import { env } from '@/runtime_config'
+import { segmento_de_ficha } from '@/helpers/segmento_ficha'
 export default {
 	name: 'Compartir',
 	props: {
@@ -34,9 +35,7 @@ export default {
 		 */
 		get_article_public_url() {
 			/* Slug del artículo o el de la ruta actual como respaldo. */
-			let slug = this.article && this.article.slug
-				? this.article.slug
-				: this.$route.params.slug
+			let slug = segmento_de_ficha(this.article) || this.$route.params.slug
 			/* Identificador del comercio en la URL de la tienda. */
 			let commerce_id = env('VUE_APP_COMMERCE_ID') || this.$route.params.commerce_id
 			let route_location = this.$router.resolve({

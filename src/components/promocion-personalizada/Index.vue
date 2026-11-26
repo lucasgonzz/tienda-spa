@@ -52,6 +52,7 @@ import Tarjeta from '@/components/promocion-personalizada/Tarjeta'
 import Navegacion from '@/components/promocion-personalizada/Navegacion'
 import { firma_de_ofertas, esta_descartado, marcar_descartado } from '@/utils/promocion_personalizada'
 import { env } from '@/runtime_config'
+import { segmento_de_ficha } from '@/helpers/segmento_ficha'
 
 /*
  * Rutas donde el mensaje NO se abre solo: el carrito, el checkout y las pantallas de
@@ -423,7 +424,7 @@ export default {
 			let navegacion = this.$router.push({
 				name: 'Article',
 				params: {
-					slug: article.slug,
+					slug: segmento_de_ficha(article),
 					commerce_id: env('VUE_APP_COMMERCE_ID'),
 				},
 			})
@@ -449,10 +450,11 @@ export default {
 		 * @returns {boolean}
 		 */
 		ya_estoy_en_la_ficha(article) {
-			if (this.$route.name != 'Article' || !article || !article.slug) {
+			let segmento = segmento_de_ficha(article)
+			if (this.$route.name != 'Article' || !segmento) {
 				return false
 			}
-			return String(this.$route.params.slug) == String(article.slug)
+			return String(this.$route.params.slug) == String(segmento)
 				&& String(this.$route.params.commerce_id) == String(env('VUE_APP_COMMERCE_ID'))
 		},
 		/**
