@@ -29,6 +29,8 @@ export default {
 		return {
 			/* Función que corta el reintento; se arma en created y se llama al destruir el componente. */
 			detener_reintento: null,
+			/* Valores de `overflow` que tenían <html> y <body> antes de bloquear el scroll. */
+			overflow_anterior: null,
 		}
 	},
 	computed: {
@@ -42,15 +44,50 @@ export default {
 		},
 	},
 	created() {
+		this.bloquear_scroll()
 		this.empezar_reintento()
 	},
 	beforeDestroy() {
+		this.restaurar_scroll()
 		if (this.detener_reintento) {
 			this.detener_reintento()
 			this.detener_reintento = null
 		}
 	},
 	methods: {
+		/**
+		 * Bloquea el scroll del documento mientras la pantalla está montada. Cuando la marca llega con
+		 * la tienda ya cargada, la pantalla (position: fixed) tapa todo pero el documento de atrás
+		 * conservaba su scroll: se veía la barra clásica sobre la pantalla, la rueda movía la página
+		 * y el centrado quedaba corrido por el ancho de la barra. Guarda el valor previo de `overflow`
+		 * para devolverlo al destruirse (si se recarga la página no hace falta).
+		 *
+		 * @returns {void}
+		 */
+		bloquear_scroll() {
+			/* Sin documento (entornos sin DOM, como los tests de node) no hay nada que bloquear. */
+			if (typeof document === 'undefined') {
+				return
+			}
+			this.overflow_anterior = {
+				html: document.documentElement.style.overflow,
+				body: document.body.style.overflow,
+			}
+			document.documentElement.style.overflow = 'hidden'
+			document.body.style.overflow = 'hidden'
+		},
+		/**
+		 * Devuelve a <html> y <body> el `overflow` que tenían antes de bloquear el scroll.
+		 *
+		 * @returns {void}
+		 */
+		restaurar_scroll() {
+			if (this.overflow_anterior) {
+				document.documentElement.style.overflow = this.overflow_anterior.html
+				document.body.style.overflow = this.overflow_anterior.body
+				this.overflow_anterior = null
+			}
+		},
 		/**
 		 * Vuelve a pedir el comercio cada 30 s. getCommerce apaga `actualizando` cuando el comercio
 		 * llega bien; en ese momento se recarga la página para arrancar de cero con el sistema ya
