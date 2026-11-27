@@ -389,6 +389,26 @@ function seo_e($valor)
 }
 
 /**
+ * Indica si la URL de la imagen es la del conversor de tienda-api que siempre entrega un JPEG de
+ * 1200x630: https y path que termina en /api/seo/imagen-compartir/<token>.jpg. La ruta vieja
+ * (?src=) NO cuenta: puede venir de una API sin actualizar y su salida no tiene esas medidas.
+ *
+ * @param string $imagen URL absoluta de la imagen.
+ * @return bool true si se pueden declarar og:image:type/width/height.
+ */
+function seo_imagen_es_del_conversor($imagen)
+{
+    $partes = parse_url((string) $imagen);
+    if (!is_array($partes) || !isset($partes['scheme']) || strtolower($partes['scheme']) !== 'https') {
+        return false;
+    }
+    if (!isset($partes['path'])) {
+        return false;
+    }
+    return preg_match('#/api/seo/imagen-compartir/[A-Za-z0-9_-]+\.jpg$#', $partes['path']) === 1;
+}
+
+/**
  * Arma las etiquetas del head a partir de la respuesta de la API. Todas llevan data-seo para que
  * src/main.js las saque antes de montar Vue (despues el head lo maneja vue-meta).
  */
@@ -401,6 +421,22 @@ function seo_armar_head($datos)
 
     $h = array();
     $h[] = '<title data-seo>' . seo_e($titulo) . '</title>';
+    // Las metas de la imagen van pegadas al titulo, al principio del head: algunos crawlers (WhatsApp
+    // en Android) leen solo los primeros KB del HTML y las metas de abajo no les llegaban.
+    if ($imagen !== null) {
+        $h[] = '<meta data-seo property="og:image" content="' . seo_e($imagen) . '">';
+        if (strpos($imagen, 'https://') === 0) {
+            $h[] = '<meta data-seo property="og:image:secure_url" content="' . seo_e($imagen) . '">';
+        }
+        // Tipo y medidas solo cuando la imagen es la que sirve el conversor de tienda-api (JPEG
+        // 1200x630 garantizado): para cualquier otra URL declararlas seria mentir.
+        if (seo_imagen_es_del_conversor($imagen)) {
+            $h[] = '<meta data-seo property="og:image:type" content="image/jpeg">';
+            $h[] = '<meta data-seo property="og:image:width" content="1200">';
+            $h[] = '<meta data-seo property="og:image:height" content="630">';
+        }
+        $h[] = '<meta data-seo property="og:image:alt" content="' . seo_e($titulo) . '">';
+    }
     $h[] = '<meta data-seo name="description" content="' . seo_e($descripcion) . '">';
     if ($canonica !== null) {
         $h[] = '<link data-seo rel="canonical" href="' . seo_e($canonica) . '">';
@@ -412,14 +448,12 @@ function seo_armar_head($datos)
     if ($canonica !== null) {
         $h[] = '<meta data-seo property="og:url" content="' . seo_e($canonica) . '">';
     }
-    if ($imagen !== null) {
-        $h[] = '<meta data-seo property="og:image" content="' . seo_e($imagen) . '">';
-    }
     $h[] = '<meta data-seo name="twitter:card" content="' . ($imagen !== null ? 'summary_large_image' : 'summary') . '">';
     $h[] = '<meta data-seo name="twitter:title" content="' . seo_e($titulo) . '">';
     $h[] = '<meta data-seo name="twitter:description" content="' . seo_e($descripcion) . '">';
     if ($imagen !== null) {
         $h[] = '<meta data-seo name="twitter:image" content="' . seo_e($imagen) . '">';
+        $h[] = '<meta data-seo name="twitter:image:alt" content="' . seo_e($titulo) . '">';
     }
     foreach ($datos['json_ld'] as $bloque) {
         if (!is_array($bloque)) {
@@ -684,14 +718,18 @@ function seo_principal()
     exit;
 }
 
-ob_start();
-try {
-    $resultado = seo_principal();
-    if ($resultado === false) {
-        // Solo con el servidor embebido: que sirva el archivo estatico pedido.
-        ob_end_clean();
-        return false;
+// Los tests (tests/seo-php/armar-html.php) definen SEO_SIN_EJECUTAR para cargar las funciones sin
+// ejecutar el flujo principal. En produccion la constante nunca existe.
+if (!defined('SEO_SIN_EJECUTAR')) {
+    ob_start();
+    try {
+        $resultado = seo_principal();
+        if ($resultado === false) {
+            // Solo con el servidor embebido: que sirva el archivo estatico pedido.
+            ob_end_clean();
+            return false;
+        }
+    } catch (Throwable $e) {
+        seo_fallback();
     }
-} catch (Throwable $e) {
-    seo_fallback();
 }
